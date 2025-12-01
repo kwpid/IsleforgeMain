@@ -68,6 +68,14 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - UP (Universal Points for future prestige)
 - Tab-specific stats below divider
 
+### Bank System (Hub Tab)
+- **Account**: Deposit/withdraw coins securely
+- **Vault**: Store valuable items (separate from inventory)
+- **Transaction History**: Track all deposits and withdrawals
+- **Stats**: View net worth, peak balance, and wealth distribution
+- Upgradeable bank capacity (10K → 50K → 200K → 1M → 5M → 25M)
+- Upgradeable vault slots (9 → 18 → 27 → 36 → 54)
+
 ### Keyboard Shortcuts
 - TAB: Open/close inventory
 - 1/2/3: Switch main tabs

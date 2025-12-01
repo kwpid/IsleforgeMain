@@ -14,6 +14,9 @@ import {
   createDefaultGameState,
   getXpForLevel,
   STORAGE_UPGRADES,
+  BANK_UPGRADES,
+  VAULT_UPGRADES,
+  BankTransaction,
 } from './gameTypes';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
@@ -61,6 +64,16 @@ interface GameStore extends GameState {
   addOwnedBlueprint: (blueprintId: string) => void;
   addBuiltGenerator: (generatorId: string) => void;
   
+  depositToBank: (amount: number) => boolean;
+  withdrawFromBank: (amount: number) => boolean;
+  upgradeBank: () => boolean;
+  
+  addItemToVault: (itemId: string, quantity: number) => boolean;
+  removeItemFromVault: (itemId: string, quantity: number) => boolean;
+  upgradeVault: () => boolean;
+  
+  calculateNetWorth: () => number;
+  
   addFloatingNumber: (x: number, y: number, value: string, color: string) => void;
   removeFloatingNumber: (id: string) => void;
   
@@ -95,7 +108,7 @@ export const useGameStore = create<GameStore>()(
       navigateSubTab: (direction) => {
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage'];
-        const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'dungeons'];
+        const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'dungeons'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls'];
         
         if (state.mainTab === 'island') {
@@ -505,6 +518,180 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
+      depositToBank: (amount) => {
+        const state = get();
+        if (state.player.coins < amount) return false;
+        if (state.bank.balance + amount > state.bank.capacity) return false;
+        
+        const newBalance = state.bank.balance + amount;
+        const transaction: BankTransaction = {
+          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'deposit',
+          amount,
+          timestamp: Date.now(),
+          balance: newBalance,
+        };
+        
+        get().spendCoins(amount);
+        set({
+          bank: {
+            ...state.bank,
+            balance: newBalance,
+            peakBalance: Math.max(state.bank.peakBalance, newBalance),
+            transactions: [transaction, ...state.bank.transactions].slice(0, 50),
+          },
+        });
+        return true;
+      },
+
+      withdrawFromBank: (amount) => {
+        const state = get();
+        if (state.bank.balance < amount) return false;
+        
+        const newBalance = state.bank.balance - amount;
+        const transaction: BankTransaction = {
+          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'withdraw',
+          amount,
+          timestamp: Date.now(),
+          balance: newBalance,
+        };
+        
+        get().addCoins(amount);
+        set({
+          bank: {
+            ...state.bank,
+            balance: newBalance,
+            transactions: [transaction, ...state.bank.transactions].slice(0, 50),
+          },
+        });
+        return true;
+      },
+
+      upgradeBank: () => {
+        const state = get();
+        const nextLevel = state.bank.upgradeLevel + 1;
+        const upgrade = BANK_UPGRADES.find(u => u.level === nextLevel);
+        
+        if (!upgrade) return false;
+        if (state.player.coins < upgrade.cost) return false;
+
+        get().spendCoins(upgrade.cost);
+        set({
+          bank: {
+            ...state.bank,
+            capacity: upgrade.capacity,
+            upgradeLevel: nextLevel,
+          },
+        });
+        return true;
+      },
+
+      addItemToVault: (itemId, quantity) => {
+        const state = get();
+        const inventoryItem = state.inventory.items.find(i => i.itemId === itemId);
+        if (!inventoryItem || inventoryItem.quantity < quantity) return false;
+        
+        const existingVaultItem = state.vault.slots.find(s => s.itemId === itemId);
+        
+        if (existingVaultItem) {
+          get().removeItemFromInventory(itemId, quantity);
+          set({
+            vault: {
+              ...state.vault,
+              slots: state.vault.slots.map(slot =>
+                slot.itemId === itemId
+                  ? { ...slot, quantity: slot.quantity + quantity }
+                  : slot
+              ),
+            },
+          });
+          return true;
+        } else {
+          if (state.vault.slots.length >= state.vault.maxSlots) return false;
+          
+          get().removeItemFromInventory(itemId, quantity);
+          set({
+            vault: {
+              ...state.vault,
+              slots: [...state.vault.slots, { itemId, quantity }],
+            },
+          });
+          return true;
+        }
+      },
+
+      removeItemFromVault: (itemId, quantity) => {
+        const state = get();
+        const vaultItem = state.vault.slots.find(s => s.itemId === itemId);
+        if (!vaultItem || vaultItem.quantity < quantity) return false;
+        
+        const success = get().addItemToInventory(itemId, quantity);
+        if (!success) return false;
+        
+        if (vaultItem.quantity === quantity) {
+          set({
+            vault: {
+              ...state.vault,
+              slots: state.vault.slots.filter(s => s.itemId !== itemId),
+            },
+          });
+        } else {
+          set({
+            vault: {
+              ...state.vault,
+              slots: state.vault.slots.map(slot =>
+                slot.itemId === itemId
+                  ? { ...slot, quantity: slot.quantity - quantity }
+                  : slot
+              ),
+            },
+          });
+        }
+        return true;
+      },
+
+      upgradeVault: () => {
+        const state = get();
+        const nextLevel = state.vault.upgradeLevel + 1;
+        const upgrade = VAULT_UPGRADES.find(u => u.level === nextLevel);
+        
+        if (!upgrade) return false;
+        if (state.player.coins < upgrade.cost) return false;
+
+        get().spendCoins(upgrade.cost);
+        set({
+          vault: {
+            ...state.vault,
+            maxSlots: upgrade.slots,
+            upgradeLevel: nextLevel,
+          },
+        });
+        return true;
+      },
+
+      calculateNetWorth: () => {
+        const state = get();
+        let total = state.player.coins + state.bank.balance;
+        
+        for (const inv of state.storage.items) {
+          const item = getItemById(inv.itemId);
+          if (item) total += item.sellPrice * inv.quantity;
+        }
+        
+        for (const inv of state.inventory.items) {
+          const item = getItemById(inv.itemId);
+          if (item) total += item.sellPrice * inv.quantity;
+        }
+        
+        for (const slot of state.vault.slots) {
+          const item = getItemById(slot.itemId);
+          if (item) total += item.sellPrice * slot.quantity;
+        }
+        
+        return total;
+      },
+
       addFloatingNumber: (x, y, value, color) => {
         const id = `float-${Date.now()}-${Math.random()}`;
         set((state) => ({
@@ -545,6 +732,9 @@ export const useGameStore = create<GameStore>()(
         unlockedGenerators: state.unlockedGenerators,
         ownedBlueprints: state.ownedBlueprints,
         builtGenerators: state.builtGenerators,
+        bank: state.bank,
+        vault: state.vault,
+        currentBuilding: state.currentBuilding,
         lastSave: state.lastSave,
         playTime: state.playTime,
         keybinds: state.keybinds,

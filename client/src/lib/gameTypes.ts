@@ -122,6 +122,41 @@ export interface Blueprint {
   unlocked: boolean;
 }
 
+export interface BankTransaction {
+  id: string;
+  type: 'deposit' | 'withdraw' | 'interest';
+  amount: number;
+  timestamp: number;
+  balance: number;
+}
+
+export interface PlayerBank {
+  balance: number;
+  capacity: number;
+  upgradeLevel: number;
+  peakBalance: number;
+  transactions: BankTransaction[];
+}
+
+export interface VaultSlot {
+  itemId: string;
+  quantity: number;
+}
+
+export interface PlayerVault {
+  slots: VaultSlot[];
+  maxSlots: number;
+  upgradeLevel: number;
+}
+
+export interface BuildingProject {
+  blueprintId: string;
+  startedAt: number;
+  completedAt: number;
+  materialsDeposited: { itemId: string; quantity: number }[];
+  isComplete: boolean;
+}
+
 export interface GameState {
   player: PlayerStats;
   storage: PlayerStorage;
@@ -131,13 +166,16 @@ export interface GameState {
   unlockedGenerators: string[];
   ownedBlueprints: string[];
   builtGenerators: string[];
+  bank: PlayerBank;
+  vault: PlayerVault;
+  currentBuilding: BuildingProject | null;
   lastSave: number;
   playTime: number;
 }
 
 export type MainTab = 'island' | 'hub' | 'settings';
 export type IslandSubTab = 'generators' | 'storage';
-export type HubSubTab = 'marketplace' | 'blueprints' | 'dungeons';
+export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'dungeons';
 export type SettingsSubTab = 'general' | 'audio' | 'controls';
 
 export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
@@ -208,6 +246,35 @@ export const STORAGE_UPGRADES: StorageUpgrade[] = [
   { level: 5, capacity: 3200, cost: 500000 },
 ];
 
+export interface BankUpgrade {
+  level: number;
+  capacity: number;
+  cost: number;
+}
+
+export const BANK_UPGRADES: BankUpgrade[] = [
+  { level: 0, capacity: 10000, cost: 0 },
+  { level: 1, capacity: 50000, cost: 5000 },
+  { level: 2, capacity: 200000, cost: 25000 },
+  { level: 3, capacity: 1000000, cost: 100000 },
+  { level: 4, capacity: 5000000, cost: 500000 },
+  { level: 5, capacity: 25000000, cost: 2500000 },
+];
+
+export interface VaultUpgrade {
+  level: number;
+  slots: number;
+  cost: number;
+}
+
+export const VAULT_UPGRADES: VaultUpgrade[] = [
+  { level: 0, slots: 9, cost: 0 },
+  { level: 1, slots: 18, cost: 10000 },
+  { level: 2, slots: 27, cost: 50000 },
+  { level: 3, slots: 36, cost: 250000 },
+  { level: 4, slots: 54, cost: 1000000 },
+];
+
 export function getXpForLevel(level: number): number {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 }
@@ -269,6 +336,19 @@ export function createDefaultGameState(): GameState {
     unlockedGenerators: ['cobblestone_generator'],
     ownedBlueprints: [],
     builtGenerators: ['cobblestone_generator'],
+    bank: {
+      balance: 0,
+      capacity: 10000,
+      upgradeLevel: 0,
+      peakBalance: 0,
+      transactions: [],
+    },
+    vault: {
+      slots: [],
+      maxSlots: 9,
+      upgradeLevel: 0,
+    },
+    currentBuilding: null,
     lastSave: Date.now(),
     playTime: 0,
   };

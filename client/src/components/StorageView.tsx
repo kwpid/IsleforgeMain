@@ -34,9 +34,8 @@ import { Package, Backpack } from 'lucide-react';
 type SortOption = 'name' | 'quantity' | 'rarity' | 'value';
 type DragSource = 'storage' | 'inventory';
 
-const SLOT_SIZE = 'w-10 h-10';
 const GRID_GAP = 'gap-2';
-const GRID_COLS = 'grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12';
+const GRID_COLS = 'grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10';
 
 export function StorageView() {
   const storage = useGameStore((s) => s.storage);

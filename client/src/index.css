@@ -340,12 +340,17 @@
   }
 
   .item-slot-compact {
-    @apply relative w-8 h-8 border-2 border-dashed border-border bg-muted/30 
+    @apply relative w-10 h-10 border-2 border-dashed border-border bg-muted/30 
            flex items-center justify-center transition-all duration-200;
   }
 
   .item-slot-uniform {
-    @apply relative w-10 h-10 border-2 border-dashed border-border bg-muted/30 
+    @apply relative w-12 h-12 border-2 border-dashed border-border bg-muted/30 
+           flex items-center justify-center transition-all duration-200;
+  }
+
+  .item-slot-lg {
+    @apply relative w-14 h-14 border-2 border-dashed border-border bg-muted/30 
            flex items-center justify-center transition-all duration-200;
   }
 

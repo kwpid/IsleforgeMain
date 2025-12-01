@@ -27,6 +27,7 @@ export function TabNavigation() {
   const hubSubTabs: { id: HubSubTab; label: string; icon: string; disabled?: boolean }[] = [
     { id: 'marketplace', label: 'MARKETPLACE', icon: 'market' },
     { id: 'blueprints', label: 'BLUEPRINTS', icon: 'blueprint' },
+    { id: 'bank', label: 'BANK', icon: 'coin' },
     { id: 'dungeons', label: 'DUNGEONS', icon: 'dungeon', disabled: true },
   ];
 

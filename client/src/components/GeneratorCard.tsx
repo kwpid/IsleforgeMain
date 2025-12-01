@@ -145,8 +145,9 @@ export function GeneratorCard({ generator, owned, onUnlock, onUpgrade }: Generat
     <>
       <div 
         className={cn(
-          'pixel-border border-primary/50 bg-card p-3 flex flex-col items-center relative cursor-pointer',
+          'pixel-border border-primary/50 bg-card p-4 flex flex-col items-center relative cursor-pointer',
           'hover-elevate active-elevate-2 overflow-visible',
+          'aspect-square min-h-[140px]',
           isAnimating && 'generator-active'
         )}
         onClick={() => setIsDialogOpen(true)}
@@ -159,20 +160,20 @@ export function GeneratorCard({ generator, owned, onUnlock, onUpgrade }: Generat
         </div>
         
         <div className={cn(
-          'transition-transform duration-200',
+          'transition-transform duration-200 flex-1 flex items-center justify-center',
           isAnimating && 'scale-110'
         )}>
-          <PixelIcon icon={generator.icon} size="lg" className="mb-2" />
+          <PixelIcon icon={generator.icon} size="xl" />
         </div>
         
-        <h3 className="pixel-text-sm text-center text-foreground text-[9px] mb-2">
+        <h3 className="pixel-text-sm text-center text-foreground text-[10px] mb-3 leading-tight">
           {generator.name}
         </h3>
         
         <div className="w-full">
           <Progress 
             value={progress} 
-            className="h-2 bg-muted"
+            className="h-2.5 bg-muted"
           />
         </div>
       </div>

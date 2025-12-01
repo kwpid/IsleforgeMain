@@ -51,16 +51,16 @@ export function InventoryPopup() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-[140px_1fr] gap-0 p-3">
-          <div className="border-r-2 border-border pr-3">
-            <h3 className="pixel-text-sm text-muted-foreground mb-2 text-center text-[7px]">
+        <div className="grid grid-cols-[160px_1fr] gap-0 p-4">
+          <div className="border-r-2 border-border pr-4">
+            <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
               EQUIPMENT
             </h3>
             
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <span className="pixel-text-sm text-[6px] text-muted-foreground">Armor</span>
-                <div className="grid grid-cols-2 gap-1">
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <span className="pixel-text-sm text-[8px] text-muted-foreground">Armor</span>
+                <div className="grid grid-cols-2 gap-2">
                   {armorSlots.map(({ slot, label }) => {
                     const itemId = equipment[slot];
                     const item = itemId ? getItemById(itemId) : null;
@@ -96,9 +96,9 @@ export function InventoryPopup() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="pixel-text-sm text-[6px] text-muted-foreground">Hands</span>
-                <div className="grid grid-cols-2 gap-1">
+              <div className="space-y-2">
+                <span className="pixel-text-sm text-[8px] text-muted-foreground">Hands</span>
+                <div className="grid grid-cols-2 gap-2">
                   {(['mainHand', 'offHand'] as const).map((hand) => {
                     const itemId = equipment[hand];
                     const item = itemId ? getItemById(itemId) : null;
@@ -146,13 +146,13 @@ export function InventoryPopup() {
             </div>
           </div>
 
-          <div className="pl-3">
-            <h3 className="pixel-text-sm text-muted-foreground mb-2 text-center text-[7px]">
+          <div className="pl-4">
+            <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
               ITEMS ({inventory.items.length}/{inventory.maxSlots})
             </h3>
             
             <div 
-              className="grid grid-cols-6 gap-1"
+              className="grid grid-cols-5 gap-2"
               data-testid="inventory-grid"
             >
               {inventory.items.map((inv) => {

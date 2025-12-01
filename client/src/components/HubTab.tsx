@@ -22,7 +22,23 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Clock, Store, Package, Hammer, ChevronRight, Check, Lock } from 'lucide-react';
+import { 
+  Clock, 
+  Store, 
+  Package, 
+  Hammer, 
+  ChevronRight, 
+  Check, 
+  Lock,
+  Landmark,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Vault,
+  TrendingUp,
+  History,
+  Coins
+} from 'lucide-react';
+import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
 
 const DEFAULT_VENDORS: Vendor[] = [
   {
@@ -181,6 +197,7 @@ export function HubTab() {
     <div className="h-full overflow-y-auto scrollbar-pixel p-6">
       {hubSubTab === 'marketplace' && <MarketplaceView />}
       {hubSubTab === 'blueprints' && <BlueprintsView />}
+      {hubSubTab === 'bank' && <BankView />}
       {hubSubTab === 'dungeons' && <DungeonsView />}
     </div>
   );
@@ -209,8 +226,8 @@ function MarketplaceView() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="pixel-text text-lg text-foreground mb-2">Marketplace</h2>
-        <p className="font-sans text-muted-foreground mb-6">
+        <h2 className="pixel-text text-xl text-foreground mb-2">Marketplace</h2>
+        <p className="font-sans text-muted-foreground text-base mb-6">
           Browse and purchase items from vendors. Prices vary by merchant.
         </p>
       </div>
@@ -218,8 +235,8 @@ function MarketplaceView() {
       <div>
         <div className="flex items-center gap-3 mb-4">
           <Store className="w-5 h-5 text-primary" />
-          <h3 className="pixel-text-sm text-foreground">Default Vendors</h3>
-          <Badge variant="secondary" className="pixel-text-sm text-[7px]">Always Available</Badge>
+          <h3 className="pixel-text-sm text-[11px] text-foreground">Default Vendors</h3>
+          <Badge variant="secondary" className="pixel-text-sm text-[8px]">Always Available</Badge>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -234,15 +251,15 @@ function MarketplaceView() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Package className="w-5 h-5 text-accent" />
-            <h3 className="pixel-text-sm text-foreground">Travelling Vendors</h3>
-            <Badge variant="outline" className="pixel-text-sm text-[7px]">Limited Time</Badge>
+            <h3 className="pixel-text-sm text-[11px] text-foreground">Travelling Vendors</h3>
+            <Badge variant="outline" className="pixel-text-sm text-[8px]">Limited Time</Badge>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2 text-muted-foreground pixel-border border-border bg-card px-3 py-1.5">
             <Clock className="w-4 h-4" />
-            <span className="pixel-text-sm text-[8px]">Next rotation: {timeUntilRotation}</span>
+            <span className="pixel-text-sm text-[9px]">Rotates in: {timeUntilRotation}</span>
           </div>
         </div>
         
@@ -350,30 +367,30 @@ function VendorCard({ vendor, onClick }: VendorCardProps) {
       onClick={onClick}
       data-testid={`vendor-card-${vendor.id}`}
     >
-      <CardHeader className="p-3 pb-0">
+      <CardHeader className="p-4 pb-0">
         <div className="flex justify-center">
           <div className={cn(
-            'pixel-border p-2 bg-muted/30',
+            'pixel-border p-3 bg-muted/30',
             vendor.isTravelling ? 'border-accent' : 'border-primary'
           )}>
             <PixelIcon icon={vendor.icon} size="xl" />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-3 text-center">
-        <CardTitle className="pixel-text-sm text-[9px] mb-1">
+      <CardContent className="p-4 text-center">
+        <CardTitle className="pixel-text-sm text-[10px] mb-2">
           {vendor.name}
         </CardTitle>
-        <p className="font-sans text-[10px] text-muted-foreground mb-2 line-clamp-2">
+        <p className="font-sans text-sm text-muted-foreground mb-3 line-clamp-2">
           {vendor.description}
         </p>
-        <div className="flex items-center justify-center gap-2">
-          <Badge variant="outline" className="pixel-text-sm text-[6px]">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <Badge variant="outline" className="pixel-text-sm text-[7px]">
             {vendor.items.length} items
           </Badge>
           <Badge 
             variant={vendor.priceModifier < 1 ? 'default' : 'secondary'} 
-            className="pixel-text-sm text-[6px]"
+            className="pixel-text-sm text-[7px]"
           >
             {priceLabel}
           </Badge>
@@ -381,7 +398,7 @@ function VendorCard({ vendor, onClick }: VendorCardProps) {
         <Button 
           size="sm" 
           variant="ghost" 
-          className="w-full mt-2 pixel-text-sm text-[8px]"
+          className="w-full mt-3 pixel-text-sm text-[9px]"
         >
           Browse <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
@@ -600,6 +617,475 @@ function BlueprintsView() {
           })()}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function BankView() {
+  const [bankSubView, setBankSubView] = useState<'account' | 'vault' | 'history' | 'stats'>('account');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  
+  const coins = useGameStore((s) => s.player.coins);
+  const bank = useGameStore((s) => s.bank);
+  const vault = useGameStore((s) => s.vault);
+  const inventory = useGameStore((s) => s.inventory);
+  const player = useGameStore((s) => s.player);
+  const depositToBank = useGameStore((s) => s.depositToBank);
+  const withdrawFromBank = useGameStore((s) => s.withdrawFromBank);
+  const upgradeBank = useGameStore((s) => s.upgradeBank);
+  const upgradeVault = useGameStore((s) => s.upgradeVault);
+  const addItemToVault = useGameStore((s) => s.addItemToVault);
+  const removeItemFromVault = useGameStore((s) => s.removeItemFromVault);
+  const calculateNetWorth = useGameStore((s) => s.calculateNetWorth);
+  
+  const nextBankUpgrade = BANK_UPGRADES.find(u => u.level === bank.upgradeLevel + 1);
+  const nextVaultUpgrade = VAULT_UPGRADES.find(u => u.level === vault.upgradeLevel + 1);
+  const netWorth = calculateNetWorth();
+  
+  const handleDeposit = () => {
+    const amount = parseInt(depositAmount);
+    if (!isNaN(amount) && amount > 0) {
+      if (depositToBank(amount)) {
+        setDepositAmount('');
+      }
+    }
+  };
+  
+  const handleWithdraw = () => {
+    const amount = parseInt(withdrawAmount);
+    if (!isNaN(amount) && amount > 0) {
+      if (withdrawFromBank(amount)) {
+        setWithdrawAmount('');
+      }
+    }
+  };
+  
+  const handleDepositMax = () => {
+    const maxDeposit = Math.min(coins, bank.capacity - bank.balance);
+    if (maxDeposit > 0) {
+      depositToBank(maxDeposit);
+    }
+  };
+  
+  const handleWithdrawMax = () => {
+    if (bank.balance > 0) {
+      withdrawFromBank(bank.balance);
+    }
+  };
+
+  const bankSubTabs = [
+    { id: 'account' as const, label: 'Account', icon: Landmark },
+    { id: 'vault' as const, label: 'Vault', icon: Vault },
+    { id: 'history' as const, label: 'History', icon: History },
+    { id: 'stats' as const, label: 'Stats', icon: TrendingUp },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="pixel-text text-xl text-foreground mb-2">Isle Bank</h2>
+        <p className="font-sans text-muted-foreground text-base mb-6">
+          Securely store your coins and valuable items. Upgrade capacity for larger deposits.
+        </p>
+      </div>
+      
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {bankSubTabs.map((tab) => (
+          <Button
+            key={tab.id}
+            variant={bankSubView === tab.id ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setBankSubView(tab.id)}
+            className="pixel-text-sm text-[9px] gap-1.5"
+            data-testid={`button-bank-tab-${tab.id}`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+      
+      {bankSubView === 'account' && (
+        <div className="space-y-6">
+          <Card className="pixel-border border-primary/50">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-5 h-5 text-primary" />
+                  <CardTitle className="pixel-text-sm text-[12px]">Account Balance</CardTitle>
+                </div>
+                <Badge variant="outline" className="pixel-text-sm text-[8px]">
+                  Lvl {bank.upgradeLevel}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="pixel-border border-border bg-muted/30 p-4">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <PixelIcon icon="coin" size="lg" />
+                  <span className="pixel-text text-2xl text-game-coin">
+                    {formatNumber(bank.balance)}
+                  </span>
+                </div>
+                <Progress 
+                  value={(bank.balance / bank.capacity) * 100} 
+                  className="h-2"
+                />
+                <p className="pixel-text-sm text-[8px] text-center text-muted-foreground mt-2">
+                  {formatNumber(bank.balance)} / {formatNumber(bank.capacity)} capacity
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="pixel-text-sm text-[9px] text-muted-foreground">Deposit</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Amount"
+                      className="flex-1 pixel-border border-border bg-muted/30 px-3 py-2 pixel-text-sm text-[10px] min-w-0"
+                      data-testid="input-deposit-amount"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={handleDeposit}
+                      disabled={!depositAmount || parseInt(depositAmount) <= 0 || parseInt(depositAmount) > coins}
+                      data-testid="button-deposit"
+                    >
+                      <ArrowDownToLine className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full pixel-text-sm text-[8px]"
+                    onClick={handleDepositMax}
+                    disabled={coins === 0 || bank.balance >= bank.capacity}
+                    data-testid="button-deposit-max"
+                  >
+                    Deposit Max
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="pixel-text-sm text-[9px] text-muted-foreground">Withdraw</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="Amount"
+                      className="flex-1 pixel-border border-border bg-muted/30 px-3 py-2 pixel-text-sm text-[10px] min-w-0"
+                      data-testid="input-withdraw-amount"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={handleWithdraw}
+                      disabled={!withdrawAmount || parseInt(withdrawAmount) <= 0 || parseInt(withdrawAmount) > bank.balance}
+                      data-testid="button-withdraw"
+                    >
+                      <ArrowUpFromLine className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full pixel-text-sm text-[8px]"
+                    onClick={handleWithdrawMax}
+                    disabled={bank.balance === 0}
+                    data-testid="button-withdraw-max"
+                  >
+                    Withdraw All
+                  </Button>
+                </div>
+              </div>
+              
+              {nextBankUpgrade && (
+                <div className="pixel-border border-accent/50 bg-accent/10 p-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <p className="pixel-text-sm text-[9px]">Upgrade Capacity</p>
+                      <p className="pixel-text-sm text-[8px] text-muted-foreground">
+                        {formatNumber(bank.capacity)} to {formatNumber(nextBankUpgrade.capacity)}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={upgradeBank}
+                      disabled={coins < nextBankUpgrade.cost}
+                      className="pixel-text-sm text-[8px]"
+                      data-testid="button-upgrade-bank"
+                    >
+                      <PixelIcon icon="coin" size="sm" />
+                      {formatNumber(nextBankUpgrade.cost)}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <div className="pixel-border border-border bg-muted/20 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Coins className="w-4 h-4 text-game-coin" />
+              <span className="pixel-text-sm text-[10px]">Wallet Balance</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <PixelIcon icon="coin" size="md" />
+              <span className="pixel-text text-lg text-game-coin">{formatNumber(coins)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {bankSubView === 'vault' && (
+        <div className="space-y-6">
+          <Card className="pixel-border border-accent/50">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Vault className="w-5 h-5 text-accent" />
+                  <CardTitle className="pixel-text-sm text-[12px]">Secure Vault</CardTitle>
+                </div>
+                <Badge variant="outline" className="pixel-text-sm text-[8px]">
+                  {vault.slots.length}/{vault.maxSlots} slots
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="font-sans text-sm text-muted-foreground">
+                Store valuable items safely in your vault. Items in the vault are protected.
+              </p>
+              
+              <div className="pixel-border border-border bg-muted/20 p-3">
+                <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">Vault Contents</p>
+                <div className="grid grid-cols-6 gap-2">
+                  {Array.from({ length: vault.maxSlots }).map((_, index) => {
+                    const slot = vault.slots[index];
+                    const item = slot ? getItemById(slot.itemId) : null;
+                    
+                    return (
+                      <Tooltip key={index}>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={cn(
+                              'aspect-square pixel-border flex items-center justify-center relative',
+                              slot ? `rarity-${item?.rarity} bg-muted/50` : 'border-border bg-muted/20'
+                            )}
+                            onClick={() => slot && removeItemFromVault(slot.itemId, slot.quantity)}
+                            data-testid={`vault-slot-${index}`}
+                          >
+                            {item && (
+                              <>
+                                <PixelIcon icon={item.icon} size="md" />
+                                {slot && slot.quantity > 1 && (
+                                  <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5">
+                                    {slot.quantity}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        {item && (
+                          <TooltipContent side="top" className="p-0 border-0 bg-transparent">
+                            <ItemTooltip item={item} quantity={slot?.quantity} />
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              <div className="pixel-border border-border bg-muted/20 p-3">
+                <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">
+                  From Inventory (click to store)
+                </p>
+                <div className="grid grid-cols-6 gap-2">
+                  {inventory.items.map((inv, index) => {
+                    const item = getItemById(inv.itemId);
+                    if (!item) return null;
+                    
+                    return (
+                      <Tooltip key={index}>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={cn(
+                              'aspect-square pixel-border flex items-center justify-center relative cursor-pointer hover-elevate overflow-visible',
+                              `rarity-${item.rarity} bg-muted/50`
+                            )}
+                            onClick={() => addItemToVault(inv.itemId, inv.quantity)}
+                            data-testid={`inv-to-vault-${inv.itemId}`}
+                          >
+                            <PixelIcon icon={item.icon} size="md" />
+                            {inv.quantity > 1 && (
+                              <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5">
+                                {inv.quantity}
+                              </span>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="p-0 border-0 bg-transparent">
+                          <ItemTooltip item={item} quantity={inv.quantity} />
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                  {inventory.items.length === 0 && (
+                    <p className="col-span-6 text-center pixel-text-sm text-[8px] text-muted-foreground py-4">
+                      Inventory is empty
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {nextVaultUpgrade && (
+                <div className="pixel-border border-accent/50 bg-accent/10 p-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <p className="pixel-text-sm text-[9px]">Upgrade Vault</p>
+                      <p className="pixel-text-sm text-[8px] text-muted-foreground">
+                        {vault.maxSlots} to {nextVaultUpgrade.slots} slots
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={upgradeVault}
+                      disabled={coins < nextVaultUpgrade.cost}
+                      className="pixel-text-sm text-[8px]"
+                      data-testid="button-upgrade-vault"
+                    >
+                      <PixelIcon icon="coin" size="sm" />
+                      {formatNumber(nextVaultUpgrade.cost)}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {bankSubView === 'history' && (
+        <Card className="pixel-border border-border">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <History className="w-5 h-5 text-muted-foreground" />
+              <CardTitle className="pixel-text-sm text-[12px]">Transaction History</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {bank.transactions.length === 0 ? (
+              <p className="text-center pixel-text-sm text-[10px] text-muted-foreground py-8">
+                No transactions yet
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-pixel">
+                {bank.transactions.map((txn) => (
+                  <div 
+                    key={txn.id}
+                    className="flex items-center justify-between pixel-border border-border bg-muted/20 p-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      {txn.type === 'deposit' ? (
+                        <ArrowDownToLine className="w-4 h-4 text-primary" />
+                      ) : (
+                        <ArrowUpFromLine className="w-4 h-4 text-destructive" />
+                      )}
+                      <div>
+                        <p className="pixel-text-sm text-[9px]">
+                          {txn.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
+                        </p>
+                        <p className="pixel-text-sm text-[7px] text-muted-foreground">
+                          {new Date(txn.timestamp).toLocaleDateString()} {new Date(txn.timestamp).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn(
+                        'pixel-text-sm text-[10px]',
+                        txn.type === 'deposit' ? 'text-primary' : 'text-destructive'
+                      )}>
+                        {txn.type === 'deposit' ? '+' : '-'}{formatNumber(txn.amount)}
+                      </p>
+                      <p className="pixel-text-sm text-[7px] text-muted-foreground">
+                        Balance: {formatNumber(txn.balance)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      
+      {bankSubView === 'stats' && (
+        <div className="space-y-4">
+          <Card className="pixel-border border-border">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <CardTitle className="pixel-text-sm text-[12px]">Financial Stats</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="pixel-border border-border bg-muted/20 p-3">
+                  <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Net Worth</p>
+                  <div className="flex items-center gap-1">
+                    <PixelIcon icon="coin" size="sm" />
+                    <span className="pixel-text-sm text-[12px] text-game-coin">{formatNumber(netWorth)}</span>
+                  </div>
+                </div>
+                
+                <div className="pixel-border border-border bg-muted/20 p-3">
+                  <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Peak Bank Balance</p>
+                  <div className="flex items-center gap-1">
+                    <PixelIcon icon="coin" size="sm" />
+                    <span className="pixel-text-sm text-[12px] text-game-coin">{formatNumber(bank.peakBalance)}</span>
+                  </div>
+                </div>
+                
+                <div className="pixel-border border-border bg-muted/20 p-3">
+                  <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Total Coins Earned</p>
+                  <div className="flex items-center gap-1">
+                    <PixelIcon icon="coin" size="sm" />
+                    <span className="pixel-text-sm text-[12px] text-game-coin">{formatNumber(player.totalCoinsEarned)}</span>
+                  </div>
+                </div>
+                
+                <div className="pixel-border border-border bg-muted/20 p-3">
+                  <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Items Sold</p>
+                  <span className="pixel-text-sm text-[12px]">{formatNumber(player.totalItemsSold)}</span>
+                </div>
+              </div>
+              
+              <div className="pixel-border border-primary/30 bg-primary/5 p-4">
+                <p className="pixel-text-sm text-[10px] text-center mb-2">Current Wealth Distribution</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground">Wallet</span>
+                    <span className="pixel-text-sm text-[9px]">{formatNumber(coins)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground">Bank</span>
+                    <span className="pixel-text-sm text-[9px]">{formatNumber(bank.balance)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground">Assets Value</span>
+                    <span className="pixel-text-sm text-[9px]">{formatNumber(netWorth - coins - bank.balance)}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
