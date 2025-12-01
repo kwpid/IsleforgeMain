@@ -124,10 +124,11 @@ export interface Blueprint {
 
 export interface BankTransaction {
   id: string;
-  type: 'deposit' | 'withdraw' | 'interest';
+  type: 'deposit' | 'withdraw' | 'interest' | 'purchase' | 'sell';
   amount: number;
   timestamp: number;
   balance: number;
+  source?: string;
 }
 
 export interface PlayerBank {
@@ -222,7 +223,7 @@ export function getKeyDisplayName(code: string): string {
     'AltLeft': 'L-ALT',
     'AltRight': 'R-ALT',
   };
-  
+
   if (displayNames[code]) return displayNames[code];
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);

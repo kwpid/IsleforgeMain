@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ArmorSlot } from '@/lib/gameTypes';
 import { getItemById } from '@/lib/items';
@@ -22,6 +22,11 @@ export function InventoryPopup() {
   const toggleInventory = useGameStore((s) => s.toggleInventory);
   const inventory = useGameStore((s) => s.inventory);
   const equipment = useGameStore((s) => s.equipment);
+  const equipItem = useGameStore((s) => s.equipItem);
+  const unequipItem = useGameStore((s) => s.unequipItem);
+
+  const [draggedItem, setDraggedItem] = useState<{ itemId: string; source: 'inventory' | 'equipment'; slot?: string } | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -34,6 +39,33 @@ export function InventoryPopup() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleInventory]);
+
+  const handleDragStart = (itemId: string, source: 'inventory' | 'equipment', slot?: string) => {
+    setDraggedItem({ itemId, source, slot });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverSlot(null);
+  };
+
+  const handleDropOnEquipment = (e: React.DragEvent, targetSlot: string) => {
+    e.preventDefault();
+    setDragOverSlot(null);
+
+    if (draggedItem && draggedItem.source === 'inventory') {
+      equipItem(draggedItem.itemId, targetSlot as any);
+    }
+  };
+
+  const handleDropOnInventory = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverSlot(null);
+
+    if (draggedItem && draggedItem.source === 'equipment' && draggedItem.slot) {
+      unequipItem(draggedItem.slot as any);
+    }
+  };
 
   const armorSlots: { slot: ArmorSlot; label: string }[] = [
     { slot: 'helmet', label: 'Helmet' },
@@ -56,7 +88,7 @@ export function InventoryPopup() {
             <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
               EQUIPMENT
             </h3>
-            
+
             <div className="space-y-3">
               <div className="space-y-2">
                 <span className="pixel-text-sm text-[8px] text-muted-foreground">Armor</span>
@@ -64,16 +96,30 @@ export function InventoryPopup() {
                   {armorSlots.map(({ slot, label }) => {
                     const itemId = equipment[slot];
                     const item = itemId ? getItemById(itemId) : null;
+                    const isDragOver = dragOverSlot === slot;
 
                     return (
                       <Tooltip key={slot}>
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              'item-slot-compact',
+                              'item-slot-compact transition-colors',
                               item && 'item-slot-filled',
-                              item && `rarity-${item.rarity}`
+                              item && `rarity-${item.rarity}`,
+                              isDragOver && 'border-primary bg-primary/20',
+                              draggedItem?.source === 'equipment' && draggedItem.slot === slot && 'opacity-50'
                             )}
+                            draggable={!!item}
+                            onDragStart={() => item && handleDragStart(item.id, 'equipment', slot)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => {
+                              if (draggedItem?.source === 'inventory') {
+                                e.preventDefault();
+                                setDragOverSlot(slot);
+                              }
+                            }}
+                            onDragLeave={() => setDragOverSlot(null)}
+                            onDrop={(e) => handleDropOnEquipment(e, slot)}
                             data-testid={`equipment-${slot}`}
                           >
                             {item ? (
@@ -103,16 +149,30 @@ export function InventoryPopup() {
                     const itemId = equipment[hand];
                     const item = itemId ? getItemById(itemId) : null;
                     const label = hand === 'mainHand' ? 'M' : 'O';
+                    const isDragOver = dragOverSlot === hand;
 
                     return (
                       <Tooltip key={hand}>
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              'item-slot-compact',
+                              'item-slot-compact transition-colors',
                               item && 'item-slot-filled',
-                              item && `rarity-${item.rarity}`
+                              item && `rarity-${item.rarity}`,
+                              isDragOver && 'border-primary bg-primary/20',
+                              draggedItem?.source === 'equipment' && draggedItem.slot === hand && 'opacity-50'
                             )}
+                            draggable={!!item}
+                            onDragStart={() => item && handleDragStart(item.id, 'equipment', hand)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => {
+                              if (draggedItem?.source === 'inventory') {
+                                e.preventDefault();
+                                setDragOverSlot(hand);
+                              }
+                            }}
+                            onDragLeave={() => setDragOverSlot(null)}
+                            onDrop={(e) => handleDropOnEquipment(e, hand)}
                             data-testid={`equipment-${hand}`}
                           >
                             {item ? (
@@ -146,12 +206,20 @@ export function InventoryPopup() {
             </div>
           </div>
 
-          <div className="pl-4">
+          <div
+            className="pl-4"
+            onDragOver={(e) => {
+              if (draggedItem?.source === 'equipment') {
+                e.preventDefault();
+              }
+            }}
+            onDrop={handleDropOnInventory}
+          >
             <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
               ITEMS ({inventory.items.length}/{inventory.maxSlots})
             </h3>
-            
-            <div 
+
+            <div
               className="grid grid-cols-5 gap-2"
               data-testid="inventory-grid"
             >
@@ -164,9 +232,13 @@ export function InventoryPopup() {
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
-                          'item-slot-compact item-slot-filled hover-elevate',
-                          `rarity-${item.rarity}`
+                          'item-slot-compact item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
+                          `rarity-${item.rarity}`,
+                          draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
                         )}
+                        draggable
+                        onDragStart={() => handleDragStart(inv.itemId, 'inventory')}
+                        onDragEnd={handleDragEnd}
                         data-testid={`inventory-item-${inv.itemId}`}
                       >
                         <PixelIcon icon={item.icon} size="md" />
@@ -183,7 +255,7 @@ export function InventoryPopup() {
                   </Tooltip>
                 );
               })}
-              
+
               {Array.from({ length: Math.max(0, 24 - inventory.items.length) }).map((_, i) => (
                 <div key={`empty-${i}`} className="item-slot-compact" />
               ))}

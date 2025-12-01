@@ -8,7 +8,9 @@ export interface GameNotification {
   title: string;
   message?: string;
   icon?: string;
+  image?: string;
   duration?: number;
+  progress?: boolean;
 }
 
 interface NotificationStore {
@@ -20,30 +22,31 @@ interface NotificationStore {
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   notifications: [],
-  
+
   addNotification: (notification) => {
     const id = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newNotification: GameNotification = {
       ...notification,
       id,
       duration: notification.duration ?? 3000,
+      progress: notification.progress ?? true,
     };
-    
+
     set((state) => ({
       notifications: [...state.notifications, newNotification],
     }));
-    
+
     setTimeout(() => {
       get().removeNotification(id);
     }, newNotification.duration);
   },
-  
+
   removeNotification: (id) => {
     set((state) => ({
       notifications: state.notifications.filter((n) => n.id !== id),
     }));
   },
-  
+
   clearAll: () => {
     set({ notifications: [] });
   },
@@ -51,35 +54,35 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
 export function useGameNotifications() {
   const { addNotification } = useNotificationStore();
-  
+
   return {
     notify: addNotification,
-    success: (title: string, message?: string) => 
+    success: (title: string, message?: string) =>
       addNotification({ type: 'success', title, message }),
-    error: (title: string, message?: string) => 
+    error: (title: string, message?: string) =>
       addNotification({ type: 'error', title, message }),
-    warning: (title: string, message?: string) => 
+    warning: (title: string, message?: string) =>
       addNotification({ type: 'warning', title, message }),
-    info: (title: string, message?: string) => 
+    info: (title: string, message?: string) =>
       addNotification({ type: 'info', title, message }),
-    coin: (amount: number, message?: string) => 
-      addNotification({ 
-        type: 'coin', 
-        title: `+${amount.toLocaleString()} Coins`, 
+    coin: (amount: number, message?: string) =>
+      addNotification({
+        type: 'coin',
+        title: `+${amount.toLocaleString()} Coins`,
         message,
         icon: 'coin',
       }),
-    xp: (amount: number, message?: string) => 
-      addNotification({ 
-        type: 'xp', 
-        title: `+${amount} XP`, 
+    xp: (amount: number, message?: string) =>
+      addNotification({
+        type: 'xp',
+        title: `+${amount} XP`,
         message,
         icon: 'xp',
       }),
-    item: (itemName: string, quantity: number, icon?: string) => 
-      addNotification({ 
-        type: 'item', 
-        title: `+${quantity} ${itemName}`, 
+    item: (itemName: string, quantity: number, icon?: string) =>
+      addNotification({
+        type: 'item',
+        title: `+${quantity} ${itemName}`,
         icon,
       }),
   };

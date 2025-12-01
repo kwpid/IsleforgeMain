@@ -24,7 +24,7 @@ export function GameNotifications() {
         {notifications.map((notification) => {
           const style = notificationStyles[notification.type];
           const IconComponent = style.icon;
-          
+
           return (
             <motion.div
               key={notification.id}
@@ -33,16 +33,18 @@ export function GameNotifications() {
               exit={{ opacity: 0, x: 50, scale: 0.9 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                'pixel-border pointer-events-auto',
+                'pixel-border pointer-events-auto relative overflow-hidden',
                 style.bg,
                 style.border,
                 'p-3 min-w-[200px] max-w-[300px]'
               )}
               data-testid={`notification-${notification.type}`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 relative z-10">
                 <div className="flex-shrink-0 mt-0.5">
-                  {notification.icon ? (
+                  {notification.image ? (
+                    <img src={notification.image} alt="" className="w-8 h-8 object-contain pixelated" />
+                  ) : notification.icon ? (
                     <PixelIcon icon={notification.icon} size="sm" />
                   ) : (
                     <IconComponent className="w-4 h-4" />
@@ -66,6 +68,15 @@ export function GameNotifications() {
                   <X className="w-3 h-3" />
                 </button>
               </div>
+
+              {notification.progress && notification.duration && (
+                <motion.div
+                  initial={{ width: "100%" }}
+                  animate={{ width: "0%" }}
+                  transition={{ duration: notification.duration / 1000, ease: "linear" }}
+                  className="absolute bottom-0 left-0 h-0.5 bg-foreground/20 z-0"
+                />
+              )}
             </motion.div>
           );
         })}
