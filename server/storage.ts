@@ -1,37 +1,23 @@
-import { type User, type InsertUser } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getGameState(id: string): Promise<Record<string, unknown> | undefined>;
+  saveGameState(id: string, state: Record<string, unknown>): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private gameStates: Map<string, Record<string, unknown>>;
 
   constructor() {
-    this.users = new Map();
+    this.gameStates = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getGameState(id: string): Promise<Record<string, unknown> | undefined> {
+    return this.gameStates.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async saveGameState(id: string, state: Record<string, unknown>): Promise<void> {
+    this.gameStates.set(id, state);
   }
 }
 

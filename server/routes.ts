@@ -6,11 +6,25 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: Date.now() });
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.get("/api/game/:id", async (req, res) => {
+    const { id } = req.params;
+    const state = await storage.getGameState(id);
+    if (!state) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+    res.json(state);
+  });
+
+  app.post("/api/game/:id", async (req, res) => {
+    const { id } = req.params;
+    const state = req.body;
+    await storage.saveGameState(id, state);
+    res.json({ success: true });
+  });
 
   return httpServer;
 }
