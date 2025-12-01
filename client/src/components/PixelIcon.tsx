@@ -68,6 +68,16 @@ const ICON_COLORS: Record<string, { bg: string; accent: string; detail?: string 
   settings: { bg: '#6a6a6a', accent: '#4a4a4a', detail: '#8a8a8a' },
   island: { bg: '#228b22', accent: '#166616', detail: '#90ee90' },
   hub: { bg: '#4169e1', accent: '#2a4cd1', detail: '#6495ed' },
+  blueprint: { bg: '#4169e1', accent: '#2a4cd1', detail: '#87ceeb' },
+  vendor: { bg: '#8b4513', accent: '#654321', detail: '#d2691e' },
+  vendor_tools: { bg: '#6a6a6a', accent: '#4a4a4a', detail: '#8a8a8a' },
+  vendor_armor: { bg: '#d4d4d4', accent: '#9a9a9a', detail: '#f0f0f0' },
+  vendor_food: { bg: '#ff6b6b', accent: '#cc4444', detail: '#ffb6c1' },
+  vendor_blocks: { bg: '#8b6914', accent: '#5c4a0f', detail: '#bc9862' },
+  vendor_materials: { bg: '#9932cc', accent: '#7b2fa0', detail: '#ba55d3' },
+  vendor_potions: { bg: '#ff69b4', accent: '#db7093', detail: '#ffb6c1' },
+  vendor_rare: { bg: '#ffd700', accent: '#daa520', detail: '#ffec8b' },
+  travelling: { bg: '#4169e1', accent: '#2a4cd1', detail: '#87ceeb' },
 };
 
 const SIZE_MAP = {
@@ -193,6 +203,24 @@ export function PixelIcon({ icon, size = 'md', className }: PixelIconProps) {
             <rect x="4" y="7" width="8" height="7" fill={colors.bg} />
             <rect x="5" y="3" width="6" height="5" fill="transparent" stroke={colors.bg} strokeWidth="2" />
             <rect x="7" y="9" width="2" height="3" fill={colors.detail} />
+          </>
+        ) : icon === 'blueprint' ? (
+          <>
+            <rect x="2" y="2" width="12" height="12" fill={colors.bg} />
+            <rect x="3" y="3" width="10" height="10" fill={colors.accent} />
+            <rect x="4" y="4" width="3" height="1" fill={colors.detail} />
+            <rect x="4" y="6" width="8" height="1" fill={colors.detail} />
+            <rect x="4" y="8" width="6" height="1" fill={colors.detail} />
+            <rect x="4" y="10" width="8" height="1" fill={colors.detail} />
+            <rect x="10" y="4" width="2" height="2" fill={colors.detail} />
+          </>
+        ) : icon.startsWith('vendor') || icon === 'travelling' ? (
+          <>
+            <rect x="3" y="2" width="10" height="4" fill={colors.accent} />
+            <rect x="2" y="6" width="12" height="8" fill={colors.bg} />
+            <rect x="4" y="8" width="3" height="3" fill={colors.detail} />
+            <rect x="9" y="8" width="3" height="3" fill={colors.detail} />
+            <rect x="6" y="3" width="4" height="2" fill={colors.detail} />
           </>
         ) : (
           <>

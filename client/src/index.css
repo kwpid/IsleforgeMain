@@ -344,6 +344,11 @@
            flex items-center justify-center transition-all duration-200;
   }
 
+  .item-slot-uniform {
+    @apply relative w-10 h-10 border-2 border-dashed border-border bg-muted/30 
+           flex items-center justify-center transition-all duration-200;
+  }
+
   .item-slot-filled {
     @apply border-solid border-border bg-card;
   }

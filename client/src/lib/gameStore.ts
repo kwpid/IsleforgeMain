@@ -54,8 +54,12 @@ interface GameStore extends GameState {
   upgradeStorage: () => boolean;
   
   unlockGenerator: (generatorId: string) => boolean;
+  unlockGeneratorFree: (generatorId: string) => void;
   upgradeGenerator: (generatorId: string) => boolean;
   tickGenerators: () => void;
+  
+  addOwnedBlueprint: (blueprintId: string) => void;
+  addBuiltGenerator: (generatorId: string) => void;
   
   addFloatingNumber: (x: number, y: number, value: string, color: string) => void;
   removeFloatingNumber: (id: string) => void;
@@ -91,7 +95,7 @@ export const useGameStore = create<GameStore>()(
       navigateSubTab: (direction) => {
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage'];
-        const hubSubTabs: HubSubTab[] = ['marketplace', 'dungeons'];
+        const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'dungeons'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls'];
         
         if (state.mainTab === 'island') {
@@ -399,6 +403,21 @@ export const useGameStore = create<GameStore>()(
         return true;
       },
 
+      unlockGeneratorFree: (generatorId) => {
+        const state = get();
+        const generator = getGeneratorById(generatorId);
+        if (!generator) return;
+        if (state.unlockedGenerators.includes(generatorId)) return;
+        
+        set({
+          unlockedGenerators: [...state.unlockedGenerators, generatorId],
+          generators: [
+            ...state.generators,
+            { generatorId, tier: 1, lastTick: Date.now(), isActive: true },
+          ],
+        });
+      },
+
       upgradeGenerator: (generatorId) => {
         const state = get();
         const generator = getGeneratorById(generatorId);
@@ -472,6 +491,20 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
+      addOwnedBlueprint: (blueprintId) => {
+        const state = get();
+        if (!state.ownedBlueprints.includes(blueprintId)) {
+          set({ ownedBlueprints: [...state.ownedBlueprints, blueprintId] });
+        }
+      },
+
+      addBuiltGenerator: (generatorId) => {
+        const state = get();
+        if (!state.builtGenerators.includes(generatorId)) {
+          set({ builtGenerators: [...state.builtGenerators, generatorId] });
+        }
+      },
+
       addFloatingNumber: (x, y, value, color) => {
         const id = `float-${Date.now()}-${Math.random()}`;
         set((state) => ({
@@ -510,6 +543,8 @@ export const useGameStore = create<GameStore>()(
         equipment: state.equipment,
         generators: state.generators,
         unlockedGenerators: state.unlockedGenerators,
+        ownedBlueprints: state.ownedBlueprints,
+        builtGenerators: state.builtGenerators,
         lastSave: state.lastSave,
         playTime: state.playTime,
         keybinds: state.keybinds,
