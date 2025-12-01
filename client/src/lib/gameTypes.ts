@@ -86,6 +86,42 @@ export interface PlayerInventory {
   maxSlots: number;
 }
 
+export type VendorType = 'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare';
+
+export interface VendorItem {
+  itemId: string;
+  stock: number;
+  priceMultiplier: number;
+  isRotating?: boolean;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  description: string;
+  type: VendorType;
+  icon: string;
+  priceModifier: number;
+  items: VendorItem[];
+  isTravelling?: boolean;
+}
+
+export interface BlueprintRequirement {
+  itemId: string;
+  quantity: number;
+}
+
+export interface Blueprint {
+  id: string;
+  generatorId: string;
+  name: string;
+  description: string;
+  icon: string;
+  cost: number;
+  requirements: BlueprintRequirement[];
+  unlocked: boolean;
+}
+
 export interface GameState {
   player: PlayerStats;
   storage: PlayerStorage;
@@ -93,13 +129,15 @@ export interface GameState {
   equipment: PlayerEquipment;
   generators: OwnedGenerator[];
   unlockedGenerators: string[];
+  ownedBlueprints: string[];
+  builtGenerators: string[];
   lastSave: number;
   playTime: number;
 }
 
 export type MainTab = 'island' | 'hub' | 'settings';
 export type IslandSubTab = 'generators' | 'storage';
-export type HubSubTab = 'marketplace' | 'dungeons';
+export type HubSubTab = 'marketplace' | 'blueprints' | 'dungeons';
 export type SettingsSubTab = 'general' | 'audio' | 'controls';
 
 export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
@@ -229,6 +267,8 @@ export function createDefaultGameState(): GameState {
       { generatorId: 'cobblestone_generator', tier: 1, lastTick: Date.now(), isActive: true },
     ],
     unlockedGenerators: ['cobblestone_generator'],
+    ownedBlueprints: [],
+    builtGenerators: ['cobblestone_generator'],
     lastSave: Date.now(),
     playTime: 0,
   };

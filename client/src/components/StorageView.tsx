@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, STORAGE_UPGRADES } from '@/lib/gameTypes';
-import { getItemById, ITEMS } from '@/lib/items';
+import { getItemById } from '@/lib/items';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -29,10 +29,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, ArrowRightLeft } from 'lucide-react';
+import { Package, Backpack } from 'lucide-react';
 
 type SortOption = 'name' | 'quantity' | 'rarity' | 'value';
 type DragSource = 'storage' | 'inventory';
+
+const SLOT_SIZE = 'w-10 h-10';
+const GRID_GAP = 'gap-2';
+const GRID_COLS = 'grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12';
 
 export function StorageView() {
   const storage = useGameStore((s) => s.storage);
@@ -58,7 +62,7 @@ export function StorageView() {
   const nextUpgrade = STORAGE_UPGRADES.find(u => u.level === storage.upgradeLevel + 1);
   const canUpgrade = nextUpgrade && player.coins >= nextUpgrade.cost;
 
-  const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+  const rarityOrder: Record<string, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
 
   const sortItems = (items: typeof storage.items) => {
     return [...items].sort((a, b) => {
@@ -72,7 +76,7 @@ export function StorageView() {
         case 'quantity':
           return b.quantity - a.quantity;
         case 'rarity':
-          return rarityOrder[itemB.rarity] - rarityOrder[itemA.rarity];
+          return (rarityOrder[itemB.rarity] ?? 0) - (rarityOrder[itemA.rarity] ?? 0);
         case 'value':
           return (itemB.sellPrice * b.quantity) - (itemA.sellPrice * a.quantity);
         default:
@@ -151,9 +155,46 @@ export function StorageView() {
   const sortedStorageItems = sortItems(storage.items);
   const sortedInventoryItems = sortItems(inventory.items);
 
+  const renderItemSlot = (inv: { itemId: string; quantity: number }, source: DragSource) => {
+    const item = getItemById(inv.itemId);
+    if (!item) return null;
+
+    return (
+      <Tooltip key={inv.itemId}>
+        <TooltipTrigger asChild>
+          <div
+            draggable
+            onDragStart={() => handleDragStart(inv.itemId, source)}
+            onDragEnd={handleDragEnd}
+            className={cn(
+              'item-slot-uniform item-slot-filled cursor-grab hover-elevate active-elevate-2',
+              `rarity-${item.rarity}`,
+              draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50'
+            )}
+            data-testid={`${source}-item-${inv.itemId}`}
+          >
+            <PixelIcon icon={item.icon} size="md" />
+            {inv.quantity > 1 && (
+              <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
+                {formatNumber(inv.quantity)}
+              </span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="p-0 border-0 bg-transparent">
+          <ItemTooltip item={item} quantity={inv.quantity} />
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const renderEmptySlot = (key: string) => (
+    <div key={key} className="item-slot-uniform" />
+  );
+
   return (
-    <div className="animate-content-fade">
-      <div className="flex items-center justify-between gap-4 mb-4">
+    <div className="animate-content-fade space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="pixel-text text-lg text-foreground">Storage & Inventory</h2>
         
         <div className="flex items-center gap-3">
@@ -188,197 +229,139 @@ export function StorageView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_200px] gap-4">
-        <div 
-          className={cn(
-            'pixel-border border-card-border bg-card p-3 transition-all duration-200',
-            isDragOverInventory && draggedItem?.source === 'storage' && 'border-primary bg-primary/10'
-          )}
-          onDragOver={(e) => {
-            if (draggedItem?.source === 'storage') {
-              e.preventDefault();
-              setIsDragOverInventory(true);
-            }
-          }}
-          onDragLeave={() => setIsDragOverInventory(false)}
-          onDrop={handleDropOnInventory}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="pixel-text-sm text-muted-foreground text-[8px]">
-              INVENTORY ({inventory.items.length}/{inventory.maxSlots})
-            </h3>
-            <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
-          </div>
-          
-          <div className="grid grid-cols-4 gap-1.5" data-testid="inventory-panel-grid">
-            {sortedInventoryItems.map((inv) => {
-              const item = getItemById(inv.itemId);
-              if (!item) return null;
-
-              return (
-                <Tooltip key={inv.itemId}>
-                  <TooltipTrigger asChild>
-                    <div
-                      draggable
-                      onDragStart={() => handleDragStart(inv.itemId, 'inventory')}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        'item-slot-compact item-slot-filled cursor-grab hover-elevate active-elevate-2',
-                        `rarity-${item.rarity}`,
-                        draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
-                      )}
-                      data-testid={`inventory-panel-item-${inv.itemId}`}
-                    >
-                      <PixelIcon icon={item.icon} size="md" />
-                      {inv.quantity > 1 && (
-                        <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
-                          {formatNumber(inv.quantity)}
-                        </span>
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="p-0 border-0 bg-transparent">
-                    <ItemTooltip item={item} quantity={inv.quantity} />
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-            
-            {Array.from({ length: Math.max(0, 12 - inventory.items.length) }).map((_, i) => (
-              <div key={`empty-inv-${i}`} className="item-slot-compact" />
-            ))}
-          </div>
-
-          {inventory.items.length === 0 && (
-            <p className="text-center py-2 font-sans text-xs text-muted-foreground">
-              Drag items here from storage
-            </p>
-          )}
-        </div>
-
-        <div 
-          className={cn(
-            'pixel-border border-card-border bg-card p-3 transition-all duration-200',
-            isDragOverStorage && draggedItem?.source === 'inventory' && 'border-primary bg-primary/10'
-          )}
-          onDragOver={(e) => {
-            if (draggedItem?.source === 'inventory') {
-              e.preventDefault();
-              setIsDragOverStorage(true);
-            }
-          }}
-          onDragLeave={() => setIsDragOverStorage(false)}
-          onDrop={handleDropOnStorage}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="pixel-text-sm text-muted-foreground text-[8px]">
+      <div 
+        className={cn(
+          'pixel-border border-card-border bg-card p-4 transition-all duration-200',
+          isDragOverStorage && draggedItem?.source === 'inventory' && 'border-primary bg-primary/10'
+        )}
+        onDragOver={(e) => {
+          if (draggedItem?.source === 'inventory') {
+            e.preventDefault();
+            setIsDragOverStorage(true);
+          }
+        }}
+        onDragLeave={() => setIsDragOverStorage(false)}
+        onDrop={handleDropOnStorage}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-primary" />
+            <h3 className="pixel-text-sm text-foreground text-[10px]">
               STORAGE
             </h3>
-            <div className="flex items-center gap-2">
-              <span className="pixel-text-sm text-muted-foreground text-[6px]">
-                {formatNumber(storageUsed)}/{formatNumber(storage.capacity)}
-              </span>
-              <Progress value={storageProgress} className="w-16 h-1.5" />
-            </div>
           </div>
-          
-          <div 
-            className="grid grid-cols-4 gap-1.5"
-            data-testid="storage-grid"
-          >
-            {sortedStorageItems.map((inv) => {
-              const item = getItemById(inv.itemId);
-              if (!item) return null;
-
-              return (
-                <Tooltip key={inv.itemId}>
-                  <TooltipTrigger asChild>
-                    <div
-                      draggable
-                      onDragStart={() => handleDragStart(inv.itemId, 'storage')}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        'item-slot-compact item-slot-filled cursor-grab hover-elevate active-elevate-2',
-                        `rarity-${item.rarity}`,
-                        draggedItem?.itemId === inv.itemId && draggedItem?.source === 'storage' && 'opacity-50'
-                      )}
-                      data-testid={`storage-item-${inv.itemId}`}
-                    >
-                      <PixelIcon icon={item.icon} size="md" />
-                      {inv.quantity > 1 && (
-                        <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
-                          {formatNumber(inv.quantity)}
-                        </span>
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="p-0 border-0 bg-transparent">
-                    <ItemTooltip item={item} quantity={inv.quantity} />
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-            
-            {Array.from({ length: Math.max(0, 12 - storage.items.length) }).map((_, i) => (
-              <div key={`empty-storage-${i}`} className="item-slot-compact" />
-            ))}
+          <div className="flex items-center gap-3">
+            <span className="pixel-text-sm text-muted-foreground text-[8px]">
+              {formatNumber(storageUsed)}/{formatNumber(storage.capacity)}
+            </span>
+            <Progress value={storageProgress} className="w-24 h-2" />
           </div>
-
-          {storage.items.length === 0 && (
-            <p className="text-center py-2 font-sans text-xs text-muted-foreground">
-              Generators fill this automatically
-            </p>
+        </div>
+        
+        <div 
+          className={cn('grid', GRID_COLS, GRID_GAP)}
+          data-testid="storage-grid"
+        >
+          {sortedStorageItems.map((inv) => renderItemSlot(inv, 'storage'))}
+          {Array.from({ length: Math.max(0, 24 - storage.items.length) }).map((_, i) => 
+            renderEmptySlot(`empty-storage-${i}`)
           )}
         </div>
 
-        <div className="space-y-3">
-          <div
-            onDragOver={(e) => {
-              if (draggedItem?.source === 'storage') {
-                e.preventDefault();
-                setIsDragOverSell(true);
-              }
-            }}
-            onDragLeave={() => setIsDragOverSell(false)}
-            onDrop={handleDropOnSell}
-            className={cn(
-              'pixel-border-thick border-dashed min-h-28 flex flex-col items-center justify-center gap-2 p-3 transition-all duration-200',
-              isDragOverSell
-                ? 'border-primary bg-primary/20'
-                : 'border-border bg-muted/30'
-            )}
-            data-testid="sell-zone"
-          >
-            <PixelIcon icon="coin" size="lg" className={cn(isDragOverSell && 'animate-bounce')} />
-            <p className="pixel-text-sm text-center text-muted-foreground text-[7px]">
-              Drag to sell
-            </p>
-          </div>
+        {storage.items.length === 0 && (
+          <p className="text-center py-4 font-sans text-sm text-muted-foreground">
+            Generators fill this automatically
+          </p>
+        )}
 
-          {storage.items.length > 0 && (
-            <div className="pixel-border border-border bg-card p-3">
-              <div className="flex justify-between items-center mb-3">
-                <span className="pixel-text-sm text-muted-foreground text-[7px]">Total</span>
-                <div className="flex items-center gap-1">
-                  <PixelIcon icon="coin" size="sm" />
-                  <span className="pixel-text-sm text-game-coin tabular-nums text-[9px]">
-                    {formatNumber(totalValue)}
-                  </span>
-                </div>
+        {storage.items.length > 0 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-2">
+              <span className="pixel-text-sm text-muted-foreground text-[8px]">Total Value:</span>
+              <div className="flex items-center gap-1">
+                <PixelIcon icon="coin" size="sm" />
+                <span className="pixel-text-sm text-game-coin tabular-nums">
+                  {formatNumber(totalValue)}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div
+                onDragOver={(e) => {
+                  if (draggedItem?.source === 'storage') {
+                    e.preventDefault();
+                    setIsDragOverSell(true);
+                  }
+                }}
+                onDragLeave={() => setIsDragOverSell(false)}
+                onDrop={handleDropOnSell}
+                className={cn(
+                  'pixel-border border-dashed px-4 py-2 flex items-center gap-2 transition-all duration-200',
+                  isDragOverSell
+                    ? 'border-primary bg-primary/20'
+                    : 'border-border bg-muted/30'
+                )}
+                data-testid="sell-zone"
+              >
+                <PixelIcon icon="coin" size="sm" className={cn(isDragOverSell && 'animate-bounce')} />
+                <span className="pixel-text-sm text-muted-foreground text-[7px]">
+                  Drop to sell
+                </span>
               </div>
               
               <Button
                 onClick={() => setSellAllConfirm(true)}
                 variant="destructive"
                 size="sm"
-                className="w-full pixel-text-sm text-[8px]"
+                className="pixel-text-sm text-[8px]"
                 data-testid="button-sell-all"
               >
                 Sell All
               </Button>
             </div>
+          </div>
+        )}
+      </div>
+
+      <div 
+        className={cn(
+          'pixel-border border-card-border bg-card p-4 transition-all duration-200',
+          isDragOverInventory && draggedItem?.source === 'storage' && 'border-primary bg-primary/10'
+        )}
+        onDragOver={(e) => {
+          if (draggedItem?.source === 'storage') {
+            e.preventDefault();
+            setIsDragOverInventory(true);
+          }
+        }}
+        onDragLeave={() => setIsDragOverInventory(false)}
+        onDrop={handleDropOnInventory}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Backpack className="w-4 h-4 text-accent" />
+            <h3 className="pixel-text-sm text-foreground text-[10px]">
+              INVENTORY
+            </h3>
+          </div>
+          <span className="pixel-text-sm text-muted-foreground text-[8px]">
+            {inventory.items.length}/{inventory.maxSlots} slots
+          </span>
+        </div>
+        
+        <div className={cn('grid', GRID_COLS, GRID_GAP)} data-testid="inventory-panel-grid">
+          {sortedInventoryItems.map((inv) => renderItemSlot(inv, 'inventory'))}
+          {Array.from({ length: Math.max(0, 24 - inventory.items.length) }).map((_, i) => 
+            renderEmptySlot(`empty-inv-${i}`)
           )}
         </div>
+
+        {inventory.items.length === 0 && (
+          <p className="text-center py-4 font-sans text-sm text-muted-foreground">
+            Drag items here from storage
+          </p>
+        )}
       </div>
 
       <AlertDialog open={!!sellConfirm} onOpenChange={() => setSellConfirm(null)}>
