@@ -102,6 +102,57 @@ export type IslandSubTab = 'generators' | 'storage';
 export type HubSubTab = 'marketplace' | 'dungeons';
 export type SettingsSubTab = 'general' | 'audio' | 'controls';
 
+export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
+
+export interface Keybinds {
+  openInventory: string;
+  quickSave: string;
+  islandTab: string;
+  hubTab: string;
+  settingsTab: string;
+  prevSubTab: string;
+  nextSubTab: string;
+}
+
+export const DEFAULT_KEYBINDS: Keybinds = {
+  openInventory: 'Tab',
+  quickSave: 'KeyS',
+  islandTab: 'Digit1',
+  hubTab: 'Digit2',
+  settingsTab: 'Digit3',
+  prevSubTab: 'ArrowLeft',
+  nextSubTab: 'ArrowRight',
+};
+
+export function getKeyDisplayName(code: string): string {
+  const displayNames: Record<string, string> = {
+    'Tab': 'TAB',
+    'KeyS': 'S',
+    'Digit1': '1',
+    'Digit2': '2',
+    'Digit3': '3',
+    'ArrowLeft': '←',
+    'ArrowRight': '→',
+    'ArrowUp': '↑',
+    'ArrowDown': '↓',
+    'Space': 'SPACE',
+    'Enter': 'ENTER',
+    'Escape': 'ESC',
+    'Backspace': 'BACKSPACE',
+    'ShiftLeft': 'L-SHIFT',
+    'ShiftRight': 'R-SHIFT',
+    'ControlLeft': 'L-CTRL',
+    'ControlRight': 'R-CTRL',
+    'AltLeft': 'L-ALT',
+    'AltRight': 'R-ALT',
+  };
+  
+  if (displayNames[code]) return displayNames[code];
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  return code.toUpperCase();
+}
+
 export const TIER_NUMERALS: Record<number, string> = {
   1: 'I',
   2: 'II',

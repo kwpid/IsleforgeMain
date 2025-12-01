@@ -8,6 +8,9 @@ import {
   IslandSubTab, 
   HubSubTab,
   SettingsSubTab,
+  Keybinds,
+  KeybindAction,
+  DEFAULT_KEYBINDS,
   createDefaultGameState,
   getXpForLevel,
   STORAGE_UPGRADES,
@@ -22,12 +25,16 @@ interface GameStore extends GameState {
   settingsSubTab: SettingsSubTab;
   inventoryOpen: boolean;
   floatingNumbers: Array<{ id: string; x: number; y: number; value: string; color: string }>;
+  keybinds: Keybinds;
   
   setMainTab: (tab: MainTab) => void;
   setIslandSubTab: (tab: IslandSubTab) => void;
   setHubSubTab: (tab: HubSubTab) => void;
   setSettingsSubTab: (tab: SettingsSubTab) => void;
   toggleInventory: () => void;
+  setKeybind: (action: KeybindAction, key: string) => void;
+  resetKeybinds: () => void;
+  navigateSubTab: (direction: 'prev' | 'next') => void;
   
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
@@ -36,9 +43,14 @@ interface GameStore extends GameState {
   
   addItemToStorage: (itemId: string, quantity: number) => boolean;
   removeItemFromStorage: (itemId: string, quantity: number) => boolean;
+  addItemToInventory: (itemId: string, quantity: number) => boolean;
+  removeItemFromInventory: (itemId: string, quantity: number) => boolean;
+  moveToInventory: (itemId: string, quantity: number) => boolean;
+  moveToStorage: (itemId: string, quantity: number) => boolean;
   sellItem: (itemId: string, quantity: number) => boolean;
   sellAllItems: () => number;
   getStorageUsed: () => number;
+  getInventoryUsed: () => number;
   upgradeStorage: () => boolean;
   
   unlockGenerator: (generatorId: string) => boolean;
@@ -62,12 +74,48 @@ export const useGameStore = create<GameStore>()(
       settingsSubTab: 'general',
       inventoryOpen: false,
       floatingNumbers: [],
+      keybinds: { ...DEFAULT_KEYBINDS },
 
       setMainTab: (tab) => set({ mainTab: tab }),
       setIslandSubTab: (tab) => set({ islandSubTab: tab }),
       setHubSubTab: (tab) => set({ hubSubTab: tab }),
       setSettingsSubTab: (tab) => set({ settingsSubTab: tab }),
       toggleInventory: () => set((state) => ({ inventoryOpen: !state.inventoryOpen })),
+      
+      setKeybind: (action, key) => set((state) => ({
+        keybinds: { ...state.keybinds, [action]: key }
+      })),
+      
+      resetKeybinds: () => set({ keybinds: { ...DEFAULT_KEYBINDS } }),
+      
+      navigateSubTab: (direction) => {
+        const state = get();
+        const islandSubTabs: IslandSubTab[] = ['generators', 'storage'];
+        const hubSubTabs: HubSubTab[] = ['marketplace', 'dungeons'];
+        const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls'];
+        
+        if (state.mainTab === 'island') {
+          const currentIndex = islandSubTabs.indexOf(state.islandSubTab);
+          const newIndex = direction === 'next' 
+            ? Math.min(currentIndex + 1, islandSubTabs.length - 1)
+            : Math.max(currentIndex - 1, 0);
+          set({ islandSubTab: islandSubTabs[newIndex] });
+        } else if (state.mainTab === 'hub') {
+          const currentIndex = hubSubTabs.indexOf(state.hubSubTab);
+          const newIndex = direction === 'next' 
+            ? Math.min(currentIndex + 1, hubSubTabs.length - 1)
+            : Math.max(currentIndex - 1, 0);
+          if (hubSubTabs[newIndex] !== 'dungeons') {
+            set({ hubSubTab: hubSubTabs[newIndex] });
+          }
+        } else if (state.mainTab === 'settings') {
+          const currentIndex = settingsSubTabs.indexOf(state.settingsSubTab);
+          const newIndex = direction === 'next' 
+            ? Math.min(currentIndex + 1, settingsSubTabs.length - 1)
+            : Math.max(currentIndex - 1, 0);
+          set({ settingsSubTab: settingsSubTabs[newIndex] });
+        }
+      },
 
       addCoins: (amount) => set((state) => ({
         player: {
@@ -172,6 +220,90 @@ export const useGameStore = create<GameStore>()(
         
         set({ storage: { ...state.storage, items: newItems } });
         return true;
+      },
+
+      addItemToInventory: (itemId, quantity) => {
+        const state = get();
+        const existingItem = state.inventory.items.find(i => i.itemId === itemId);
+        
+        if (existingItem) {
+          const newItems = state.inventory.items.map(item =>
+            item.itemId === itemId
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+          set({ inventory: { ...state.inventory, items: newItems } });
+          return true;
+        } else {
+          if (state.inventory.items.length >= state.inventory.maxSlots) {
+            return false;
+          }
+          const newItems = [...state.inventory.items, { itemId, quantity }];
+          set({ inventory: { ...state.inventory, items: newItems } });
+          return true;
+        }
+      },
+
+      removeItemFromInventory: (itemId, quantity) => {
+        const state = get();
+        const existingIndex = state.inventory.items.findIndex(i => i.itemId === itemId);
+        
+        if (existingIndex < 0) return false;
+        
+        const currentQuantity = state.inventory.items[existingIndex].quantity;
+        if (currentQuantity < quantity) return false;
+
+        const newItems = [...state.inventory.items];
+        if (currentQuantity === quantity) {
+          newItems.splice(existingIndex, 1);
+        } else {
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            quantity: currentQuantity - quantity,
+          };
+        }
+        
+        set({ inventory: { ...state.inventory, items: newItems } });
+        return true;
+      },
+
+      moveToInventory: (itemId, quantity) => {
+        const state = get();
+        const storageItem = state.storage.items.find(i => i.itemId === itemId);
+        if (!storageItem) return false;
+        
+        const actualQuantity = Math.min(quantity, storageItem.quantity);
+        if (actualQuantity <= 0) return false;
+
+        const existingInInventory = state.inventory.items.find(i => i.itemId === itemId);
+        if (!existingInInventory && state.inventory.items.length >= state.inventory.maxSlots) {
+          return false;
+        }
+
+        get().removeItemFromStorage(itemId, actualQuantity);
+        get().addItemToInventory(itemId, actualQuantity);
+        return true;
+      },
+
+      moveToStorage: (itemId, quantity) => {
+        const state = get();
+        const inventoryItem = state.inventory.items.find(i => i.itemId === itemId);
+        if (!inventoryItem) return false;
+        
+        const usedSpace = get().getStorageUsed();
+        const availableSpace = state.storage.capacity - usedSpace;
+        const actualQuantity = Math.min(quantity, inventoryItem.quantity, availableSpace);
+        
+        if (actualQuantity <= 0) return false;
+
+        get().removeItemFromInventory(itemId, actualQuantity);
+        get().addItemToStorage(itemId, actualQuantity);
+        return true;
+      },
+
+      getInventoryUsed: () => {
+        const state = get();
+        return state.inventory.items.reduce((sum, item) => sum + item.quantity, 0);
       },
 
       sellItem: (itemId, quantity) => {
@@ -294,6 +426,7 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const now = Date.now();
         let updated = false;
+        let totalXpGained = 0;
         const newGenerators: OwnedGenerator[] = [];
 
         for (const owned of state.generators) {
@@ -318,6 +451,9 @@ export const useGameStore = create<GameStore>()(
 
             get().addItemToStorage(generator.outputItemId, totalOutput);
             
+            const xpPerTick = owned.tier;
+            totalXpGained += xpPerTick * ticks;
+            
             newGenerators.push({
               ...owned,
               lastTick: owned.lastTick + (ticks * interval),
@@ -330,6 +466,9 @@ export const useGameStore = create<GameStore>()(
 
         if (updated) {
           set({ generators: newGenerators });
+          if (totalXpGained > 0) {
+            get().addXp(totalXpGained);
+          }
         }
       },
 
@@ -354,6 +493,7 @@ export const useGameStore = create<GameStore>()(
           settingsSubTab: 'general',
           inventoryOpen: false,
           floatingNumbers: [],
+          keybinds: { ...DEFAULT_KEYBINDS },
         });
       },
 
@@ -372,6 +512,7 @@ export const useGameStore = create<GameStore>()(
         unlockedGenerators: state.unlockedGenerators,
         lastSave: state.lastSave,
         playTime: state.playTime,
+        keybinds: state.keybinds,
       }),
     }
   )

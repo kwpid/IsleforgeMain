@@ -339,12 +339,47 @@
            flex items-center justify-center transition-all duration-200;
   }
 
+  .item-slot-compact {
+    @apply relative w-8 h-8 border-2 border-dashed border-border bg-muted/30 
+           flex items-center justify-center transition-all duration-200;
+  }
+
   .item-slot-filled {
     @apply border-solid border-border bg-card;
   }
 
   .drag-over {
     @apply border-primary bg-primary/10;
+  }
+
+  @keyframes tab-slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes content-fade-in {
+    from {
+      opacity: 0;
+      transform: translateX(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-tab-slide {
+    animation: tab-slide-in 0.2s ease-out;
+  }
+
+  .animate-content-fade {
+    animation: content-fade-in 0.25s ease-out;
   }
 
   .scrollbar-pixel::-webkit-scrollbar {

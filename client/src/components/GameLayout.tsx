@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { TabNavigation } from './TabNavigation';
 import { PlayerStats } from './PlayerStats';
 import { IslandTab } from './IslandTab';
@@ -10,9 +11,10 @@ import { FloatingNumbers } from './FloatingNumbers';
 
 export function GameLayout() {
   const mainTab = useGameStore((s) => s.mainTab);
-  const setMainTab = useGameStore((s) => s.setMainTab);
   const tickGenerators = useGameStore((s) => s.tickGenerators);
   const saveGame = useGameStore((s) => s.saveGame);
+
+  useKeyboardShortcuts();
 
   useEffect(() => {
     const tickInterval = setInterval(() => {
@@ -30,28 +32,13 @@ export function GameLayout() {
     return () => clearInterval(saveInterval);
   }, [saveGame]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '1') setMainTab('island');
-      if (e.key === '2') setMainTab('hub');
-      if (e.key === '3') setMainTab('settings');
-      if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        saveGame();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setMainTab, saveGame]);
-
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <TabNavigation />
       
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-hidden">
-          <div className="h-full">
+          <div className="h-full animate-content-fade" key={mainTab}>
             {mainTab === 'island' && <IslandTab />}
             {mainTab === 'hub' && <HubTab />}
             {mainTab === 'settings' && <SettingsTab />}

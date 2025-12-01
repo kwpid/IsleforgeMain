@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
+import { KeybindAction, getKeyDisplayName } from '@/lib/gameTypes';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -281,6 +282,21 @@ function AudioSettings() {
 }
 
 function ControlsSettings() {
+  const keybinds = useGameStore((s) => s.keybinds);
+  const setKeybind = useGameStore((s) => s.setKeybind);
+  const resetKeybinds = useGameStore((s) => s.resetKeybinds);
+  const [listeningFor, setListeningFor] = useState<KeybindAction | null>(null);
+
+  const keybindConfig: { action: KeybindAction; label: string }[] = [
+    { action: 'openInventory', label: 'Open Inventory' },
+    { action: 'quickSave', label: 'Quick Save' },
+    { action: 'islandTab', label: 'Island Tab' },
+    { action: 'hubTab', label: 'Hub Tab' },
+    { action: 'settingsTab', label: 'Settings Tab' },
+    { action: 'prevSubTab', label: 'Previous Sub-Tab' },
+    { action: 'nextSubTab', label: 'Next Sub-Tab' },
+  ];
+
   return (
     <div className="max-w-2xl space-y-6">
       <h2 className="pixel-text text-lg text-foreground mb-6">
@@ -288,18 +304,39 @@ function ControlsSettings() {
       </h2>
 
       <Card className="pixel-border border-card-border">
-        <CardHeader>
-          <CardTitle className="pixel-text-sm">Keyboard Shortcuts</CardTitle>
-          <CardDescription className="font-sans">
-            Quick access controls
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="pixel-text-sm">Keyboard Shortcuts</CardTitle>
+            <CardDescription className="font-sans">
+              Click a keybind to change it
+            </CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={resetKeybinds}
+            className="pixel-text-sm text-[8px]"
+            data-testid="button-reset-keybinds"
+          >
+            Reset All
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          <KeybindRow label="Open Inventory" keybind="TAB" />
-          <KeybindRow label="Quick Save" keybind="CTRL + S" />
-          <KeybindRow label="Island Tab" keybind="1" />
-          <KeybindRow label="Hub Tab" keybind="2" />
-          <KeybindRow label="Settings Tab" keybind="3" />
+          {keybindConfig.map(({ action, label }) => (
+            <KeybindRow 
+              key={action}
+              label={label}
+              action={action}
+              currentKey={keybinds[action]}
+              isListening={listeningFor === action}
+              onStartListening={() => setListeningFor(action)}
+              onKeyCapture={(key) => {
+                setKeybind(action, key);
+                setListeningFor(null);
+              }}
+              onCancel={() => setListeningFor(null)}
+            />
+          ))}
         </CardContent>
       </Card>
 
@@ -331,16 +368,59 @@ function ControlsSettings() {
 
 interface KeybindRowProps {
   label: string;
-  keybind: string;
+  action: KeybindAction;
+  currentKey: string;
+  isListening: boolean;
+  onStartListening: () => void;
+  onKeyCapture: (key: string) => void;
+  onCancel: () => void;
 }
 
-function KeybindRow({ label, keybind }: KeybindRowProps) {
+function KeybindRow({ 
+  label, 
+  action,
+  currentKey, 
+  isListening, 
+  onStartListening, 
+  onKeyCapture,
+  onCancel
+}: KeybindRowProps) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.code === 'Escape') {
+      onCancel();
+      return;
+    }
+    
+    onKeyCapture(e.code);
+  };
+
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4">
       <span className="font-sans text-sm">{label}</span>
-      <kbd className="pixel-border border-border bg-muted px-3 py-1">
-        <span className="pixel-text-sm text-xs">{keybind}</span>
-      </kbd>
+      {isListening ? (
+        <div
+          className="pixel-border border-primary bg-primary/10 px-3 py-1 animate-pulse min-w-[80px] text-center"
+          tabIndex={0}
+          autoFocus
+          onKeyDown={handleKeyDown}
+          onBlur={onCancel}
+          data-testid={`keybind-input-${action}`}
+          data-keybind-capture="true"
+        >
+          <span className="pixel-text-sm text-xs">Press key...</span>
+        </div>
+      ) : (
+        <button
+          onClick={onStartListening}
+          className="pixel-border border-border bg-muted px-3 py-1 hover-elevate min-w-[80px] text-center cursor-pointer"
+          data-testid={`keybind-${action}`}
+        >
+          <span className="pixel-text-sm text-xs">{getKeyDisplayName(currentKey)}</span>
+        </button>
+      )}
     </div>
   );
 }

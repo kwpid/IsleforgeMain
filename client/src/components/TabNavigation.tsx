@@ -64,7 +64,7 @@ export function TabNavigation() {
       </div>
 
       {mainTab === 'island' && (
-        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2">
+        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2 animate-tab-slide">
           {islandSubTabs.map((tab) => (
             <button
               key={tab.id}
@@ -86,7 +86,7 @@ export function TabNavigation() {
       )}
 
       {mainTab === 'hub' && (
-        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2">
+        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2 animate-tab-slide">
           {hubSubTabs.map((tab) => (
             <button
               key={tab.id}
@@ -114,7 +114,7 @@ export function TabNavigation() {
       )}
 
       {mainTab === 'settings' && (
-        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2">
+        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2 animate-tab-slide">
           {settingsSubTabs.map((tab) => (
             <button
               key={tab.id}

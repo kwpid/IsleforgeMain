@@ -44,23 +44,23 @@ export function InventoryPopup() {
 
   return (
     <Dialog open={inventoryOpen} onOpenChange={toggleInventory}>
-      <DialogContent className="pixel-border border-border bg-popover max-w-4xl p-0 gap-0">
-        <DialogHeader className="p-4 border-b-2 border-border">
-          <DialogTitle className="pixel-text text-lg text-center">
+      <DialogContent className="pixel-border border-border bg-popover max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-3 border-b-2 border-border">
+          <DialogTitle className="pixel-text text-sm text-center">
             INVENTORY
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-0 p-4">
-          <div className="border-r-2 border-border pr-4">
-            <h3 className="pixel-text-sm text-muted-foreground mb-4 text-center">
+        <div className="grid grid-cols-[140px_1fr] gap-0 p-3">
+          <div className="border-r-2 border-border pr-3">
+            <h3 className="pixel-text-sm text-muted-foreground mb-2 text-center text-[7px]">
               EQUIPMENT
             </h3>
             
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <span className="pixel-text-sm text-xs text-muted-foreground">Armor</span>
-                <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <span className="pixel-text-sm text-[6px] text-muted-foreground">Armor</span>
+                <div className="grid grid-cols-2 gap-1">
                   {armorSlots.map(({ slot, label }) => {
                     const itemId = equipment[slot];
                     const item = itemId ? getItemById(itemId) : null;
@@ -70,16 +70,16 @@ export function InventoryPopup() {
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              'item-slot aspect-square',
+                              'item-slot-compact',
                               item && 'item-slot-filled',
                               item && `rarity-${item.rarity}`
                             )}
                             data-testid={`equipment-${slot}`}
                           >
                             {item ? (
-                              <PixelIcon icon={item.icon} size="lg" />
+                              <PixelIcon icon={item.icon} size="md" />
                             ) : (
-                              <span className="pixel-text-sm text-xs text-muted-foreground/50">
+                              <span className="pixel-text-sm text-[6px] text-muted-foreground/50">
                                 {label.charAt(0)}
                               </span>
                             )}
@@ -96,29 +96,29 @@ export function InventoryPopup() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <span className="pixel-text-sm text-xs text-muted-foreground">Hands</span>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <span className="pixel-text-sm text-[6px] text-muted-foreground">Hands</span>
+                <div className="grid grid-cols-2 gap-1">
                   {(['mainHand', 'offHand'] as const).map((hand) => {
                     const itemId = equipment[hand];
                     const item = itemId ? getItemById(itemId) : null;
-                    const label = hand === 'mainHand' ? 'Main' : 'Off';
+                    const label = hand === 'mainHand' ? 'M' : 'O';
 
                     return (
                       <Tooltip key={hand}>
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              'item-slot aspect-square',
+                              'item-slot-compact',
                               item && 'item-slot-filled',
                               item && `rarity-${item.rarity}`
                             )}
                             data-testid={`equipment-${hand}`}
                           >
                             {item ? (
-                              <PixelIcon icon={item.icon} size="lg" />
+                              <PixelIcon icon={item.icon} size="md" />
                             ) : (
-                              <span className="pixel-text-sm text-xs text-muted-foreground/50">
+                              <span className="pixel-text-sm text-[6px] text-muted-foreground/50">
                                 {label}
                               </span>
                             )}
@@ -135,24 +135,24 @@ export function InventoryPopup() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-border">
-                <div className="pixel-border border-primary/30 bg-primary/5 p-3 text-center">
-                  <PixelIcon icon="iron_sword" size="xl" className="mx-auto mb-2 opacity-30" />
-                  <p className="pixel-text-sm text-xs text-muted-foreground">
-                    Equipment from dungeons coming soon!
+              <div className="pt-2 border-t border-border">
+                <div className="pixel-border border-primary/30 bg-primary/5 p-2 text-center">
+                  <PixelIcon icon="iron_sword" size="md" className="mx-auto mb-1 opacity-30" />
+                  <p className="pixel-text-sm text-[6px] text-muted-foreground leading-tight">
+                    Dungeons soon!
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="col-span-2 pl-4">
-            <h3 className="pixel-text-sm text-muted-foreground mb-4 text-center">
+          <div className="pl-3">
+            <h3 className="pixel-text-sm text-muted-foreground mb-2 text-center text-[7px]">
               ITEMS ({inventory.items.length}/{inventory.maxSlots})
             </h3>
             
             <div 
-              className="grid grid-cols-6 gap-2"
+              className="grid grid-cols-6 gap-1"
               data-testid="inventory-grid"
             >
               {inventory.items.map((inv) => {
@@ -164,14 +164,14 @@ export function InventoryPopup() {
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
-                          'item-slot item-slot-filled hover-elevate',
+                          'item-slot-compact item-slot-filled hover-elevate',
                           `rarity-${item.rarity}`
                         )}
                         data-testid={`inventory-item-${inv.itemId}`}
                       >
-                        <PixelIcon icon={item.icon} size="lg" />
+                        <PixelIcon icon={item.icon} size="md" />
                         {inv.quantity > 1 && (
-                          <span className="absolute bottom-0 right-1 pixel-text-sm text-xs text-foreground tabular-nums">
+                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
                             {formatNumber(inv.quantity)}
                           </span>
                         )}
@@ -184,23 +184,23 @@ export function InventoryPopup() {
                 );
               })}
               
-              {Array.from({ length: Math.max(0, 36 - inventory.items.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="item-slot" />
+              {Array.from({ length: Math.max(0, 24 - inventory.items.length) }).map((_, i) => (
+                <div key={`empty-${i}`} className="item-slot-compact" />
               ))}
             </div>
 
             {inventory.items.length === 0 && (
-              <div className="text-center py-8">
-                <p className="font-sans text-muted-foreground">
-                  Your inventory is empty. Acquire items from dungeons or purchase them from the marketplace.
+              <div className="text-center py-4">
+                <p className="font-sans text-xs text-muted-foreground">
+                  Empty. Get items from dungeons or marketplace.
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="border-t-2 border-border p-3 bg-muted/30 text-center">
-          <span className="pixel-text-sm text-xs text-muted-foreground">
+        <div className="border-t-2 border-border p-2 bg-muted/30 text-center">
+          <span className="pixel-text-sm text-[6px] text-muted-foreground">
             Press TAB to close
           </span>
         </div>
