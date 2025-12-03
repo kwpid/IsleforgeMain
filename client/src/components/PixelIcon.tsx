@@ -9,6 +9,23 @@ interface PixelIconProps {
   animatedImage?: string;
 }
 
+const IMAGE_EXTENSIONS = ['.png', '.gif', '.jpg', '.jpeg', '.webp', '.apng'];
+
+function isImageFile(icon: string): boolean {
+  return IMAGE_EXTENSIONS.some(ext => icon.toLowerCase().endsWith(ext));
+}
+
+function getImagePath(icon: string): string {
+  return `/item_images/${icon}`;
+}
+
+function getIconKey(icon: string): string {
+  if (!isImageFile(icon)) return icon;
+  const lastDot = icon.lastIndexOf('.');
+  const baseName = lastDot > 0 ? icon.substring(0, lastDot) : icon;
+  return baseName.replace(/[-_]/g, '_');
+}
+
 const ICON_COLORS: Record<string, { bg: string; accent: string; detail?: string }> = {
   cobblestone: { bg: '#7a7a7a', accent: '#5a5a5a', detail: '#9a9a9a' },
   stone: { bg: '#8a8a8a', accent: '#6a6a6a', detail: '#aaaaaa' },
@@ -91,20 +108,22 @@ const SIZE_MAP = {
 };
 
 export function PixelIcon({ icon, size = 'md', className, customImage, animatedImage }: PixelIconProps) {
-  const colors = ICON_COLORS[icon] || { bg: '#888888', accent: '#666666', detail: '#aaaaaa' };
+  const iconKey = getIconKey(icon);
+  const colors = ICON_COLORS[iconKey] || { bg: '#888888', accent: '#666666', detail: '#aaaaaa' };
   const sizeClass = SIZE_MAP[size];
   const [imageError, setImageError] = useState(false);
 
-  const isPotion = icon.startsWith('potion_');
-  const isTool = ['pickaxe', 'sword', 'axe'].some(t => icon.includes(t));
-  const isArmor = ['helmet', 'chestplate', 'leggings', 'boots'].some(a => icon.includes(a));
-  const isIngot = icon.includes('ingot');
-  const isGem = ['diamond', 'emerald', 'nether_star'].includes(icon);
-  const isOre = icon.includes('ore');
-  const isLog = icon.includes('log');
-  const isFood = ['apple', 'bread', 'beef', 'golden_apple', 'enchanted_golden_apple'].some(f => icon.includes(f));
+  const isPotion = iconKey.startsWith('potion_');
+  const isTool = ['pickaxe', 'sword', 'axe'].some(t => iconKey.includes(t));
+  const isArmor = ['helmet', 'chestplate', 'leggings', 'boots'].some(a => iconKey.includes(a));
+  const isIngot = iconKey.includes('ingot');
+  const isGem = ['diamond', 'emerald', 'nether_star'].includes(iconKey);
+  const isOre = iconKey.includes('ore');
+  const isLog = iconKey.includes('log');
+  const isFood = ['apple', 'bread', 'beef', 'golden_apple', 'enchanted_golden_apple'].some(f => iconKey.includes(f));
 
-  const imageToUse = animatedImage || customImage;
+  const isIconImage = isImageFile(icon);
+  const imageToUse = animatedImage || customImage || (isIconImage ? getImagePath(icon) : null);
   
   if (imageToUse && !imageError) {
     return (
@@ -190,7 +209,7 @@ export function PixelIcon({ icon, size = 'md', className, customImage, animatedI
             <rect x="5" y="4" width="2" height="8" fill={colors.detail} />
             <rect x="9" y="3" width="1" height="10" fill={colors.accent} />
           </>
-        ) : isFood && icon.includes('apple') ? (
+        ) : isFood && iconKey.includes('apple') ? (
           <>
             <rect x="7" y="1" width="2" height="2" fill="#654321" />
             <rect x="9" y="2" width="2" height="2" fill="#228b22" />
@@ -199,7 +218,7 @@ export function PixelIcon({ icon, size = 'md', className, customImage, animatedI
             <rect x="5" y="11" width="6" height="2" fill={colors.accent} />
             <rect x="6" y="5" width="2" height="2" fill={colors.detail} opacity="0.5" />
           </>
-        ) : icon === 'coin' ? (
+        ) : iconKey === 'coin' ? (
           <>
             <circle cx="8" cy="8" r="6" fill={colors.bg} />
             <circle cx="8" cy="8" r="5" fill={colors.accent} />
@@ -208,26 +227,26 @@ export function PixelIcon({ icon, size = 'md', className, customImage, animatedI
             <rect x="5" y="6" width="6" height="1" fill={colors.accent} />
             <rect x="5" y="9" width="6" height="1" fill={colors.accent} />
           </>
-        ) : icon === 'up' ? (
+        ) : iconKey === 'up' ? (
           <>
             <rect x="3" y="3" width="10" height="10" fill={colors.bg} />
             <rect x="7" y="5" width="2" height="6" fill={colors.detail} />
             <rect x="5" y="7" width="6" height="2" fill={colors.detail} />
             <rect x="6" y="6" width="1" height="1" fill={colors.accent} />
           </>
-        ) : icon === 'xp' ? (
+        ) : iconKey === 'xp' ? (
           <>
             <circle cx="8" cy="8" r="6" fill={colors.bg} />
             <circle cx="8" cy="8" r="4" fill={colors.accent} />
             <circle cx="8" cy="8" r="2" fill={colors.detail} />
           </>
-        ) : icon === 'lock' ? (
+        ) : iconKey === 'lock' ? (
           <>
             <rect x="4" y="7" width="8" height="7" fill={colors.bg} />
             <rect x="5" y="3" width="6" height="5" fill="transparent" stroke={colors.bg} strokeWidth="2" />
             <rect x="7" y="9" width="2" height="3" fill={colors.detail} />
           </>
-        ) : icon === 'blueprint' ? (
+        ) : iconKey === 'blueprint' ? (
           <>
             <rect x="2" y="2" width="12" height="12" fill={colors.bg} />
             <rect x="3" y="3" width="10" height="10" fill={colors.accent} />
@@ -237,7 +256,7 @@ export function PixelIcon({ icon, size = 'md', className, customImage, animatedI
             <rect x="4" y="10" width="8" height="1" fill={colors.detail} />
             <rect x="10" y="4" width="2" height="2" fill={colors.detail} />
           </>
-        ) : icon.startsWith('vendor') || icon === 'travelling' ? (
+        ) : iconKey.startsWith('vendor') || iconKey === 'travelling' ? (
           <>
             <rect x="3" y="2" width="10" height="4" fill={colors.accent} />
             <rect x="2" y="6" width="12" height="8" fill={colors.bg} />

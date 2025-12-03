@@ -110,10 +110,11 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Special items available in Special Vendors or via dev console
 
 ### Custom Item Images
-- Custom images folder: `attached_assets/item_images/`
-- Static images: Add `customImage: '/item_images/filename.png'` to item definition
-- Animated GIFs: Add `animatedImage: '/item_images/filename.gif'` for animations
-- See `attached_assets/item_images/README.md` for full documentation
+- Custom images folder: `client/public/item_images/`
+- Usage: Set `icon: "filename.png"` in item definition (auto-detected by file extension)
+- Animated GIFs: Set `icon: "filename.gif"` for animations
+- Supported formats: PNG, GIF, JPG, JPEG, WEBP, APNG
+- See `client/public/item_images/README.md` for full documentation
 
 ### Developer Console
 - Press `Y` to open (when not in input field)
