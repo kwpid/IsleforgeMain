@@ -18,6 +18,8 @@ import {
   VAULT_UPGRADES,
   BankTransaction,
   ArmorSlot,
+  NotificationSettings,
+  DEFAULT_NOTIFICATION_SETTINGS,
 } from './gameTypes';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
@@ -85,6 +87,10 @@ interface GameStore extends GameState {
   unequipItem: (slot: ArmorSlot | 'mainHand' | 'offHand') => boolean;
 
   addTransaction: (type: 'deposit' | 'withdraw' | 'purchase' | 'sell', amount: number, source?: string) => void;
+
+  updateNotificationSetting: <K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) => void;
+  resetNotificationSettings: () => void;
+  isStorageFull: () => boolean;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -115,7 +121,7 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage'];
         const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'dungeons'];
-        const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls'];
+        const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications'];
 
         if (state.mainTab === 'island') {
           const currentIndex = islandSubTabs.indexOf(state.islandSubTab);
@@ -488,6 +494,9 @@ export const useGameStore = create<GameStore>()(
         let updated = false;
         let totalXpGained = 0;
         const newGenerators: OwnedGenerator[] = [];
+        
+        const storageUsed = get().getStorageUsed();
+        const storageFull = storageUsed >= state.storage.capacity;
 
         for (const owned of state.generators) {
           if (!owned.isActive) {
@@ -505,14 +514,28 @@ export const useGameStore = create<GameStore>()(
           const timeSinceLastTick = now - owned.lastTick;
 
           if (timeSinceLastTick >= interval) {
+            if (storageFull) {
+              newGenerators.push({
+                ...owned,
+                lastTick: now,
+              });
+              updated = true;
+              continue;
+            }
+
             const ticks = Math.floor(timeSinceLastTick / interval);
             const output = getGeneratorOutput(generator, owned.tier);
             const totalOutput = output * ticks;
-
-            get().addItemToStorage(generator.outputItemId, totalOutput);
-
-            const xpPerTick = owned.tier; // Simple XP formula
-            totalXpGained += xpPerTick * ticks;
+            
+            const currentUsed = get().getStorageUsed();
+            const availableSpace = state.storage.capacity - currentUsed;
+            const actualOutput = Math.min(totalOutput, availableSpace);
+            
+            if (actualOutput > 0) {
+              get().addItemToStorage(generator.outputItemId, actualOutput);
+              const xpPerTick = owned.tier;
+              totalXpGained += xpPerTick * ticks;
+            }
 
             newGenerators.push({
               ...owned,
@@ -810,6 +833,24 @@ export const useGameStore = create<GameStore>()(
         }));
         return true;
       },
+
+      updateNotificationSetting: (key, value) => {
+        set((state) => ({
+          notificationSettings: {
+            ...state.notificationSettings,
+            [key]: value,
+          },
+        }));
+      },
+
+      resetNotificationSettings: () => {
+        set({ notificationSettings: { ...DEFAULT_NOTIFICATION_SETTINGS } });
+      },
+
+      isStorageFull: () => {
+        const state = get();
+        return get().getStorageUsed() >= state.storage.capacity;
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -828,6 +869,7 @@ export const useGameStore = create<GameStore>()(
         lastSave: state.lastSave,
         playTime: state.playTime,
         keybinds: state.keybinds,
+        notificationSettings: state.notificationSettings,
       }),
     }
   )

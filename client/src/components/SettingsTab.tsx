@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
-import { KeybindAction, getKeyDisplayName } from '@/lib/gameTypes';
+import { KeybindAction, getKeyDisplayName, NotificationSettings } from '@/lib/gameTypes';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Bell, Package, Coins, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
 
 export function SettingsTab() {
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
@@ -25,6 +26,7 @@ export function SettingsTab() {
       {settingsSubTab === 'general' && <GeneralSettings />}
       {settingsSubTab === 'audio' && <AudioSettings />}
       {settingsSubTab === 'controls' && <ControlsSettings />}
+      {settingsSubTab === 'notifications' && <NotificationsSettings />}
     </div>
   );
 }
@@ -421,6 +423,87 @@ function KeybindRow({
           <span className="pixel-text-sm text-xs">{getKeyDisplayName(currentKey)}</span>
         </button>
       )}
+    </div>
+  );
+}
+
+function NotificationsSettings() {
+  const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const updateNotificationSetting = useGameStore((s) => s.updateNotificationSetting);
+  const resetNotificationSettings = useGameStore((s) => s.resetNotificationSettings);
+
+  const notificationOptions: { key: keyof NotificationSettings; label: string; description: string; icon: typeof Bell }[] = [
+    { key: 'storageFull', label: 'Storage Full', description: 'Notify when storage reaches capacity', icon: AlertTriangle },
+    { key: 'itemPurchased', label: 'Item Purchased', description: 'Notify when buying items from vendors', icon: Package },
+    { key: 'itemSold', label: 'Item Sold', description: 'Notify when selling items', icon: Coins },
+    { key: 'levelUp', label: 'Level Up', description: 'Notify when gaining a level', icon: Sparkles },
+    { key: 'generatorPaused', label: 'Generator Paused', description: 'Notify when generators stop due to full storage', icon: AlertTriangle },
+    { key: 'bankDeposit', label: 'Bank Deposit', description: 'Notify when depositing coins to bank', icon: TrendingUp },
+    { key: 'bankWithdraw', label: 'Bank Withdraw', description: 'Notify when withdrawing coins from bank', icon: Coins },
+  ];
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <h2 className="pixel-text text-lg text-foreground mb-6">
+        Notification Settings
+      </h2>
+
+      <Card className="pixel-border border-card-border">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="pixel-text-sm">Master Control</CardTitle>
+            <CardDescription className="font-sans">
+              Enable or disable all notifications
+            </CardDescription>
+          </div>
+          <Switch 
+            checked={notificationSettings.enabled} 
+            onCheckedChange={(checked) => updateNotificationSetting('enabled', checked)}
+            data-testid="switch-notifications-master"
+          />
+        </CardHeader>
+      </Card>
+
+      <Card className="pixel-border border-card-border">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="pixel-text-sm">Notification Types</CardTitle>
+            <CardDescription className="font-sans">
+              Choose which notifications to receive
+            </CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={resetNotificationSettings}
+            className="pixel-text-sm text-[8px]"
+            data-testid="button-reset-notifications"
+          >
+            Reset All
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {notificationOptions.map(({ key, label, description, icon: Icon }) => (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Icon className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <Label className="pixel-text-sm">{label}</Label>
+                  <p className="text-sm text-muted-foreground font-sans">
+                    {description}
+                  </p>
+                </div>
+              </div>
+              <Switch 
+                checked={notificationSettings[key]} 
+                onCheckedChange={(checked) => updateNotificationSetting(key, checked)}
+                disabled={!notificationSettings.enabled}
+                data-testid={`switch-notification-${key}`}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useGameNotifications } from '@/hooks/useGameNotifications';
 import { TabNavigation } from './TabNavigation';
 import { PlayerStats } from './PlayerStats';
 import { IslandTab } from './IslandTab';
@@ -13,16 +14,34 @@ export function GameLayout() {
   const mainTab = useGameStore((s) => s.mainTab);
   const tickGenerators = useGameStore((s) => s.tickGenerators);
   const saveGame = useGameStore((s) => s.saveGame);
+  const isStorageFull = useGameStore((s) => s.isStorageFull);
+  const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const { warning } = useGameNotifications();
+  
+  const wasStorageFull = useRef(false);
+  const lastNotificationTime = useRef(0);
 
   useKeyboardShortcuts();
 
   useEffect(() => {
     const tickInterval = setInterval(() => {
       tickGenerators();
+      
+      const storageFull = isStorageFull();
+      const now = Date.now();
+      
+      if (storageFull && !wasStorageFull.current) {
+        if (notificationSettings.enabled && notificationSettings.storageFull && 
+            now - lastNotificationTime.current > 10000) {
+          warning('Storage Full!', 'Generators paused until storage is freed');
+          lastNotificationTime.current = now;
+        }
+      }
+      wasStorageFull.current = storageFull;
     }, 100);
 
     return () => clearInterval(tickInterval);
-  }, [tickGenerators]);
+  }, [tickGenerators, isStorageFull, notificationSettings, warning]);
 
   useEffect(() => {
     const saveInterval = setInterval(() => {
