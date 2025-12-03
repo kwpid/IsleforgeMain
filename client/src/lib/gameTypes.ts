@@ -172,12 +172,35 @@ export interface GameState {
   currentBuilding: BuildingProject | null;
   lastSave: number;
   playTime: number;
+  notificationSettings: NotificationSettings;
 }
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  enabled: true,
+  storageFull: true,
+  itemPurchased: true,
+  itemSold: true,
+  levelUp: true,
+  generatorPaused: true,
+  bankDeposit: true,
+  bankWithdraw: true,
+};
 
 export type MainTab = 'island' | 'hub' | 'settings';
 export type IslandSubTab = 'generators' | 'storage';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'dungeons';
-export type SettingsSubTab = 'general' | 'audio' | 'controls';
+export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications';
+
+export interface NotificationSettings {
+  enabled: boolean;
+  storageFull: boolean;
+  itemPurchased: boolean;
+  itemSold: boolean;
+  levelUp: boolean;
+  generatorPaused: boolean;
+  bankDeposit: boolean;
+  bankWithdraw: boolean;
+}
 
 export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
 
@@ -352,5 +375,6 @@ export function createDefaultGameState(): GameState {
     currentBuilding: null,
     lastSave: Date.now(),
     playTime: 0,
+    notificationSettings: { ...DEFAULT_NOTIFICATION_SETTINGS },
   };
 }

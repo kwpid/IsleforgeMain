@@ -17,6 +17,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useGameNotifications } from '@/hooks/useGameNotifications';
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -205,21 +216,54 @@ export function HubTab() {
 
 function MarketplaceView() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; vendor: Vendor; price: number } | null>(null);
   const coins = useGameStore((s) => s.player.coins);
   const spendCoins = useGameStore((s) => s.spendCoins);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
+  const notificationSettings = useGameStore((s) => s.notificationSettings);
   
   const seed = useMemo(() => getRotationSeed(), []);
   const travellingVendors = useMemo(() => generateTravellingVendors(seed), [seed]);
   const timeUntilRotation = getTimeUntilNextRotation();
+  const { success, warning } = useGameNotifications();
 
-  const handleBuyItem = (vendorItem: VendorItem, vendor: Vendor) => {
+  const handleBuyClick = (vendorItem: VendorItem, vendor: Vendor) => {
     const item = getItemById(vendorItem.itemId);
     if (!item) return;
     
     const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier * vendor.priceModifier);
-    if (spendCoins(price)) {
-      addItemToInventory(vendorItem.itemId, 1);
+    setConfirmPurchase({ item: vendorItem, vendor, price });
+  };
+
+  const handleConfirmPurchase = () => {
+    if (!confirmPurchase) return;
+    
+    const { item, vendor } = confirmPurchase;
+    const itemData = getItemById(item.itemId);
+    if (!itemData) {
+      setConfirmPurchase(null);
+      return;
+    }
+    
+    const currentPrice = Math.floor(itemData.sellPrice * item.priceMultiplier * vendor.priceModifier);
+    
+    if (coins < currentPrice) {
+      warning('Not Enough Coins', `You need ${formatNumber(currentPrice - coins)} more coins`);
+      return;
+    }
+    
+    if (spendCoins(currentPrice)) {
+      const added = addItemToInventory(item.itemId, 1);
+      if (added) {
+        if (notificationSettings.enabled && notificationSettings.itemPurchased) {
+          success('Item Purchased!', `Bought ${itemData.name} for ${formatNumber(currentPrice)} coins`);
+        }
+        setConfirmPurchase(null);
+      } else {
+        warning('Inventory Full', 'Make room in your inventory first');
+      }
+    } else {
+      warning('Purchase Failed', 'Unable to complete purchase');
     }
   };
 
@@ -331,7 +375,7 @@ function MarketplaceView() {
                       </div>
                       
                       <Button
-                        onClick={() => handleBuyItem(vendorItem, selectedVendor)}
+                        onClick={() => handleBuyClick(vendorItem, selectedVendor)}
                         disabled={!canAfford || vendorItem.stock <= 0}
                         size="sm"
                         className="w-full pixel-text-sm text-[8px]"
@@ -348,6 +392,51 @@ function MarketplaceView() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmPurchase} onOpenChange={() => setConfirmPurchase(null)}>
+        <AlertDialogContent className="pixel-border border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="pixel-text text-sm">Confirm Purchase</AlertDialogTitle>
+            <AlertDialogDescription className="font-sans">
+              {confirmPurchase && (() => {
+                const item = getItemById(confirmPurchase.item.itemId);
+                return item ? (
+                  <div className="flex flex-col items-center gap-4 py-4">
+                    <div className={cn(
+                      'pixel-border p-3 bg-muted/30',
+                      `rarity-${item.rarity}`
+                    )}>
+                      <PixelIcon icon={item.icon} size="xl" />
+                    </div>
+                    <div className="text-center">
+                      <p className="pixel-text-sm text-[12px] text-foreground mb-1">{item.name}</p>
+                      <p className="text-muted-foreground text-sm">{item.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2 pixel-border border-primary/50 bg-primary/10 px-4 py-2">
+                      <PixelIcon icon="coin" size="md" />
+                      <span className="pixel-text text-lg text-game-coin">{formatNumber(confirmPurchase.price)}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Your balance: {formatNumber(coins)} coins
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="pixel-text-sm" data-testid="button-cancel-purchase">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmPurchase} 
+              className="pixel-text-sm"
+              disabled={confirmPurchase ? coins < confirmPurchase.price : true}
+              data-testid="button-confirm-purchase"
+            >
+              Buy Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -625,6 +714,9 @@ function BankView() {
   const [bankSubView, setBankSubView] = useState<'account' | 'vault' | 'history' | 'stats'>('account');
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [draggedItem, setDraggedItem] = useState<{ itemId: string; quantity: number; source: 'inventory' | 'vault' } | null>(null);
+  const [isDraggingOverVault, setIsDraggingOverVault] = useState(false);
+  const [isDraggingOverInventory, setIsDraggingOverInventory] = useState(false);
   
   const coins = useGameStore((s) => s.player.coins);
   const bank = useGameStore((s) => s.bank);
@@ -638,6 +730,8 @@ function BankView() {
   const addItemToVault = useGameStore((s) => s.addItemToVault);
   const removeItemFromVault = useGameStore((s) => s.removeItemFromVault);
   const calculateNetWorth = useGameStore((s) => s.calculateNetWorth);
+  const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const { success, warning } = useGameNotifications();
   
   const nextBankUpgrade = BANK_UPGRADES.find(u => u.level === bank.upgradeLevel + 1);
   const nextVaultUpgrade = VAULT_UPGRADES.find(u => u.level === vault.upgradeLevel + 1);
@@ -672,6 +766,77 @@ function BankView() {
     if (bank.balance > 0) {
       withdrawFromBank(bank.balance);
     }
+  };
+  
+  const handleDragStart = (e: React.DragEvent, itemId: string, quantity: number, source: 'inventory' | 'vault') => {
+    setDraggedItem({ itemId, quantity, source });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', itemId);
+  };
+  
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setIsDraggingOverVault(false);
+    setIsDraggingOverInventory(false);
+  };
+  
+  const handleVaultDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverVault(true);
+  };
+  
+  const handleVaultDragLeave = () => {
+    setIsDraggingOverVault(false);
+  };
+  
+  const handleVaultDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedItem && draggedItem.source === 'inventory') {
+      const itemData = getItemById(draggedItem.itemId);
+      const existingSlot = vault.slots.find(s => s.itemId === draggedItem.itemId);
+      
+      if (vault.slots.length >= vault.maxSlots && !existingSlot) {
+        warning('Vault Full', 'Upgrade your vault to store more items');
+        setDraggedItem(null);
+        setIsDraggingOverVault(false);
+        return;
+      }
+      
+      const result = addItemToVault(draggedItem.itemId, draggedItem.quantity);
+      if (result && itemData) {
+        if (notificationSettings.enabled) {
+          success('Stored in Vault', `${itemData.name} x${draggedItem.quantity} secured`);
+        }
+      }
+    }
+    setDraggedItem(null);
+    setIsDraggingOverVault(false);
+  };
+  
+  const handleInventoryDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverInventory(true);
+  };
+  
+  const handleInventoryDragLeave = () => {
+    setIsDraggingOverInventory(false);
+  };
+  
+  const handleInventoryDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedItem && draggedItem.source === 'vault') {
+      const itemData = getItemById(draggedItem.itemId);
+      const result = removeItemFromVault(draggedItem.itemId, draggedItem.quantity);
+      if (result && itemData) {
+        if (notificationSettings.enabled) {
+          success('Retrieved from Vault', `${itemData.name} x${draggedItem.quantity} returned`);
+        }
+      } else if (!result) {
+        warning('Inventory Full', 'Make room in your inventory first');
+      }
+    }
+    setDraggedItem(null);
+    setIsDraggingOverInventory(false);
   };
 
   const bankSubTabs = [
@@ -860,8 +1025,20 @@ function BankView() {
                 Store valuable items safely in your vault. Items in the vault are protected.
               </p>
               
-              <div className="pixel-border border-border bg-muted/20 p-3">
-                <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">Vault Contents</p>
+              <div 
+                className={cn(
+                  "pixel-border bg-muted/20 p-3 transition-colors",
+                  isDraggingOverVault && draggedItem?.source === 'inventory' 
+                    ? "border-primary bg-primary/10" 
+                    : "border-border"
+                )}
+                onDragOver={handleVaultDragOver}
+                onDragLeave={handleVaultDragLeave}
+                onDrop={handleVaultDrop}
+              >
+                <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">
+                  Vault Contents {isDraggingOverVault && draggedItem?.source === 'inventory' && <span className="text-primary">(Drop here)</span>}
+                </p>
                 <div className="grid grid-cols-6 gap-2">
                   {Array.from({ length: vault.maxSlots }).map((_, index) => {
                     const slot = vault.slots[index];
@@ -872,9 +1049,13 @@ function BankView() {
                         <TooltipTrigger asChild>
                           <div 
                             className={cn(
-                              'aspect-square pixel-border flex items-center justify-center relative',
-                              slot ? `rarity-${item?.rarity} bg-muted/50` : 'border-border bg-muted/20'
+                              'aspect-square pixel-border flex items-center justify-center relative cursor-pointer',
+                              slot ? `rarity-${item?.rarity} bg-muted/50` : 'border-border bg-muted/20',
+                              slot && 'hover-elevate overflow-visible'
                             )}
+                            draggable={!!slot}
+                            onDragStart={(e) => slot && handleDragStart(e, slot.itemId, slot.quantity, 'vault')}
+                            onDragEnd={handleDragEnd}
                             onClick={() => slot && removeItemFromVault(slot.itemId, slot.quantity)}
                             data-testid={`vault-slot-${index}`}
                           >
@@ -901,9 +1082,19 @@ function BankView() {
                 </div>
               </div>
               
-              <div className="pixel-border border-border bg-muted/20 p-3">
+              <div 
+                className={cn(
+                  "pixel-border bg-muted/20 p-3 transition-colors",
+                  isDraggingOverInventory && draggedItem?.source === 'vault' 
+                    ? "border-accent bg-accent/10" 
+                    : "border-border"
+                )}
+                onDragOver={handleInventoryDragOver}
+                onDragLeave={handleInventoryDragLeave}
+                onDrop={handleInventoryDrop}
+              >
                 <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">
-                  From Inventory (click to store)
+                  From Inventory (drag to vault or click) {isDraggingOverInventory && draggedItem?.source === 'vault' && <span className="text-accent">(Drop here)</span>}
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {inventory.items.map((inv, index) => {
@@ -918,6 +1109,9 @@ function BankView() {
                               'aspect-square pixel-border flex items-center justify-center relative cursor-pointer hover-elevate overflow-visible',
                               `rarity-${item.rarity} bg-muted/50`
                             )}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, inv.itemId, inv.quantity, 'inventory')}
+                            onDragEnd={handleDragEnd}
                             onClick={() => addItemToVault(inv.itemId, inv.quantity)}
                             data-testid={`inv-to-vault-${inv.itemId}`}
                           >

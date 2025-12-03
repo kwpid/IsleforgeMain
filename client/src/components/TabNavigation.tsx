@@ -35,6 +35,7 @@ export function TabNavigation() {
     { id: 'general', label: 'GENERAL' },
     { id: 'audio', label: 'AUDIO' },
     { id: 'controls', label: 'CONTROLS' },
+    { id: 'notifications', label: 'NOTIFICATIONS' },
   ];
 
   return (
