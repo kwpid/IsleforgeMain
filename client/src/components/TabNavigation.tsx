@@ -22,6 +22,7 @@ export function TabNavigation() {
   const islandSubTabs: { id: IslandSubTab; label: string; icon: string }[] = [
     { id: 'generators', label: 'GENERATORS', icon: 'cobblestone' },
     { id: 'storage', label: 'STORAGE', icon: 'storage' },
+    { id: 'crafting', label: 'CRAFTING', icon: 'iron_pickaxe' },
   ];
 
   const hubSubTabs: { id: HubSubTab; label: string; icon: string; disabled?: boolean }[] = [

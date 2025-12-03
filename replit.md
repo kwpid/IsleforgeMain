@@ -21,7 +21,7 @@ client/src/
 │   ├── GeneratorCard.tsx   # Generator tiles
 │   ├── HubTab.tsx          # Marketplace & Bank
 │   ├── InventoryPopup.tsx  # TAB key inventory modal
-│   ├── IslandTab.tsx       # Generators & Storage views
+│   ├── IslandTab.tsx       # Generators, Storage & Crafting views
 │   ├── ItemTooltip.tsx     # Item hover tooltips
 │   ├── PixelIcon.tsx       # SVG pixel-art icons
 │   ├── PlayerStats.tsx     # Right sidebar stats
@@ -39,6 +39,7 @@ client/src/
 │   │   ├── potions.ts
 │   │   ├── special.ts      # Special/enchanted items
 │   │   └── index.ts
+│   ├── crafting.ts         # Crafting recipes
 │   ├── gameStore.ts        # Zustand game state
 │   ├── gameTypes.ts        # TypeScript types
 │   └── generators.ts       # Generator definitions
@@ -62,13 +63,29 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 ### Storage System
 - Drag items to sell zone with confirmation
 - Sell all items button
-- Upgradeable capacity (100 → 200 → 400 → 800 → 1600 → 3200)
+- Upgradeable capacity (500 → 2.5K → 10K → 50K → 150K → 500K)
 
 ### Player Stats (Right Sidebar)
 - Level with XP bar
 - Coins (gold currency)
 - UP (Universal Points for future prestige)
 - Tab-specific stats below divider
+
+### Crafting System (Island Tab)
+- **Crafting Station**: Create items using materials from storage
+- **Cost**: 50% of item's market value (Minecraft-style)
+- **Categories**: Tools, Armor, Materials, Food, Potions
+- **Search**: Filter recipes by name
+- **Progress Bar**: Visual feedback during crafting time
+- **Ingredients**: Shows required materials with have/need counts
+- **Key Recipes**:
+  - Stick: 2 Oak Planks → 4 Sticks
+  - Oak Planks: 1 Oak Log → 4 Oak Planks
+  - Iron Ingot: 1 Iron Ore + 1 Coal → 1 Iron Ingot
+  - Wooden Pickaxe: 3 Oak Planks + 2 Sticks
+  - Stone Pickaxe: 3 Cobblestone + 2 Sticks
+  - Iron Pickaxe: 3 Iron Ingots + 2 Sticks
+  - Bread: 3 Wheat → 1 Bread
 
 ### Bank System (Hub Tab)
 - **Account**: Deposit/withdraw coins securely
@@ -80,8 +97,10 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 
 ### Marketplace System (Hub Tab)
 - **Main Shop**: Permanent vendors with unlimited stock
-- **Special Vendors**: 1-3 rotating vendors, change every 12 hours, limited stock
-- Category tabs: All, Blocks, Tools, Armor, Potions, Food, Materials, Special
+- **Special Vendors**: 1-3 rotating vendors, change every 12 hours, limited stock, sell items cheaper
+- Category tabs: All, Blocks, Tools, Armor, Potions, Food, Materials, Ores & Minerals
+- Ores available at 5x price multiplier (expensive but convenient)
+- Special Items only available at Special Vendors at full price
 - Purchase quantity selector with +/- buttons
 - Instant item tooltips on hover
 
@@ -131,10 +150,9 @@ Game state is saved to localStorage with key `isleforge-save`. Auto-saves every 
 
 ## Future Features (Coming Soon)
 - Dungeons tab with combat
-- Marketplace buying
-- Crafting system
 - Equipment from dungeons
 - Prestige/rebirth system with UP
+- Marketplace search/filtering
 
 ## Development Notes
 - All border-radius set to 0 for pixel aesthetic

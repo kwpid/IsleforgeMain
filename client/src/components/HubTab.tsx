@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
-import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -71,7 +71,7 @@ import {
 } from 'lucide-react';
 import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
 
-type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'special';
+type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'ores';
 
 const CATEGORY_ICONS: Record<MarketplaceCategory, typeof Store> = {
   all: Store,
@@ -81,7 +81,7 @@ const CATEGORY_ICONS: Record<MarketplaceCategory, typeof Store> = {
   potions: FlaskConical,
   food: UtensilsCrossed,
   materials: Gem,
-  special: Sparkles,
+  ores: Gem,
 };
 
 const CATEGORY_LABELS: Record<MarketplaceCategory, string> = {
@@ -92,11 +92,12 @@ const CATEGORY_LABELS: Record<MarketplaceCategory, string> = {
   potions: 'Potions & Elixirs',
   food: 'Food & Provisions',
   materials: 'Crafting Materials',
-  special: 'Special Items',
+  ores: 'Ores & Minerals',
 };
 
 function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
   let items: typeof BLOCK_ITEMS = [];
+  let priceMultiplier = 2.0;
   
   switch (category) {
     case 'blocks':
@@ -117,8 +118,9 @@ function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
     case 'materials':
       items = MATERIAL_ITEMS.filter(item => !item.isSpecial);
       break;
-    case 'special':
-      items = SPECIAL_ITEMS;
+    case 'ores':
+      items = MINERAL_ITEMS;
+      priceMultiplier = 5.0;
       break;
     case 'all':
     default:
@@ -128,7 +130,7 @@ function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
   return items.map(item => ({
     itemId: item.id,
     stock: 999,
-    priceMultiplier: 2.0,
+    priceMultiplier: category === 'ores' ? 5.0 : 2.0,
     unlimitedStock: true,
   }));
 }
@@ -233,7 +235,7 @@ function generateTravellingVendors(seed: number): Vendor[] {
     const vendorInfo = TRAVELLING_VENDOR_NAMES[vendorIndex];
     const typeIndex = (seed + i * 3) % types.length;
     const type = types[typeIndex];
-    const priceModifier = 0.8 + ((seed + i) % 5) * 0.15;
+    const priceModifier = 0.7 + ((seed + i) % 4) * 0.1;
     
     const itemType = type === 'rare' ? 'mineral' : 
                      type === 'blocks' ? 'block' : 
@@ -250,8 +252,21 @@ function generateTravellingVendors(seed: number): Vendor[] {
       items.push({
         itemId: item.id,
         stock: 1 + (seed + j) % 10,
-        priceMultiplier: 1.5 + ((seed + j) % 10) * 0.2,
+        priceMultiplier: 1.2 + ((seed + j) % 8) * 0.15,
       });
+    }
+    
+    const specialItems = SPECIAL_ITEMS;
+    const specialItemCount = 1 + (seed + i) % 2;
+    for (let j = 0; j < Math.min(specialItemCount, specialItems.length); j++) {
+      const itemIndex = (seed + i + j * 3) % specialItems.length;
+      const item = specialItems[itemIndex];
+      items.push({
+        itemId: item.id,
+        stock: 1,
+        priceMultiplier: 2.0,
+        isSpecialItem: true,
+      } as VendorItem & { isSpecialItem: boolean });
     }
     
     vendors.push({
@@ -300,7 +315,7 @@ export function HubTab() {
 function MarketplaceView() {
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory>('all');
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean } | null>(null);
+  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean; baseVendorModifier?: number; isSpecialItem?: boolean } | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [marketplaceView, setMarketplaceView] = useState<'main' | 'special'>('main');
   
@@ -316,13 +331,15 @@ function MarketplaceView() {
   
   const permanentItems = useMemo(() => getPermanentVendorItems(selectedCategory), [selectedCategory]);
 
-  const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false) => {
+  const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false, vendorPriceModifier = 1.0) => {
     const item = getItemById(vendorItem.itemId);
     if (!item) return;
     
-    const pricePerItem = Math.floor(item.sellPrice * vendorItem.priceMultiplier);
+    const isSpecialItem = (vendorItem as any).isSpecialItem === true;
+    const priceModifier = isSpecialItem ? 1.0 : vendorPriceModifier;
+    const pricePerItem = Math.floor(item.sellPrice * vendorItem.priceMultiplier * priceModifier);
     setPurchaseQuantity(1);
-    setConfirmPurchase({ item: vendorItem, quantity: 1, price: pricePerItem, isSpecialVendor });
+    setConfirmPurchase({ item: vendorItem, quantity: 1, price: pricePerItem, isSpecialVendor, baseVendorModifier: vendorPriceModifier, isSpecialItem });
   };
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -332,7 +349,8 @@ function MarketplaceView() {
     
     const maxQuantity = confirmPurchase.item.unlimitedStock ? 999 : confirmPurchase.item.stock;
     const clampedQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
-    const pricePerItem = Math.floor(item.sellPrice * confirmPurchase.item.priceMultiplier);
+    const priceModifier = confirmPurchase.isSpecialItem ? 1.0 : (confirmPurchase.baseVendorModifier || 1.0);
+    const pricePerItem = Math.floor(item.sellPrice * confirmPurchase.item.priceMultiplier * priceModifier);
     
     setPurchaseQuantity(clampedQuantity);
     setConfirmPurchase({
@@ -576,7 +594,8 @@ function MarketplaceView() {
                   const item = getItemById(vendorItem.itemId);
                   if (!item) return null;
                   
-                  const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier * selectedVendor.priceModifier);
+                  const priceModifier = (vendorItem as any).isSpecialItem ? 1.0 : selectedVendor.priceModifier;
+                  const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier * priceModifier);
                   const canAfford = coins >= price;
                   
                   return (
@@ -604,7 +623,7 @@ function MarketplaceView() {
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleBuyClick(vendorItem, true);
+                              handleBuyClick(vendorItem, true, selectedVendor.priceModifier);
                             }}
                             disabled={!canAfford || vendorItem.stock <= 0}
                             size="sm"
