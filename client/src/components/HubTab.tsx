@@ -1401,7 +1401,7 @@ function BankView() {
                 <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">
                   Vault Contents {isDraggingOverVault && draggedItem?.source === 'inventory' && <span className="text-primary">(Drop here)</span>}
                 </p>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-6 gap-3">
                   {Array.from({ length: vault.maxSlots }).map((_, index) => {
                     const slot = vault.slots[index];
                     const item = slot ? getItemById(slot.itemId) : null;
@@ -1411,9 +1411,9 @@ function BankView() {
                         <TooltipTrigger asChild>
                           <div 
                             className={cn(
-                              'aspect-square pixel-border flex items-center justify-center relative cursor-pointer',
-                              slot ? `rarity-${item?.rarity} bg-muted/50` : 'border-border bg-muted/20',
-                              slot && 'hover-elevate overflow-visible',
+                              'item-slot-vault',
+                              slot ? `item-slot-filled rarity-${item?.rarity}` : '',
+                              slot && 'hover-elevate cursor-pointer',
                               item?.isEnchanted && 'enchanted-item',
                               item?.isSpecial && 'special-item'
                             )}
@@ -1425,9 +1425,9 @@ function BankView() {
                           >
                             {item && (
                               <>
-                                <PixelIcon icon={item.icon} size="md" />
+                                <PixelIcon icon={item.icon} size="lg" />
                                 {slot && slot.quantity > 1 && (
-                                  <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                                  <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                                     {slot.quantity}
                                   </span>
                                 )}
@@ -1460,7 +1460,7 @@ function BankView() {
                 <p className="pixel-text-sm text-[9px] text-muted-foreground mb-3">
                   From Inventory (drag to vault or click) {isDraggingOverInventory && draggedItem?.source === 'vault' && <span className="text-accent">(Drop here)</span>}
                 </p>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-6 gap-3">
                   {inventory.items.map((inv, index) => {
                     const item = getItemById(inv.itemId);
                     if (!item) return null;
@@ -1470,8 +1470,8 @@ function BankView() {
                         <TooltipTrigger asChild>
                           <div 
                             className={cn(
-                              'aspect-square pixel-border flex items-center justify-center relative cursor-pointer hover-elevate overflow-visible',
-                              `rarity-${item.rarity} bg-muted/50`,
+                              'item-slot-vault item-slot-filled cursor-pointer hover-elevate',
+                              `rarity-${item.rarity}`,
                               item.isEnchanted && 'enchanted-item',
                               item.isSpecial && 'special-item'
                             )}
@@ -1481,9 +1481,9 @@ function BankView() {
                             onClick={() => addItemToVault(inv.itemId, inv.quantity)}
                             data-testid={`inv-to-vault-${inv.itemId}`}
                           >
-                            <PixelIcon icon={item.icon} size="md" />
+                            <PixelIcon icon={item.icon} size="lg" />
                             {inv.quantity > 1 && (
-                              <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                              <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                                 {inv.quantity}
                               </span>
                             )}
@@ -1496,7 +1496,7 @@ function BankView() {
                     );
                   })}
                   {inventory.items.length === 0 && (
-                    <p className="col-span-6 text-center pixel-text-sm text-[8px] text-muted-foreground py-4">
+                    <p className="col-span-6 text-center pixel-text-sm text-[9px] text-muted-foreground py-4">
                       Inventory is empty
                     </p>
                   )}

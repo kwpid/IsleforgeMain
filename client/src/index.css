@@ -335,27 +335,36 @@
   }
 
   .item-slot {
-    @apply relative aspect-square border-2 border-dashed border-border bg-muted/30 
-           flex items-center justify-center transition-all duration-200;
+    @apply relative aspect-square border-2 border-dashed border-border bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
   }
 
   .item-slot-compact {
-    @apply relative w-10 h-10 border-2 border-dashed border-border bg-muted/30 
-           flex items-center justify-center transition-all duration-200;
+    @apply relative w-12 h-12 border-2 border-dashed border-border/60 bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
   }
 
   .item-slot-uniform {
-    @apply relative w-12 h-12 border-2 border-dashed border-border bg-muted/30 
-           flex items-center justify-center transition-all duration-200;
+    @apply relative w-14 h-14 border-2 border-dashed border-border/60 bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
   }
 
   .item-slot-lg {
-    @apply relative w-14 h-14 border-2 border-dashed border-border bg-muted/30 
-           flex items-center justify-center transition-all duration-200;
+    @apply relative w-16 h-16 border-2 border-dashed border-border/60 bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
   }
 
   .item-slot-filled {
-    @apply border-solid border-border bg-card;
+    @apply border-solid border-2 bg-card/80 shadow-sm;
+  }
+
+  .item-slot-vault {
+    @apply relative w-14 h-14 border-2 border-dashed border-border/60 bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
+  }
+
+  .item-slot-vault.item-slot-filled {
+    @apply border-solid border-2 bg-card/80 shadow-sm;
   }
 
   .drag-over {
