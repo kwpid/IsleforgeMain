@@ -11,9 +11,41 @@ export interface NewsArticle {
 
 export const NEWS_ARTICLES: NewsArticle[] = [
   {
+    id: 'what-is-this',
+    title: 'What is this?',
+    date: '12/03/2025',
+    tags: ['News'],
+    content: `
+# What is IsleForge?
+
+**IsleForge** is an idle/incremental game where you build and manage your own island empire!
+
+## Core Gameplay
+
+- **Generators** - Build automated machines that produce resources while you're away
+- **Mining** - Explore mines to gather valuable ores and materials
+- **Crafting** - Combine resources to create tools, upgrades, and more
+- **Trading** - Sell your resources for coins to expand your operations
+
+## Currencies
+
+- **Coins** - The primary currency earned from selling resources
+- **Universal Points (UP)** - A premium currency for special items (1 UP = 100K Coins)
+
+## Coming Soon
+
+- Limited edition items and tools
+- The Forger update - repair and upgrade your equipment
+- More mines and resource types
+- Special events and challenges
+
+*Start building your empire today!*
+    `.trim(),
+  },
+  {
     id: 'v1.0.0-launch',
     title: 'Welcome to IsleForge!',
-    date: '2024-12-03',
+    date: '12/03/2024',
     tags: ['News', 'Update'],
     content: `
 # Welcome to IsleForge!
@@ -39,7 +71,7 @@ Thank you for playing **IsleForge**! This is an idle/incremental game where you 
   {
     id: 'update-1.1.0',
     title: 'Mining Improvements Update',
-    date: '2024-12-03',
+    date: '12/03/2024',
     tags: ['Update', 'Fixes'],
     content: `
 # Mining Improvements
