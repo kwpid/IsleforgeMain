@@ -22,6 +22,7 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   MiningStats,
   EquipmentDurability,
+  VendorStockPurchases,
 } from './gameTypes';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
@@ -106,6 +107,10 @@ interface GameStore extends GameState {
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
   craftItem: (recipeId: string, quantity?: number) => boolean;
+  
+  getVendorStockPurchased: (vendorId: string, itemId: string) => number;
+  purchaseVendorItem: (vendorId: string, itemId: string, quantity: number) => void;
+  resetVendorStockIfNeeded: () => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -1105,6 +1110,39 @@ export const useGameStore = create<GameStore>()(
 
         return true;
       },
+      
+      getVendorStockPurchased: (vendorId, itemId) => {
+        const state = get();
+        return state.vendorStockPurchases[vendorId]?.[itemId] || 0;
+      },
+      
+      purchaseVendorItem: (vendorId, itemId, quantity) => {
+        const state = get();
+        const currentPurchases = state.vendorStockPurchases[vendorId] || {};
+        const currentQuantity = currentPurchases[itemId] || 0;
+        
+        set({
+          vendorStockPurchases: {
+            ...state.vendorStockPurchases,
+            [vendorId]: {
+              ...currentPurchases,
+              [itemId]: currentQuantity + quantity,
+            },
+          },
+        });
+      },
+      
+      resetVendorStockIfNeeded: () => {
+        const state = get();
+        const currentSeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+        
+        if (state.vendorStockSeed !== currentSeed) {
+          set({
+            vendorStockPurchases: {},
+            vendorStockSeed: currentSeed,
+          });
+        }
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -1126,6 +1164,8 @@ export const useGameStore = create<GameStore>()(
         keybinds: state.keybinds,
         notificationSettings: state.notificationSettings,
         miningStats: state.miningStats,
+        vendorStockPurchases: state.vendorStockPurchases,
+        vendorStockSeed: state.vendorStockSeed,
       }),
     }
   )

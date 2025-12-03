@@ -106,6 +106,8 @@ export function InventoryPopup() {
                               'item-slot-compact transition-colors',
                               item && 'item-slot-filled',
                               item && `rarity-${item.rarity}`,
+                              item?.isEnchanted && 'enchanted-item',
+                              item?.isSpecial && 'special-item',
                               isDragOver && 'border-primary bg-primary/20',
                               draggedItem?.source === 'equipment' && draggedItem.slot === slot && 'opacity-50'
                             )}
@@ -159,6 +161,8 @@ export function InventoryPopup() {
                               'item-slot-compact transition-colors',
                               item && 'item-slot-filled',
                               item && `rarity-${item.rarity}`,
+                              item?.isEnchanted && 'enchanted-item',
+                              item?.isSpecial && 'special-item',
                               isDragOver && 'border-primary bg-primary/20',
                               draggedItem?.source === 'equipment' && draggedItem.slot === hand && 'opacity-50'
                             )}
@@ -234,6 +238,8 @@ export function InventoryPopup() {
                         className={cn(
                           'item-slot-compact item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
                           `rarity-${item.rarity}`,
+                          item.isEnchanted && 'enchanted-item',
+                          item.isSpecial && 'special-item',
                           draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
                         )}
                         draggable
@@ -243,7 +249,7 @@ export function InventoryPopup() {
                       >
                         <PixelIcon icon={item.icon} size="md" />
                         {inv.quantity > 1 && (
-                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
+                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                             {formatNumber(inv.quantity)}
                           </span>
                         )}

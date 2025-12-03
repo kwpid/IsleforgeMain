@@ -315,7 +315,7 @@ export function HubTab() {
 function MarketplaceView() {
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory>('all');
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean; baseVendorModifier?: number; isSpecialItem?: boolean } | null>(null);
+  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean; baseVendorModifier?: number; isSpecialItem?: boolean; vendorId?: string } | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [marketplaceView, setMarketplaceView] = useState<'main' | 'special'>('main');
   
@@ -323,15 +323,26 @@ function MarketplaceView() {
   const spendCoins = useGameStore((s) => s.spendCoins);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const vendorStockPurchases = useGameStore((s) => s.vendorStockPurchases);
+  const purchaseVendorItem = useGameStore((s) => s.purchaseVendorItem);
+  const resetVendorStockIfNeeded = useGameStore((s) => s.resetVendorStockIfNeeded);
+  
+  const getVendorStockPurchased = (vendorId: string, itemId: string) => {
+    return vendorStockPurchases[vendorId]?.[itemId] || 0;
+  };
   
   const seed = useMemo(() => getRotationSeed(), []);
   const specialVendors = useMemo(() => generateTravellingVendors(seed).slice(0, 3), [seed]);
+  
+  useEffect(() => {
+    resetVendorStockIfNeeded();
+  }, [resetVendorStockIfNeeded]);
   const timeUntilRotation = getTimeUntilNextRotation();
   const { success, warning } = useGameNotifications();
   
   const permanentItems = useMemo(() => getPermanentVendorItems(selectedCategory), [selectedCategory]);
 
-  const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false, vendorPriceModifier = 1.0) => {
+  const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false, vendorPriceModifier = 1.0, vendorId?: string) => {
     const item = getItemById(vendorItem.itemId);
     if (!item) return;
     
@@ -339,7 +350,7 @@ function MarketplaceView() {
     const priceModifier = isSpecialItem ? 1.0 : vendorPriceModifier;
     const pricePerItem = Math.floor(item.sellPrice * vendorItem.priceMultiplier * priceModifier);
     setPurchaseQuantity(1);
-    setConfirmPurchase({ item: vendorItem, quantity: 1, price: pricePerItem, isSpecialVendor, baseVendorModifier: vendorPriceModifier, isSpecialItem });
+    setConfirmPurchase({ item: vendorItem, quantity: 1, price: pricePerItem, isSpecialVendor, baseVendorModifier: vendorPriceModifier, isSpecialItem, vendorId });
   };
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -347,7 +358,11 @@ function MarketplaceView() {
     const item = getItemById(confirmPurchase.item.itemId);
     if (!item) return;
     
-    const maxQuantity = confirmPurchase.item.unlimitedStock ? 999 : confirmPurchase.item.stock;
+    const purchasedAlready = confirmPurchase.vendorId && confirmPurchase.isSpecialVendor 
+      ? getVendorStockPurchased(confirmPurchase.vendorId, confirmPurchase.item.itemId) 
+      : 0;
+    const remainingStock = confirmPurchase.item.unlimitedStock ? 999 : Math.max(0, confirmPurchase.item.stock - purchasedAlready);
+    const maxQuantity = remainingStock;
     const clampedQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
     const priceModifier = confirmPurchase.isSpecialItem ? 1.0 : (confirmPurchase.baseVendorModifier || 1.0);
     const pricePerItem = Math.floor(item.sellPrice * confirmPurchase.item.priceMultiplier * priceModifier);
@@ -363,11 +378,20 @@ function MarketplaceView() {
   const handleConfirmPurchase = () => {
     if (!confirmPurchase) return;
     
-    const { item, quantity, price } = confirmPurchase;
+    const { item, quantity, price, vendorId, isSpecialVendor } = confirmPurchase;
     const itemData = getItemById(item.itemId);
     if (!itemData) {
       setConfirmPurchase(null);
       return;
+    }
+    
+    if (vendorId && isSpecialVendor) {
+      const purchasedAlready = getVendorStockPurchased(vendorId, item.itemId);
+      const remainingStock = item.unlimitedStock ? 999 : item.stock - purchasedAlready;
+      if (quantity > remainingStock) {
+        warning('Out of Stock', `Only ${remainingStock} available`);
+        return;
+      }
     }
     
     if (coins < price) {
@@ -378,6 +402,9 @@ function MarketplaceView() {
     if (spendCoins(price)) {
       const added = addItemToInventory(item.itemId, quantity);
       if (added) {
+        if (vendorId && isSpecialVendor) {
+          purchaseVendorItem(vendorId, item.itemId, quantity);
+        }
         if (notificationSettings.enabled && notificationSettings.itemPurchased) {
           success('Item Purchased!', `Bought ${quantity}x ${itemData.name} for ${formatNumber(price)} coins`);
         }
@@ -597,13 +624,17 @@ function MarketplaceView() {
                   const priceModifier = (vendorItem as any).isSpecialItem ? 1.0 : selectedVendor.priceModifier;
                   const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier * priceModifier);
                   const canAfford = coins >= price;
+                  const purchasedAlready = getVendorStockPurchased(selectedVendor.id, vendorItem.itemId);
+                  const remainingStock = Math.max(0, vendorItem.stock - purchasedAlready);
+                  const outOfStock = remainingStock <= 0;
                   
                   return (
                     <HoverCard key={vendorItem.itemId} openDelay={0} closeDelay={0}>
                       <HoverCardTrigger asChild>
                         <div className={cn(
                           "pixel-border border-card-border bg-card p-3",
-                          item.isEnchanted && "enchanted-item"
+                          item.isEnchanted && "enchanted-item",
+                          outOfStock && "opacity-50"
                         )}>
                           <div className="flex items-center gap-2 mb-2">
                             <div className={cn(
@@ -614,8 +645,11 @@ function MarketplaceView() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="pixel-text-sm text-[8px] truncate">{item.name}</p>
-                              <p className="pixel-text-sm text-[7px] text-muted-foreground">
-                                Stock: {vendorItem.stock}
+                              <p className={cn(
+                                "pixel-text-sm text-[7px]",
+                                outOfStock ? "text-destructive" : "text-muted-foreground"
+                              )}>
+                                {outOfStock ? "SOLD OUT" : `Stock: ${remainingStock}/${vendorItem.stock}`}
                               </p>
                             </div>
                           </div>
@@ -623,9 +657,9 @@ function MarketplaceView() {
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleBuyClick(vendorItem, true, selectedVendor.priceModifier);
+                              handleBuyClick(vendorItem, true, selectedVendor.priceModifier, selectedVendor.id);
                             }}
-                            disabled={!canAfford || vendorItem.stock <= 0}
+                            disabled={!canAfford || outOfStock}
                             size="sm"
                             className="w-full pixel-text-sm text-[8px]"
                             data-testid={`button-buy-${vendorItem.itemId}`}
@@ -656,7 +690,10 @@ function MarketplaceView() {
                 {confirmPurchase && (() => {
                   const item = getItemById(confirmPurchase.item.itemId);
                   const pricePerItem = Math.floor((item?.sellPrice || 0) * confirmPurchase.item.priceMultiplier);
-                  const maxQty = confirmPurchase.item.unlimitedStock ? 999 : confirmPurchase.item.stock;
+                  const purchasedAlready = confirmPurchase.vendorId && confirmPurchase.isSpecialVendor 
+                    ? getVendorStockPurchased(confirmPurchase.vendorId, confirmPurchase.item.itemId) 
+                    : 0;
+                  const maxQty = confirmPurchase.item.unlimitedStock ? 999 : Math.max(0, confirmPurchase.item.stock - purchasedAlready);
                   return item ? (
                     <div className="flex flex-col items-center gap-4 py-4">
                       <div className={cn(
@@ -1376,7 +1413,9 @@ function BankView() {
                             className={cn(
                               'aspect-square pixel-border flex items-center justify-center relative cursor-pointer',
                               slot ? `rarity-${item?.rarity} bg-muted/50` : 'border-border bg-muted/20',
-                              slot && 'hover-elevate overflow-visible'
+                              slot && 'hover-elevate overflow-visible',
+                              item?.isEnchanted && 'enchanted-item',
+                              item?.isSpecial && 'special-item'
                             )}
                             draggable={!!slot}
                             onDragStart={(e) => slot && handleDragStart(e, slot.itemId, slot.quantity, 'vault')}
@@ -1388,7 +1427,7 @@ function BankView() {
                               <>
                                 <PixelIcon icon={item.icon} size="md" />
                                 {slot && slot.quantity > 1 && (
-                                  <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5">
+                                  <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                                     {slot.quantity}
                                   </span>
                                 )}
@@ -1432,7 +1471,9 @@ function BankView() {
                           <div 
                             className={cn(
                               'aspect-square pixel-border flex items-center justify-center relative cursor-pointer hover-elevate overflow-visible',
-                              `rarity-${item.rarity} bg-muted/50`
+                              `rarity-${item.rarity} bg-muted/50`,
+                              item.isEnchanted && 'enchanted-item',
+                              item.isSpecial && 'special-item'
                             )}
                             draggable
                             onDragStart={(e) => handleDragStart(e, inv.itemId, inv.quantity, 'inventory')}
@@ -1442,7 +1483,7 @@ function BankView() {
                           >
                             <PixelIcon icon={item.icon} size="md" />
                             {inv.quantity > 1 && (
-                              <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5">
+                              <span className="absolute bottom-0 right-0 pixel-text-sm text-[7px] bg-background/80 px-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                                 {inv.quantity}
                               </span>
                             )}

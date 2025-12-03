@@ -163,6 +163,12 @@ export interface BuildingProject {
   isComplete: boolean;
 }
 
+export interface VendorStockPurchases {
+  [vendorId: string]: {
+    [itemId: string]: number;
+  };
+}
+
 export interface GameState {
   player: PlayerStats;
   storage: PlayerStorage;
@@ -180,6 +186,8 @@ export interface GameState {
   playTime: number;
   notificationSettings: NotificationSettings;
   miningStats: MiningStats;
+  vendorStockPurchases: VendorStockPurchases;
+  vendorStockSeed: number;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -427,5 +435,7 @@ export function createDefaultGameState(): GameState {
       totalBlocksMined: 0,
       blocksMined: {},
     },
+    vendorStockPurchases: {},
+    vendorStockSeed: Math.floor(Date.now() / (1000 * 60 * 60 * 24)),
   };
 }
