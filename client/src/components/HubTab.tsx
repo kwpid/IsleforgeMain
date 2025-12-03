@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
-import { getItemById, getItemsByType } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { 
   Clock, 
@@ -51,9 +58,80 @@ import {
   Coins,
   Pickaxe,
   Info,
-  BarChart3
+  BarChart3,
+  Boxes,
+  Sword,
+  Shield,
+  FlaskConical,
+  UtensilsCrossed,
+  Gem,
+  Sparkles,
+  Minus,
+  Plus
 } from 'lucide-react';
 import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
+
+type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'special';
+
+const CATEGORY_ICONS: Record<MarketplaceCategory, typeof Store> = {
+  all: Store,
+  blocks: Boxes,
+  tools: Hammer,
+  armor: Shield,
+  potions: FlaskConical,
+  food: UtensilsCrossed,
+  materials: Gem,
+  special: Sparkles,
+};
+
+const CATEGORY_LABELS: Record<MarketplaceCategory, string> = {
+  all: 'All Items',
+  blocks: 'Building Blocks',
+  tools: 'Tools & Weapons',
+  armor: 'Armor & Protection',
+  potions: 'Potions & Elixirs',
+  food: 'Food & Provisions',
+  materials: 'Crafting Materials',
+  special: 'Special Items',
+};
+
+function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
+  let items: typeof BLOCK_ITEMS = [];
+  
+  switch (category) {
+    case 'blocks':
+      items = BLOCK_ITEMS;
+      break;
+    case 'tools':
+      items = TOOL_ITEMS;
+      break;
+    case 'armor':
+      items = ARMOR_ITEMS;
+      break;
+    case 'potions':
+      items = POTION_ITEMS;
+      break;
+    case 'food':
+      items = FOOD_ITEMS.filter(item => !item.isSpecial);
+      break;
+    case 'materials':
+      items = MATERIAL_ITEMS.filter(item => !item.isSpecial);
+      break;
+    case 'special':
+      items = SPECIAL_ITEMS;
+      break;
+    case 'all':
+    default:
+      items = [...BLOCK_ITEMS, ...TOOL_ITEMS, ...ARMOR_ITEMS, ...POTION_ITEMS, ...FOOD_ITEMS.filter(i => !i.isSpecial), ...MATERIAL_ITEMS.filter(i => !i.isSpecial)];
+  }
+  
+  return items.map(item => ({
+    itemId: item.id,
+    stock: 999,
+    priceMultiplier: 2.0,
+    unlimitedStock: true,
+  }));
+}
 
 const DEFAULT_VENDORS: Vendor[] = [
   {
@@ -220,50 +298,73 @@ export function HubTab() {
 }
 
 function MarketplaceView() {
+  const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory>('all');
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; vendor: Vendor; price: number } | null>(null);
+  const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean } | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [marketplaceView, setMarketplaceView] = useState<'main' | 'special'>('main');
+  
   const coins = useGameStore((s) => s.player.coins);
   const spendCoins = useGameStore((s) => s.spendCoins);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const notificationSettings = useGameStore((s) => s.notificationSettings);
   
   const seed = useMemo(() => getRotationSeed(), []);
-  const travellingVendors = useMemo(() => generateTravellingVendors(seed), [seed]);
+  const specialVendors = useMemo(() => generateTravellingVendors(seed).slice(0, 3), [seed]);
   const timeUntilRotation = getTimeUntilNextRotation();
   const { success, warning } = useGameNotifications();
+  
+  const permanentItems = useMemo(() => getPermanentVendorItems(selectedCategory), [selectedCategory]);
 
-  const handleBuyClick = (vendorItem: VendorItem, vendor: Vendor) => {
+  const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false) => {
     const item = getItemById(vendorItem.itemId);
     if (!item) return;
     
-    const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier * vendor.priceModifier);
-    setConfirmPurchase({ item: vendorItem, vendor, price });
+    const pricePerItem = Math.floor(item.sellPrice * vendorItem.priceMultiplier);
+    setPurchaseQuantity(1);
+    setConfirmPurchase({ item: vendorItem, quantity: 1, price: pricePerItem, isSpecialVendor });
+  };
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (!confirmPurchase) return;
+    const item = getItemById(confirmPurchase.item.itemId);
+    if (!item) return;
+    
+    const maxQuantity = confirmPurchase.item.unlimitedStock ? 999 : confirmPurchase.item.stock;
+    const clampedQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
+    const pricePerItem = Math.floor(item.sellPrice * confirmPurchase.item.priceMultiplier);
+    
+    setPurchaseQuantity(clampedQuantity);
+    setConfirmPurchase({
+      ...confirmPurchase,
+      quantity: clampedQuantity,
+      price: pricePerItem * clampedQuantity,
+    });
   };
 
   const handleConfirmPurchase = () => {
     if (!confirmPurchase) return;
     
-    const { item, vendor } = confirmPurchase;
+    const { item, quantity, price } = confirmPurchase;
     const itemData = getItemById(item.itemId);
     if (!itemData) {
       setConfirmPurchase(null);
       return;
     }
     
-    const currentPrice = Math.floor(itemData.sellPrice * item.priceMultiplier * vendor.priceModifier);
-    
-    if (coins < currentPrice) {
-      warning('Not Enough Coins', `You need ${formatNumber(currentPrice - coins)} more coins`);
+    if (coins < price) {
+      warning('Not Enough Coins', `You need ${formatNumber(price - coins)} more coins`);
       return;
     }
     
-    if (spendCoins(currentPrice)) {
-      const added = addItemToInventory(item.itemId, 1);
+    if (spendCoins(price)) {
+      const added = addItemToInventory(item.itemId, quantity);
       if (added) {
         if (notificationSettings.enabled && notificationSettings.itemPurchased) {
-          success('Item Purchased!', `Bought ${itemData.name} for ${formatNumber(currentPrice)} coins`);
+          success('Item Purchased!', `Bought ${quantity}x ${itemData.name} for ${formatNumber(price)} coins`);
         }
         setConfirmPurchase(null);
+        setPurchaseQuantity(1);
       } else {
         warning('Inventory Full', 'Make room in your inventory first');
       }
@@ -272,56 +373,184 @@ function MarketplaceView() {
     }
   };
 
+  const CategoryIcon = CATEGORY_ICONS[selectedCategory];
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="pixel-text text-xl text-foreground mb-2">Marketplace</h2>
-        <p className="font-sans text-muted-foreground text-base mb-6">
-          Browse and purchase items from vendors. Prices vary by merchant.
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="pixel-text text-xl text-foreground mb-2">Marketplace</h2>
+          <p className="font-sans text-muted-foreground text-sm">
+            Browse items by category. Unlimited stock on main vendors!
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={marketplaceView === 'main' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMarketplaceView('main')}
+            className="pixel-text-sm text-[8px]"
+            data-testid="button-main-marketplace"
+          >
+            <Store className="w-4 h-4 mr-1" />
+            Main Shop
+          </Button>
+          <Button
+            variant={marketplaceView === 'special' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMarketplaceView('special')}
+            className="pixel-text-sm text-[8px]"
+            data-testid="button-special-vendors"
+          >
+            <Sparkles className="w-4 h-4 mr-1" />
+            Special Vendors
+          </Button>
+        </div>
       </div>
 
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <Store className="w-5 h-5 text-primary" />
-          <h3 className="pixel-text-sm text-[11px] text-foreground">Default Vendors</h3>
-          <Badge variant="secondary" className="pixel-text-sm text-[8px]">Always Available</Badge>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {DEFAULT_VENDORS.map((vendor) => (
-            <VendorCard 
-              key={vendor.id} 
-              vendor={vendor} 
-              onClick={() => setSelectedVendor(vendor)}
-            />
-          ))}
-        </div>
-      </div>
+      {marketplaceView === 'main' ? (
+        <>
+          <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as MarketplaceCategory)} className="w-full">
+            <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/30 p-1">
+              {(Object.keys(CATEGORY_LABELS) as MarketplaceCategory[]).map((cat) => {
+                const Icon = CATEGORY_ICONS[cat];
+                return (
+                  <TabsTrigger
+                    key={cat}
+                    value={cat}
+                    className="pixel-text-sm text-[7px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    data-testid={`tab-category-${cat}`}
+                  >
+                    <Icon className="w-3 h-3 mr-1" />
+                    {CATEGORY_LABELS[cat]}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
 
-      <div>
-        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <Package className="w-5 h-5 text-accent" />
-            <h3 className="pixel-text-sm text-[11px] text-foreground">Travelling Vendors</h3>
-            <Badge variant="outline" className="pixel-text-sm text-[8px]">Limited Time</Badge>
+          <div className="marketplace-section">
+            <div className="vendor-category-header">
+              <CategoryIcon className="w-5 h-5 text-primary" />
+              <h3 className="pixel-text-sm text-[11px] text-foreground">{CATEGORY_LABELS[selectedCategory]}</h3>
+              <Badge variant="secondary" className="pixel-text-sm text-[7px]">Unlimited Stock</Badge>
+            </div>
+            
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {permanentItems.map((vendorItem) => {
+                const item = getItemById(vendorItem.itemId);
+                if (!item) return null;
+                
+                const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier);
+                const canAfford = coins >= price;
+                
+                return (
+                  <HoverCard key={vendorItem.itemId} openDelay={0} closeDelay={0}>
+                    <HoverCardTrigger asChild>
+                      <div 
+                        className={cn(
+                          "pixel-border border-card-border bg-card p-2 cursor-pointer hover-elevate active-elevate-2 overflow-visible",
+                          item.isEnchanted && "enchanted-item",
+                          item.isSpecial && "special-item"
+                        )}
+                        onClick={() => handleBuyClick(vendorItem)}
+                        data-testid={`item-${vendorItem.itemId}`}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <div className={cn(
+                            'pixel-border p-1 bg-muted/30',
+                            `rarity-${item.rarity}`
+                          )}>
+                            <PixelIcon icon={item.icon} size="md" />
+                          </div>
+                          <p className="pixel-text-sm text-[6px] truncate w-full text-center">{item.name}</p>
+                          <div className="flex items-center gap-0.5">
+                            <PixelIcon icon="coin" size="sm" />
+                            <span className={cn(
+                              "pixel-text-sm text-[7px]",
+                              canAfford ? "text-game-coin" : "text-destructive"
+                            )}>
+                              {formatNumber(price)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                      <ItemTooltip item={item} />
+                    </HoverCardContent>
+                  </HoverCard>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground pixel-border border-border bg-card px-3 py-1.5">
-            <Clock className="w-4 h-4" />
-            <span className="pixel-text-sm text-[9px]">Rotates in: {timeUntilRotation}</span>
+        </>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-accent" />
+              <h3 className="pixel-text-sm text-[11px] text-foreground">Special Rotating Vendors</h3>
+              <Badge variant="outline" className="pixel-text-sm text-[7px]">Limited Stock</Badge>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground pixel-border border-border bg-card px-3 py-1.5">
+              <Clock className="w-4 h-4" />
+              <span className="pixel-text-sm text-[8px]">Rotates in: {timeUntilRotation}</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {specialVendors.map((vendor) => (
+              <Card 
+                key={vendor.id}
+                className="pixel-border border-accent/50 cursor-pointer hover-elevate active-elevate-2 overflow-visible"
+                onClick={() => setSelectedVendor(vendor)}
+                data-testid={`special-vendor-${vendor.id}`}
+              >
+                <CardHeader className="p-3 pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="pixel-border p-2 bg-accent/20 border-accent">
+                      <PixelIcon icon={vendor.icon} size="lg" />
+                    </div>
+                    <div>
+                      <CardTitle className="pixel-text-sm text-[9px]">{vendor.name}</CardTitle>
+                      <p className="font-sans text-xs text-muted-foreground">{vendor.description}</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 pt-0">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {vendor.items.slice(0, 4).map((vi) => {
+                      const vItem = getItemById(vi.itemId);
+                      return vItem ? (
+                        <div key={vi.itemId} className={cn(
+                          "pixel-border p-1 bg-muted/30",
+                          `rarity-${vItem.rarity}`,
+                          vItem.isEnchanted && "enchanted-item"
+                        )}>
+                          <PixelIcon icon={vItem.icon} size="sm" />
+                        </div>
+                      ) : null;
+                    })}
+                    {vendor.items.length > 4 && (
+                      <span className="pixel-text-sm text-[7px] text-muted-foreground self-center">
+                        +{vendor.items.length - 4} more
+                      </span>
+                    )}
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="w-full pixel-text-sm text-[8px]"
+                  >
+                    Browse Items <ChevronRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {travellingVendors.map((vendor) => (
-            <VendorCard 
-              key={vendor.id} 
-              vendor={vendor} 
-              onClick={() => setSelectedVendor(vendor)}
-            />
-          ))}
-        </div>
-      </div>
+      )}
 
       <Dialog open={!!selectedVendor} onOpenChange={() => setSelectedVendor(null)}>
         <DialogContent className="pixel-border border-border max-w-2xl">
@@ -338,9 +567,7 @@ function MarketplaceView() {
                       {selectedVendor.description}
                     </DialogDescription>
                   </div>
-                  {selectedVendor.isTravelling && (
-                    <Badge className="ml-auto pixel-text-sm text-[7px]">Travelling</Badge>
-                  )}
+                  <Badge className="ml-auto pixel-text-sm text-[7px]" variant="outline">Special</Badge>
                 </div>
               </DialogHeader>
               
@@ -353,43 +580,46 @@ function MarketplaceView() {
                   const canAfford = coins >= price;
                   
                   return (
-                    <div 
-                      key={vendorItem.itemId}
-                      className="pixel-border border-card-border bg-card p-3"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                    <HoverCard key={vendorItem.itemId} openDelay={0} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div className={cn(
+                          "pixel-border border-card-border bg-card p-3",
+                          item.isEnchanted && "enchanted-item"
+                        )}>
+                          <div className="flex items-center gap-2 mb-2">
                             <div className={cn(
                               'pixel-border p-1.5 bg-muted/30',
                               `rarity-${item.rarity}`
                             )}>
                               <PixelIcon icon={item.icon} size="md" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="p-0 border-0 bg-transparent">
-                            <ItemTooltip item={item} />
-                          </TooltipContent>
-                        </Tooltip>
-                        <div className="flex-1 min-w-0">
-                          <p className="pixel-text-sm text-[8px] truncate">{item.name}</p>
-                          <p className="pixel-text-sm text-[7px] text-muted-foreground">
-                            Stock: {vendorItem.stock}
-                          </p>
+                            <div className="flex-1 min-w-0">
+                              <p className="pixel-text-sm text-[8px] truncate">{item.name}</p>
+                              <p className="pixel-text-sm text-[7px] text-muted-foreground">
+                                Stock: {vendorItem.stock}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBuyClick(vendorItem, true);
+                            }}
+                            disabled={!canAfford || vendorItem.stock <= 0}
+                            size="sm"
+                            className="w-full pixel-text-sm text-[8px]"
+                            data-testid={`button-buy-${vendorItem.itemId}`}
+                          >
+                            <PixelIcon icon="coin" size="sm" />
+                            {formatNumber(price)}
+                          </Button>
                         </div>
-                      </div>
-                      
-                      <Button
-                        onClick={() => handleBuyClick(vendorItem, selectedVendor)}
-                        disabled={!canAfford || vendorItem.stock <= 0}
-                        size="sm"
-                        className="w-full pixel-text-sm text-[8px]"
-                        data-testid={`button-buy-${vendorItem.itemId}`}
-                      >
-                        <PixelIcon icon="coin" size="sm" />
-                        {formatNumber(price)}
-                      </Button>
-                    </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                        <ItemTooltip item={item} />
+                      </HoverCardContent>
+                    </HoverCard>
                   );
                 })}
               </div>
@@ -398,35 +628,77 @@ function MarketplaceView() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!confirmPurchase} onOpenChange={() => setConfirmPurchase(null)}>
+      <AlertDialog open={!!confirmPurchase} onOpenChange={() => { setConfirmPurchase(null); setPurchaseQuantity(1); }}>
         <AlertDialogContent className="pixel-border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="pixel-text text-sm">Confirm Purchase</AlertDialogTitle>
-            <AlertDialogDescription className="font-sans">
-              {confirmPurchase && (() => {
-                const item = getItemById(confirmPurchase.item.itemId);
-                return item ? (
-                  <div className="flex flex-col items-center gap-4 py-4">
-                    <div className={cn(
-                      'pixel-border p-3 bg-muted/30',
-                      `rarity-${item.rarity}`
-                    )}>
-                      <PixelIcon icon={item.icon} size="xl" />
+            <AlertDialogDescription className="font-sans" asChild>
+              <div>
+                {confirmPurchase && (() => {
+                  const item = getItemById(confirmPurchase.item.itemId);
+                  const pricePerItem = Math.floor((item?.sellPrice || 0) * confirmPurchase.item.priceMultiplier);
+                  const maxQty = confirmPurchase.item.unlimitedStock ? 999 : confirmPurchase.item.stock;
+                  return item ? (
+                    <div className="flex flex-col items-center gap-4 py-4">
+                      <div className={cn(
+                        'pixel-border p-3 bg-muted/30',
+                        `rarity-${item.rarity}`,
+                        item.isEnchanted && "enchanted-item"
+                      )}>
+                        <PixelIcon icon={item.icon} size="xl" />
+                      </div>
+                      <div className="text-center">
+                        <p className="pixel-text-sm text-[12px] text-foreground mb-1">{item.name}</p>
+                        <p className="text-muted-foreground text-sm">{item.description}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 pixel-border border-border bg-muted/20 p-2">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleQuantityChange(purchaseQuantity - 1)}
+                          disabled={purchaseQuantity <= 1}
+                          data-testid="button-decrease-qty"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <Input
+                          type="number"
+                          value={purchaseQuantity}
+                          onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                          className="w-20 text-center pixel-text-sm"
+                          min={1}
+                          max={maxQty}
+                          data-testid="input-purchase-qty"
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleQuantityChange(purchaseQuantity + 1)}
+                          disabled={purchaseQuantity >= maxQty}
+                          data-testid="button-increase-qty"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="pixel-text-sm text-[9px] text-muted-foreground">
+                          {formatNumber(pricePerItem)} each
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 pixel-border border-primary/50 bg-primary/10 px-4 py-2">
+                        <PixelIcon icon="coin" size="md" />
+                        <span className="pixel-text text-lg text-game-coin">{formatNumber(confirmPurchase.price)}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Your balance: {formatNumber(coins)} coins
+                      </p>
                     </div>
-                    <div className="text-center">
-                      <p className="pixel-text-sm text-[12px] text-foreground mb-1">{item.name}</p>
-                      <p className="text-muted-foreground text-sm">{item.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2 pixel-border border-primary/50 bg-primary/10 px-4 py-2">
-                      <PixelIcon icon="coin" size="md" />
-                      <span className="pixel-text text-lg text-game-coin">{formatNumber(confirmPurchase.price)}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Your balance: {formatNumber(coins)} coins
-                    </p>
-                  </div>
-                ) : null;
-              })()}
+                  ) : null;
+                })()}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -437,7 +709,7 @@ function MarketplaceView() {
               disabled={confirmPurchase ? coins < confirmPurchase.price : true}
               data-testid="button-confirm-purchase"
             >
-              Buy Now
+              Buy {purchaseQuantity}x
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

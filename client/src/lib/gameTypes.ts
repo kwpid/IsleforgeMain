@@ -16,6 +16,10 @@ export interface ItemDefinition {
   toolType?: ToolType;
   armorSlot?: ArmorSlot;
   stats?: Record<string, number>;
+  customImage?: string;
+  animatedImage?: string;
+  isSpecial?: boolean;
+  isEnchanted?: boolean;
 }
 
 export interface InventoryItem {
@@ -93,6 +97,7 @@ export interface VendorItem {
   stock: number;
   priceMultiplier: number;
   isRotating?: boolean;
+  unlimitedStock?: boolean;
 }
 
 export interface Vendor {

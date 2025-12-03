@@ -15,10 +15,11 @@ Isleforge is a pixel-art themed incremental/idle game inspired by Minecraft skyb
 client/src/
 ├── components/
 │   ├── ui/                 # Shadcn components
+│   ├── DevConsole.tsx      # Developer console (Y key)
 │   ├── FloatingNumbers.tsx # Floating +1 animations
 │   ├── GameLayout.tsx      # Main game container
 │   ├── GeneratorCard.tsx   # Generator tiles
-│   ├── HubTab.tsx          # Marketplace & Dungeons
+│   ├── HubTab.tsx          # Marketplace & Bank
 │   ├── InventoryPopup.tsx  # TAB key inventory modal
 │   ├── IslandTab.tsx       # Generators & Storage views
 │   ├── ItemTooltip.tsx     # Item hover tooltips
@@ -36,6 +37,7 @@ client/src/
 │   │   ├── tools.ts
 │   │   ├── armor.ts
 │   │   ├── potions.ts
+│   │   ├── special.ts      # Special/enchanted items
 │   │   └── index.ts
 │   ├── gameStore.ts        # Zustand game state
 │   ├── gameTypes.ts        # TypeScript types
@@ -76,10 +78,29 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Upgradeable bank capacity (10K → 50K → 200K → 1M → 5M → 25M)
 - Upgradeable vault slots (9 → 18 → 27 → 36 → 54)
 
+### Marketplace System (Hub Tab)
+- **Main Shop**: Permanent vendors with unlimited stock
+- **Special Vendors**: 1-3 rotating vendors, change every 12 hours, limited stock
+- Category tabs: All, Blocks, Tools, Armor, Potions, Food, Materials, Special
+- Purchase quantity selector with +/- buttons
+- Instant item tooltips on hover
+
+### Special Items
+- Items with `isSpecial: true` show a star sparkle effect
+- Items with `isEnchanted: true` have an enchantment glow animation
+- Special items available in Special Vendors or via dev console
+
+### Developer Console
+- Press `Y` to open (when not in input field)
+- Press `Escape` or click outside to close
+- Commands: spawn, give, cash, xp, items, status, clear, help
+- Arrow keys for command history
+
 ### Keyboard Shortcuts
-- TAB: Open/close inventory
+- TAB/I: Open/close inventory
 - 1/2/3: Switch main tabs
 - CTRL+S: Quick save
+- Y: Open developer console
 
 ## Design System
 
