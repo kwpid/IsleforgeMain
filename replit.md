@@ -63,7 +63,7 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 ### Storage System
 - Drag items to sell zone with confirmation
 - Sell all items button
-- Upgradeable capacity (500 → 2.5K → 10K → 50K → 150K → 500K)
+- Upgradeable capacity (9 tiers): 500 → 1.5K → 5K → 15K → 35K → 75K → 150K → 300K → 500K
 
 ### Player Stats (Right Sidebar)
 - Level with XP bar
@@ -108,6 +108,12 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Items with `isSpecial: true` show a star sparkle effect
 - Items with `isEnchanted: true` have an enchantment glow animation
 - Special items available in Special Vendors or via dev console
+
+### Custom Item Images
+- Custom images folder: `attached_assets/item_images/`
+- Static images: Add `customImage: '/item_images/filename.png'` to item definition
+- Animated GIFs: Add `animatedImage: '/item_images/filename.gif'` for animations
+- See `attached_assets/item_images/README.md` for full documentation
 
 ### Developer Console
 - Press `Y` to open (when not in input field)
@@ -159,3 +165,6 @@ Game state is saved to localStorage with key `isleforge-save`. Auto-saves every 
 - Custom pixel shadows with offset instead of blur
 - Image rendering set to pixelated/crisp-edges
 - Generator tick rate: 100ms for smooth progress bars
+- Instant tooltips (0ms delay) for better UX
+- Item slot sizes: compact (12x12), uniform (14x14), large (16x16)
+- Generators automatically pause when storage is full
