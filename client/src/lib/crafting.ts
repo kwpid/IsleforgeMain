@@ -219,29 +219,38 @@ export function getCraftingCost(recipe: CraftingRecipe): number {
 export function canCraftRecipe(
   recipe: CraftingRecipe,
   storageItems: { itemId: string; quantity: number }[],
-  coins: number
-): { canCraft: boolean; missingIngredients: { itemId: string; have: number; need: number }[]; cost: number } {
-  const cost = getCraftingCost(recipe);
+  coins: number,
+  quantity: number = 1
+): { canCraft: boolean; missingIngredients: { itemId: string; have: number; need: number }[]; cost: number; maxCraftable: number } {
+  const costPerItem = getCraftingCost(recipe);
+  const totalCost = costPerItem * quantity;
   const missingIngredients: { itemId: string; have: number; need: number }[] = [];
+  
+  let maxCraftable = Math.floor(coins / costPerItem);
   
   for (const ingredient of recipe.ingredients) {
     const storageItem = storageItems.find(i => i.itemId === ingredient.itemId);
     const haveQuantity = storageItem?.quantity || 0;
+    const needQuantity = ingredient.quantity * quantity;
     
-    if (haveQuantity < ingredient.quantity) {
+    const craftableFromIngredient = Math.floor(haveQuantity / ingredient.quantity);
+    maxCraftable = Math.min(maxCraftable, craftableFromIngredient);
+    
+    if (haveQuantity < needQuantity) {
       missingIngredients.push({
         itemId: ingredient.itemId,
         have: haveQuantity,
-        need: ingredient.quantity,
+        need: needQuantity,
       });
     }
   }
   
-  const hasEnoughCoins = coins >= cost;
+  const hasEnoughCoins = coins >= totalCost;
   
   return {
     canCraft: missingIngredients.length === 0 && hasEnoughCoins,
     missingIngredients,
-    cost,
+    cost: totalCost,
+    maxCraftable: Math.max(0, maxCraftable),
   };
 }
