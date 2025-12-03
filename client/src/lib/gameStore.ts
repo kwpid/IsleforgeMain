@@ -105,7 +105,7 @@ interface GameStore extends GameState {
   usePickaxeDurability: () => boolean;
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
-  craftItem: (recipeId: string) => boolean;
+  craftItem: (recipeId: string, quantity?: number) => boolean;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -1048,44 +1048,47 @@ export const useGameStore = create<GameStore>()(
         return totalEarnings;
       },
 
-      craftItem: (recipeId) => {
+      craftItem: (recipeId, quantity = 1) => {
         const state = get();
         const recipe = getRecipeById(recipeId);
         if (!recipe) return false;
 
-        const craftCheck = canCraftRecipe(recipe, state.storage.items, state.player.coins);
+        const craftCheck = canCraftRecipe(recipe, state.storage.items, state.player.coins, quantity);
         if (!craftCheck.canCraft) return false;
 
-        const cost = getCraftingCost(recipe);
+        const costPerItem = getCraftingCost(recipe);
+        const totalCost = costPerItem * quantity;
         const newStorageItems = [...state.storage.items];
         
         for (const ingredient of recipe.ingredients) {
+          const totalNeeded = ingredient.quantity * quantity;
           const idx = newStorageItems.findIndex(i => i.itemId === ingredient.itemId);
           if (idx >= 0) {
-            if (newStorageItems[idx].quantity === ingredient.quantity) {
+            if (newStorageItems[idx].quantity === totalNeeded) {
               newStorageItems.splice(idx, 1);
             } else {
               newStorageItems[idx] = {
                 ...newStorageItems[idx],
-                quantity: newStorageItems[idx].quantity - ingredient.quantity,
+                quantity: newStorageItems[idx].quantity - totalNeeded,
               };
             }
           }
         }
 
+        const totalResultQuantity = recipe.resultQuantity * quantity;
         const existingIdx = newStorageItems.findIndex(i => i.itemId === recipe.resultItemId);
         const resultItem = getItemById(recipe.resultItemId);
-        const maxStack = resultItem?.maxStack || 64;
+        const maxStack = resultItem?.maxStack || 999999;
         
         if (existingIdx >= 0) {
           newStorageItems[existingIdx] = {
             ...newStorageItems[existingIdx],
-            quantity: Math.min(newStorageItems[existingIdx].quantity + recipe.resultQuantity, maxStack),
+            quantity: Math.min(newStorageItems[existingIdx].quantity + totalResultQuantity, maxStack),
           };
         } else {
           newStorageItems.push({
             itemId: recipe.resultItemId,
-            quantity: recipe.resultQuantity,
+            quantity: totalResultQuantity,
           });
         }
 
@@ -1096,7 +1099,7 @@ export const useGameStore = create<GameStore>()(
           },
           player: {
             ...state.player,
-            coins: state.player.coins - cost,
+            coins: state.player.coins - totalCost,
           },
         });
 

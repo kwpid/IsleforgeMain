@@ -290,10 +290,10 @@ const BLUEPRINTS: Blueprint[] = GENERATORS.slice(1).map((gen) => ({
   name: `${gen.name} Blueprint`,
   description: `Learn to build: ${gen.description}`,
   icon: 'blueprint',
-  cost: Math.floor(gen.unlockCost * 0.5),
+  cost: Math.floor(gen.unlockCost * 0.25),
   requirements: [
-    { itemId: gen.outputItemId, quantity: Math.floor(gen.unlockCost / 100) + 10 },
-    { itemId: 'cobblestone', quantity: Math.floor(gen.unlockCost / 50) + 20 },
+    { itemId: gen.outputItemId, quantity: Math.max(1, Math.floor((gen.unlockCost / 100 + 10) * 0.5)) },
+    { itemId: 'cobblestone', quantity: Math.max(1, Math.floor((gen.unlockCost / 50 + 20) * 0.5)) },
   ],
   unlocked: false,
 }));

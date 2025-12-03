@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
-import { Hammer, Search, Package, Coins, Check, X, ArrowRight, Sparkles, Wand2, Boxes, Shield, UtensilsCrossed, FlaskConical } from 'lucide-react';
+import { Hammer, Search, Package, Coins, Check, X, ArrowRight, Sparkles, Wand2, Boxes, Shield, UtensilsCrossed, FlaskConical, Plus, Minus } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
 
 export function IslandTab() {
@@ -103,15 +103,18 @@ const CATEGORY_LABELS: Record<CraftingCategory, string> = {
 function CraftingView() {
   const [selectedCategory, setSelectedCategory] = useState<CraftingCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [craftingRecipe, setCraftingRecipe] = useState<CraftingRecipe | null>(null);
-  const [craftingProgress, setCraftingProgress] = useState(0);
-  const [isCrafting, setIsCrafting] = useState(false);
+  const [craftQuantities, setCraftQuantities] = useState<Record<string, number>>({});
   
   const storage = useGameStore((s) => s.storage);
   const coins = useGameStore((s) => s.player.coins);
   const craftItem = useGameStore((s) => s.craftItem);
   
   const { success, warning } = useGameNotifications();
+  
+  const getCraftQuantity = (recipeId: string) => craftQuantities[recipeId] || 1;
+  const setCraftQuantity = (recipeId: string, quantity: number) => {
+    setCraftQuantities(prev => ({ ...prev, [recipeId]: Math.max(1, quantity) }));
+  };
 
   const filteredRecipes = useMemo(() => {
     let recipes = CRAFTING_RECIPES;
@@ -132,8 +135,8 @@ function CraftingView() {
     return recipes;
   }, [selectedCategory, searchQuery]);
 
-  const handleCraft = (recipe: CraftingRecipe) => {
-    const craftCheck = canCraftRecipe(recipe, storage.items, coins);
+  const handleCraft = (recipe: CraftingRecipe, quantity: number = 1) => {
+    const craftCheck = canCraftRecipe(recipe, storage.items, coins, quantity);
     
     if (!craftCheck.canCraft) {
       if (craftCheck.missingIngredients.length > 0) {
@@ -148,28 +151,21 @@ function CraftingView() {
       return;
     }
     
-    setCraftingRecipe(recipe);
-    setIsCrafting(true);
-    setCraftingProgress(0);
-    
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / recipe.craftTime) * 100, 100);
-      setCraftingProgress(progress);
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        const crafted = craftItem(recipe.id);
-        if (crafted) {
-          const item = getItemById(recipe.resultItemId);
-          success('Crafted!', `Created ${recipe.resultQuantity}x ${item?.name || recipe.resultItemId}`);
-        }
-        setIsCrafting(false);
-        setCraftingRecipe(null);
-        setCraftingProgress(0);
-      }
-    }, 50);
+    const crafted = craftItem(recipe.id, quantity);
+    if (crafted) {
+      const item = getItemById(recipe.resultItemId);
+      const totalOutput = recipe.resultQuantity * quantity;
+      success('Crafted!', `Created ${totalOutput}x ${item?.name || recipe.resultItemId}`);
+    }
+  };
+  
+  const handleCraftMax = (recipe: CraftingRecipe) => {
+    const craftCheck = canCraftRecipe(recipe, storage.items, coins, 1);
+    if (craftCheck.maxCraftable > 0) {
+      handleCraft(recipe, craftCheck.maxCraftable);
+    } else {
+      warning('Cannot Craft', 'Not enough materials or coins');
+    }
   };
 
   return (
@@ -215,38 +211,22 @@ function CraftingView() {
         </Tabs>
       </div>
 
-      {isCrafting && craftingRecipe && (
-        <Card className="pixel-border border-primary/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="pixel-border p-2 bg-muted/30">
-                <PixelIcon icon={getItemById(craftingRecipe.resultItemId)?.icon || 'lock'} size="lg" />
-              </div>
-              <div className="flex-1">
-                <p className="pixel-text-sm text-[10px] mb-2">
-                  Crafting {getItemById(craftingRecipe.resultItemId)?.name}...
-                </p>
-                <Progress value={craftingProgress} className="h-2" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {filteredRecipes.map((recipe) => {
           const resultItem = getItemById(recipe.resultItemId);
           if (!resultItem) return null;
           
-          const craftCheck = canCraftRecipe(recipe, storage.items, coins);
-          const cost = getCraftingCost(recipe);
+          const craftQty = getCraftQuantity(recipe.id);
+          const craftCheck = canCraftRecipe(recipe, storage.items, coins, craftQty);
+          const costPerItem = getCraftingCost(recipe);
+          const totalCost = costPerItem * craftQty;
           
           return (
             <Card 
               key={recipe.id}
               className={cn(
-                "pixel-border cursor-pointer hover-elevate active-elevate-2 overflow-visible",
-                !craftCheck.canCraft && "opacity-60"
+                "pixel-border hover-elevate active-elevate-2 overflow-visible",
+                craftCheck.maxCraftable === 0 && "opacity-60"
               )}
               data-testid={`recipe-${recipe.id}`}
             >
@@ -271,11 +251,18 @@ function CraftingView() {
                     <CardTitle className="pixel-text-sm text-[8px] truncate">
                       {resultItem.name}
                     </CardTitle>
-                    {recipe.resultQuantity > 1 && (
-                      <Badge variant="secondary" className="pixel-text-sm text-[6px] mt-0.5">
-                        x{recipe.resultQuantity}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {recipe.resultQuantity > 1 && (
+                        <Badge variant="secondary" className="pixel-text-sm text-[6px]">
+                          x{recipe.resultQuantity}
+                        </Badge>
+                      )}
+                      {craftCheck.maxCraftable > 0 && (
+                        <Badge variant="outline" className="pixel-text-sm text-[6px]">
+                          Max: {craftCheck.maxCraftable}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -288,7 +275,8 @@ function CraftingView() {
                         const ingItem = getItemById(ing.itemId);
                         const storageItem = storage.items.find(i => i.itemId === ing.itemId);
                         const have = storageItem?.quantity || 0;
-                        const hasEnough = have >= ing.quantity;
+                        const need = ing.quantity * craftQty;
+                        const hasEnough = have >= need;
                         
                         return (
                           <Tooltip key={ing.itemId} delayDuration={0}>
@@ -302,7 +290,7 @@ function CraftingView() {
                                   "pixel-text-sm text-[6px]",
                                   hasEnough ? "text-foreground" : "text-destructive"
                                 )}>
-                                  {have}/{ing.quantity}
+                                  {have}/{need}
                                 </span>
                               </div>
                             </TooltipTrigger>
@@ -315,21 +303,57 @@ function CraftingView() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-border">
                     <div className="flex items-center gap-1">
                       <PixelIcon icon="coin" size="sm" />
                       <span className={cn(
                         "pixel-text-sm text-[7px]",
-                        coins >= cost ? "text-game-coin" : "text-destructive"
+                        coins >= totalCost ? "text-game-coin" : "text-destructive"
                       )}>
-                        {formatNumber(cost)}
+                        {formatNumber(totalCost)}
                       </span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => setCraftQuantity(recipe.id, craftQty - 1)}
+                        disabled={craftQty <= 1}
+                        data-testid={`button-decrease-${recipe.id}`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                      <span className="pixel-text-sm text-[8px] w-6 text-center">{craftQty}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => setCraftQuantity(recipe.id, craftQty + 1)}
+                        disabled={craftQty >= craftCheck.maxCraftable}
+                        data-testid={`button-increase-${recipe.id}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
                     <Button
                       size="sm"
-                      onClick={() => handleCraft(recipe)}
-                      disabled={!craftCheck.canCraft || isCrafting}
-                      className="pixel-text-sm text-[7px]"
+                      variant="outline"
+                      onClick={() => handleCraftMax(recipe)}
+                      disabled={craftCheck.maxCraftable === 0}
+                      className="pixel-text-sm text-[6px] flex-1"
+                      data-testid={`button-craft-max-${recipe.id}`}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleCraft(recipe, craftQty)}
+                      disabled={!craftCheck.canCraft}
+                      className="pixel-text-sm text-[7px] flex-1"
                       data-testid={`button-craft-${recipe.id}`}
                     >
                       <Hammer className="w-3 h-3 mr-1" />
