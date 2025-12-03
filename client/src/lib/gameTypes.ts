@@ -163,6 +163,7 @@ export interface GameState {
   storage: PlayerStorage;
   inventory: PlayerInventory;
   equipment: PlayerEquipment;
+  equipmentDurability: EquipmentDurability;
   generators: OwnedGenerator[];
   unlockedGenerators: string[];
   ownedBlueprints: string[];
@@ -173,6 +174,7 @@ export interface GameState {
   lastSave: number;
   playTime: number;
   notificationSettings: NotificationSettings;
+  miningStats: MiningStats;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -188,8 +190,43 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 
 export type MainTab = 'island' | 'hub' | 'settings';
 export type IslandSubTab = 'generators' | 'storage';
-export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'dungeons';
+export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications';
+
+export interface MiningStats {
+  totalBlocksMined: number;
+  blocksMined: Record<string, number>;
+}
+
+export interface EquipmentDurability {
+  mainHand: number | null;
+  offHand: number | null;
+}
+
+export interface MineableBlock {
+  itemId: string;
+  spawnChance: number;
+  breakTime: number;
+  minPickaxeTier: number;
+  xpReward: number;
+}
+
+export const PICKAXE_TIERS: Record<string, number> = {
+  'wooden_pickaxe': 1,
+  'stone_pickaxe': 2,
+  'iron_pickaxe': 3,
+  'diamond_pickaxe': 4,
+  'netherite_pickaxe': 5,
+};
+
+export function getPickaxeTier(pickaxeId: string): number {
+  return PICKAXE_TIERS[pickaxeId] || 0;
+}
+
+export function getPickaxeSpeedMultiplier(pickaxeId: string): number {
+  const tier = PICKAXE_TIERS[pickaxeId] || 0;
+  return 1 + (tier * 0.3);
+}
 
 export interface NotificationSettings {
   enabled: boolean;
@@ -262,12 +299,12 @@ export const TIER_NUMERALS: Record<number, string> = {
 };
 
 export const STORAGE_UPGRADES: StorageUpgrade[] = [
-  { level: 0, capacity: 100, cost: 0 },
-  { level: 1, capacity: 200, cost: 1000 },
-  { level: 2, capacity: 400, cost: 5000 },
-  { level: 3, capacity: 800, cost: 25000 },
-  { level: 4, capacity: 1600, cost: 100000 },
-  { level: 5, capacity: 3200, cost: 500000 },
+  { level: 0, capacity: 500, cost: 0 },
+  { level: 1, capacity: 1000, cost: 2500 },
+  { level: 2, capacity: 2000, cost: 12500 },
+  { level: 3, capacity: 4000, cost: 62500 },
+  { level: 4, capacity: 8000, cost: 250000 },
+  { level: 5, capacity: 16000, cost: 1000000 },
 ];
 
 export interface BankUpgrade {
@@ -338,7 +375,7 @@ export function createDefaultGameState(): GameState {
       totalItemsSold: 0,
     },
     storage: {
-      capacity: 100,
+      capacity: 500,
       upgradeLevel: 0,
       items: [],
     },
@@ -351,6 +388,10 @@ export function createDefaultGameState(): GameState {
       chestplate: null,
       leggings: null,
       boots: null,
+      mainHand: null,
+      offHand: null,
+    },
+    equipmentDurability: {
       mainHand: null,
       offHand: null,
     },
@@ -376,5 +417,9 @@ export function createDefaultGameState(): GameState {
     lastSave: Date.now(),
     playTime: 0,
     notificationSettings: { ...DEFAULT_NOTIFICATION_SETTINGS },
+    miningStats: {
+      totalBlocksMined: 0,
+      blocksMined: {},
+    },
   };
 }

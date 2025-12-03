@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, STORAGE_UPGRADES } from '@/lib/gameTypes';
 import { getItemById } from '@/lib/items';
@@ -6,6 +6,8 @@ import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +18,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Package, Backpack } from 'lucide-react';
+import { Package, Backpack, Check, X, ShoppingCart } from 'lucide-react';
 
 type SortOption = 'name' | 'quantity' | 'rarity' | 'value';
 type DragSource = 'storage' | 'inventory';
@@ -45,6 +55,7 @@ export function StorageView() {
   const upgradeStorage = useGameStore((s) => s.upgradeStorage);
   const sellItem = useGameStore((s) => s.sellItem);
   const sellAllItems = useGameStore((s) => s.sellAllItems);
+  const bulkSellItems = useGameStore((s) => s.bulkSellItems);
   const moveToInventory = useGameStore((s) => s.moveToInventory);
   const moveToStorage = useGameStore((s) => s.moveToStorage);
   
@@ -55,6 +66,11 @@ export function StorageView() {
   const [isDragOverStorage, setIsDragOverStorage] = useState(false);
   const [isDragOverInventory, setIsDragOverInventory] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('quantity');
+  
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
+  const [bulkSellOpen, setBulkSellOpen] = useState(false);
+  const [bulkQuantities, setBulkQuantities] = useState<Map<string, number>>(new Map());
 
   const storageUsed = getStorageUsed();
   const storageProgress = (storageUsed / storage.capacity) * 100;
@@ -150,6 +166,93 @@ export function StorageView() {
     const item = getItemById(inv.itemId);
     return sum + (item ? item.sellPrice * inv.quantity : 0);
   }, 0);
+  
+  const selectedValue = useMemo(() => {
+    let total = 0;
+    selectedItems.forEach((_, itemId) => {
+      const item = getItemById(itemId);
+      const storageItem = storage.items.find(i => i.itemId === itemId);
+      const qty = bulkQuantities.get(itemId) ?? storageItem?.quantity ?? 0;
+      if (item) {
+        total += item.sellPrice * qty;
+      }
+    });
+    return total;
+  }, [selectedItems, bulkQuantities, storage.items]);
+  
+  const handleItemClick = (e: React.MouseEvent, itemId: string, quantity: number) => {
+    if (e.shiftKey) {
+      e.preventDefault();
+      if (!isSelectionMode) {
+        setIsSelectionMode(true);
+      }
+      
+      const newSelected = new Map(selectedItems);
+      const newQuantities = new Map(bulkQuantities);
+      
+      if (newSelected.has(itemId)) {
+        newSelected.delete(itemId);
+        newQuantities.delete(itemId);
+      } else {
+        newSelected.set(itemId, quantity);
+        newQuantities.set(itemId, quantity);
+      }
+      
+      setSelectedItems(newSelected);
+      setBulkQuantities(newQuantities);
+      
+      if (newSelected.size === 0) {
+        setIsSelectionMode(false);
+      }
+    }
+  };
+  
+  const handleSelectAll = () => {
+    const newSelected = new Map<string, number>();
+    const newQuantities = new Map<string, number>();
+    
+    storage.items.forEach(inv => {
+      newSelected.set(inv.itemId, inv.quantity);
+      newQuantities.set(inv.itemId, inv.quantity);
+    });
+    
+    setSelectedItems(newSelected);
+    setBulkQuantities(newQuantities);
+    setIsSelectionMode(true);
+  };
+  
+  const handleClearSelection = () => {
+    setSelectedItems(new Map());
+    setBulkQuantities(new Map());
+    setIsSelectionMode(false);
+  };
+  
+  const handleBulkQuantityChange = (itemId: string, quantity: number) => {
+    const maxQty = storage.items.find(i => i.itemId === itemId)?.quantity ?? 0;
+    const clampedQty = Math.max(1, Math.min(quantity, maxQty));
+    
+    const newQuantities = new Map(bulkQuantities);
+    newQuantities.set(itemId, clampedQty);
+    setBulkQuantities(newQuantities);
+  };
+  
+  const handleBulkSell = () => {
+    const itemsToSell: { itemId: string; quantity: number }[] = [];
+    
+    selectedItems.forEach((_, itemId) => {
+      const qty = bulkQuantities.get(itemId) ?? 0;
+      if (qty > 0) {
+        itemsToSell.push({ itemId, quantity: qty });
+      }
+    });
+    
+    if (itemsToSell.length > 0) {
+      bulkSellItems(itemsToSell);
+    }
+    
+    setBulkSellOpen(false);
+    handleClearSelection();
+  };
 
   const sortedStorageItems = sortItems(storage.items);
   const sortedInventoryItems = sortItems(inventory.items);
@@ -157,18 +260,22 @@ export function StorageView() {
   const renderItemSlot = (inv: { itemId: string; quantity: number }, source: DragSource) => {
     const item = getItemById(inv.itemId);
     if (!item) return null;
+    
+    const isSelected = source === 'storage' && selectedItems.has(inv.itemId);
 
     return (
       <Tooltip key={inv.itemId}>
         <TooltipTrigger asChild>
           <div
-            draggable
-            onDragStart={() => handleDragStart(inv.itemId, source)}
+            draggable={!isSelectionMode}
+            onDragStart={() => !isSelectionMode && handleDragStart(inv.itemId, source)}
             onDragEnd={handleDragEnd}
+            onClick={(e) => source === 'storage' && handleItemClick(e, inv.itemId, inv.quantity)}
             className={cn(
               'item-slot-uniform item-slot-filled cursor-grab hover-elevate active-elevate-2',
               `rarity-${item.rarity}`,
-              draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50'
+              draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
+              isSelected && 'ring-2 ring-primary ring-offset-1'
             )}
             data-testid={`${source}-item-${inv.itemId}`}
           >
@@ -177,6 +284,11 @@ export function StorageView() {
               <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
                 {formatNumber(inv.quantity)}
               </span>
+            )}
+            {isSelected && (
+              <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 z-10">
+                <Check className="w-2 h-2 text-primary-foreground" />
+              </div>
             )}
           </div>
         </TooltipTrigger>
@@ -193,10 +305,57 @@ export function StorageView() {
 
   return (
     <div className="animate-content-fade space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="pixel-text text-lg text-foreground">Storage & Inventory</h2>
-        
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
+          <h2 className="pixel-text text-lg text-foreground">Storage & Inventory</h2>
+          {isSelectionMode && (
+            <Badge variant="secondary" className="pixel-text-sm text-[8px]">
+              {selectedItems.size} selected
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-3 flex-wrap">
+          {isSelectionMode ? (
+            <>
+              <Button
+                onClick={() => setBulkSellOpen(true)}
+                size="sm"
+                className="pixel-text-sm text-[8px]"
+                data-testid="button-bulk-sell"
+              >
+                <ShoppingCart className="w-3 h-3 mr-1" />
+                Sell Selected
+              </Button>
+              <Button
+                onClick={handleClearSelection}
+                variant="outline"
+                size="sm"
+                className="pixel-text-sm text-[8px]"
+                data-testid="button-clear-selection"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="pixel-text-sm text-muted-foreground text-[7px] hidden sm:block">
+                Shift+Click to bulk select
+              </p>
+              <Button
+                onClick={handleSelectAll}
+                variant="outline"
+                size="sm"
+                className="pixel-text-sm text-[8px]"
+                disabled={storage.items.length === 0}
+                data-testid="button-select-all"
+              >
+                Select All
+              </Button>
+            </>
+          )}
+          
           <div className="flex items-center gap-2">
             <span className="pixel-text-sm text-muted-foreground text-[8px]">Sort:</span>
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -416,6 +575,125 @@ export function StorageView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={bulkSellOpen} onOpenChange={setBulkSellOpen}>
+        <DialogContent className="pixel-border border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="pixel-text text-sm">Bulk Sell</DialogTitle>
+            <DialogDescription className="font-sans">
+              Adjust quantities for each item. Total value:{' '}
+              <span className="text-game-coin font-semibold">{formatNumber(selectedValue)}</span> coins
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-pixel pr-2">
+            {Array.from(selectedItems.keys()).map((itemId) => {
+              const item = getItemById(itemId);
+              const storageItem = storage.items.find(i => i.itemId === itemId);
+              if (!item || !storageItem) return null;
+              
+              const qty = bulkQuantities.get(itemId) ?? storageItem.quantity;
+              const itemValue = item.sellPrice * qty;
+              
+              return (
+                <div 
+                  key={itemId}
+                  className="flex items-center justify-between gap-3 pixel-border border-border bg-muted/20 p-3"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PixelIcon icon={item.icon} size="sm" />
+                    <div className="min-w-0">
+                      <p className="pixel-text-sm text-[9px] truncate">{item.name}</p>
+                      <p className="pixel-text-sm text-[7px] text-muted-foreground">
+                        {item.sellPrice} each
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleBulkQuantityChange(itemId, qty - 1)}
+                        disabled={qty <= 1}
+                        data-testid={`button-decrease-${itemId}`}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        type="number"
+                        value={qty}
+                        onChange={(e) => handleBulkQuantityChange(itemId, parseInt(e.target.value) || 1)}
+                        className="w-16 h-6 text-center pixel-text-sm text-[9px]"
+                        min={1}
+                        max={storageItem.quantity}
+                        data-testid={`input-quantity-${itemId}`}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleBulkQuantityChange(itemId, qty + 1)}
+                        disabled={qty >= storageItem.quantity}
+                        data-testid={`button-increase-${itemId}`}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 min-w-[60px] justify-end">
+                      <PixelIcon icon="coin" size="sm" />
+                      <span className="pixel-text-sm text-[8px] text-game-coin tabular-nums">
+                        {formatNumber(itemValue)}
+                      </span>
+                    </div>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        const newSelected = new Map(selectedItems);
+                        const newQuantities = new Map(bulkQuantities);
+                        newSelected.delete(itemId);
+                        newQuantities.delete(itemId);
+                        setSelectedItems(newSelected);
+                        setBulkQuantities(newQuantities);
+                        if (newSelected.size === 0) {
+                          setBulkSellOpen(false);
+                          setIsSelectionMode(false);
+                        }
+                      }}
+                      data-testid={`button-remove-${itemId}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBulkSellOpen(false)}
+              className="pixel-text-sm text-[9px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkSell}
+              className="pixel-text-sm text-[9px]"
+              data-testid="button-confirm-bulk-sell"
+            >
+              Sell for {formatNumber(selectedValue)} coins
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

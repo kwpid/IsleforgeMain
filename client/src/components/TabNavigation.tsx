@@ -28,6 +28,7 @@ export function TabNavigation() {
     { id: 'marketplace', label: 'MARKETPLACE', icon: 'market' },
     { id: 'blueprints', label: 'BLUEPRINTS', icon: 'blueprint' },
     { id: 'bank', label: 'BANK', icon: 'coin' },
+    { id: 'mines', label: 'MINES', icon: 'iron_pickaxe' },
     { id: 'dungeons', label: 'DUNGEONS', icon: 'dungeon', disabled: true },
   ];
 
