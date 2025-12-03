@@ -6,6 +6,7 @@ import { TabNavigation } from './TabNavigation';
 import { PlayerStats } from './PlayerStats';
 import { IslandTab } from './IslandTab';
 import { HubTab } from './HubTab';
+import { ShopTab } from './ShopTab';
 import { SettingsTab } from './SettingsTab';
 import { InventoryPopup } from './InventoryPopup';
 import { FloatingNumbers } from './FloatingNumbers';
@@ -89,6 +90,7 @@ export function GameLayout() {
           <div className="h-full animate-content-fade" key={mainTab}>
             {mainTab === 'island' && <IslandTab />}
             {mainTab === 'hub' && <HubTab />}
+            {mainTab === 'shop' && <ShopTab />}
             {mainTab === 'settings' && <SettingsTab />}
           </div>
         </main>

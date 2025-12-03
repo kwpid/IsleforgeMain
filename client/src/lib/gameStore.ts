@@ -7,6 +7,7 @@ import {
   MainTab,
   IslandSubTab,
   HubSubTab,
+  ShopSubTab,
   SettingsSubTab,
   Keybinds,
   KeybindAction,
@@ -32,15 +33,20 @@ interface GameStore extends GameState {
   mainTab: MainTab;
   islandSubTab: IslandSubTab;
   hubSubTab: HubSubTab;
+  shopSubTab: ShopSubTab;
   settingsSubTab: SettingsSubTab;
   inventoryOpen: boolean;
   floatingNumbers: Array<{ id: string; x: number; y: number; value: string; color: string }>;
   keybinds: Keybinds;
+  lastShopVisit: number;
+  shopHasNewItems: boolean;
 
   setMainTab: (tab: MainTab) => void;
   setIslandSubTab: (tab: IslandSubTab) => void;
   setHubSubTab: (tab: HubSubTab) => void;
+  setShopSubTab: (tab: ShopSubTab) => void;
   setSettingsSubTab: (tab: SettingsSubTab) => void;
+  markShopVisited: () => void;
   toggleInventory: () => void;
   setKeybind: (action: KeybindAction, key: string) => void;
   resetKeybinds: () => void;
@@ -120,15 +126,26 @@ export const useGameStore = create<GameStore>()(
       mainTab: 'island',
       islandSubTab: 'generators',
       hubSubTab: 'marketplace',
+      shopSubTab: 'daily',
       settingsSubTab: 'general',
       inventoryOpen: false,
       floatingNumbers: [],
       keybinds: { ...DEFAULT_KEYBINDS },
+      lastShopVisit: 0,
+      shopHasNewItems: true,
 
-      setMainTab: (tab) => set({ mainTab: tab }),
+      setMainTab: (tab) => {
+        if (tab === 'shop') {
+          set({ mainTab: tab, shopHasNewItems: false, lastShopVisit: Date.now() });
+        } else {
+          set({ mainTab: tab });
+        }
+      },
       setIslandSubTab: (tab) => set({ islandSubTab: tab }),
       setHubSubTab: (tab) => set({ hubSubTab: tab }),
+      setShopSubTab: (tab) => set({ shopSubTab: tab }),
       setSettingsSubTab: (tab) => set({ settingsSubTab: tab }),
+      markShopVisited: () => set({ shopHasNewItems: false, lastShopVisit: Date.now() }),
       toggleInventory: () => set((state) => ({ inventoryOpen: !state.inventoryOpen })),
 
       setKeybind: (action, key) => set((state) => ({
@@ -141,6 +158,7 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting'];
         const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'mines', 'dungeons'];
+        const shopSubTabs: ShopSubTab[] = ['limited', 'daily', 'coins'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications', 'info'];
 
         if (state.mainTab === 'island') {
@@ -157,6 +175,12 @@ export const useGameStore = create<GameStore>()(
           if (hubSubTabs[newIndex] !== 'dungeons') {
             set({ hubSubTab: hubSubTabs[newIndex] });
           }
+        } else if (state.mainTab === 'shop') {
+          const currentIndex = shopSubTabs.indexOf(state.shopSubTab);
+          const newIndex = direction === 'next'
+            ? Math.min(currentIndex + 1, shopSubTabs.length - 1)
+            : Math.max(currentIndex - 1, 0);
+          set({ shopSubTab: shopSubTabs[newIndex] });
         } else if (state.mainTab === 'settings') {
           const currentIndex = settingsSubTabs.indexOf(state.settingsSubTab);
           const newIndex = direction === 'next'

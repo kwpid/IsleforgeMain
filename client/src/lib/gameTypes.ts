@@ -201,9 +201,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   bankWithdraw: true,
 };
 
-export type MainTab = 'island' | 'hub' | 'settings';
+export type MainTab = 'island' | 'hub' | 'shop' | 'settings';
 export type IslandSubTab = 'generators' | 'storage' | 'crafting';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
+export type ShopSubTab = 'limited' | 'daily' | 'coins';
 export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications' | 'info';
 
 export interface MiningStats {
@@ -253,13 +254,14 @@ export interface NotificationSettings {
   bankWithdraw: boolean;
 }
 
-export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
+export type KeybindAction = 'openInventory' | 'quickSave' | 'islandTab' | 'hubTab' | 'shopTab' | 'settingsTab' | 'prevSubTab' | 'nextSubTab';
 
 export interface Keybinds {
   openInventory: string;
   quickSave: string;
   islandTab: string;
   hubTab: string;
+  shopTab: string;
   settingsTab: string;
   prevSubTab: string;
   nextSubTab: string;
@@ -270,7 +272,8 @@ export const DEFAULT_KEYBINDS: Keybinds = {
   quickSave: 'KeyS',
   islandTab: 'Digit1',
   hubTab: 'Digit2',
-  settingsTab: 'Digit3',
+  shopTab: 'Digit3',
+  settingsTab: 'Digit4',
   prevSubTab: 'ArrowLeft',
   nextSubTab: 'ArrowRight',
 };

@@ -19,7 +19,7 @@ export function GameNotifications() {
   const removeNotification = useNotificationStore((s) => s.removeNotification);
 
   return (
-    <div className="fixed top-4 right-4 z-[100] space-y-2 pointer-events-none">
+    <div className="fixed bottom-4 right-4 z-[100] space-y-2 pointer-events-none flex flex-col-reverse">
       <AnimatePresence mode="popLayout">
         {notifications.map((notification) => {
           const style = notificationStyles[notification.type];

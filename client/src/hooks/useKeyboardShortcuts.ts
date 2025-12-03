@@ -54,6 +54,12 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (e.code === keybinds.shopTab) {
+        e.preventDefault();
+        setMainTab('shop');
+        return;
+      }
+
       if (e.code === keybinds.settingsTab) {
         e.preventDefault();
         setMainTab('settings');
