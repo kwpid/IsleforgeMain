@@ -10,6 +10,7 @@ import { SettingsTab } from './SettingsTab';
 import { InventoryPopup } from './InventoryPopup';
 import { FloatingNumbers } from './FloatingNumbers';
 import { DevConsole } from './DevConsole';
+import { NewsModal, useNewsModal } from './NewsModal';
 
 export function GameLayout() {
   const mainTab = useGameStore((s) => s.mainTab);
@@ -24,6 +25,7 @@ export function GameLayout() {
   const lastNotificationTime = useRef(0);
   
   const [devConsoleOpen, setDevConsoleOpen] = useState(false);
+  const { isOpen: newsOpen, openNews, closeNews, markAllRead, hasUnread } = useNewsModal();
 
   useKeyboardShortcuts();
   
@@ -80,7 +82,7 @@ export function GameLayout() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <TabNavigation />
+      <TabNavigation onOpenNews={openNews} hasUnreadNews={hasUnread} />
       
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-hidden">
@@ -99,6 +101,7 @@ export function GameLayout() {
       <InventoryPopup />
       <FloatingNumbers />
       <DevConsole isOpen={devConsoleOpen} onClose={() => setDevConsoleOpen(false)} />
+      <NewsModal isOpen={newsOpen} onClose={closeNews} onArticlesRead={markAllRead} />
     </div>
   );
 }

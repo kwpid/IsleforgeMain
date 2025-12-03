@@ -1654,11 +1654,15 @@ function MinesView() {
   const [currentBlock, setCurrentBlock] = useState(selectRandomBlock());
   const [miningProgress, setMiningProgress] = useState(0);
   const [isMining, setIsMining] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showBlockIndex, setShowBlockIndex] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   
   const miningIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  const isHoldingRef = useRef(false);
+  const miningAreaRef = useRef<HTMLDivElement>(null);
   
   const equipment = useGameStore((s) => s.equipment);
   const equipmentDurability = useGameStore((s) => s.equipmentDurability);
@@ -1687,6 +1691,84 @@ function MinesView() {
   
   const currentDurability = equipmentDurability.mainHand;
   const maxDurability = pickaxeItem?.stats?.durability || 0;
+
+  const startMiningBlock = useCallback((block: typeof currentBlock, blockBreakTime: number, canReceiveBlock: boolean) => {
+    setIsMining(true);
+    startTimeRef.current = Date.now();
+    
+    if (miningIntervalRef.current) {
+      clearInterval(miningIntervalRef.current);
+    }
+    
+    miningIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const progress = Math.min((elapsed / blockBreakTime) * 100, 100);
+      setMiningProgress(progress);
+      
+      if (progress >= 100) {
+        if (miningIntervalRef.current) {
+          clearInterval(miningIntervalRef.current);
+          miningIntervalRef.current = null;
+        }
+        
+        const stillHasDurability = usePickaxeDurability();
+        const blockItemInfo = getItemById(block.itemId);
+        
+        if (canReceiveBlock) {
+          addItemToStorage(block.itemId, 1);
+          addBlockMined(block.itemId);
+          addXp(block.xpReward);
+        } else {
+          addBlockMined(block.itemId);
+        }
+        
+        setMiningProgress(0);
+        setIsMining(false);
+        
+        const newBlock = selectRandomBlock();
+        setCurrentBlock(newBlock);
+        
+        if (!stillHasDurability) {
+          warning('Pickaxe Broken!', 'Your pickaxe has broken! Buy or craft a new one.');
+          setIsHolding(false);
+          isHoldingRef.current = false;
+          return;
+        }
+        
+        const currentStorageUsed = useGameStore.getState().getStorageUsed();
+        const currentStorageCapacity = useGameStore.getState().storage.capacity;
+        const isStorageFull = currentStorageUsed >= currentStorageCapacity;
+        
+        if (isStorageFull) {
+          warning('Storage Full', 'Clear some storage space before mining.');
+          setIsHolding(false);
+          isHoldingRef.current = false;
+          return;
+        }
+        
+        if (isHoldingRef.current) {
+          const currentEquippedPickaxe = useGameStore.getState().getEquippedPickaxe();
+          if (!currentEquippedPickaxe) {
+            setIsHolding(false);
+            isHoldingRef.current = false;
+            return;
+          }
+          
+          const currentPickaxeItem = getItemById(currentEquippedPickaxe);
+          const currentPickaxeTier = getPickaxeTier(currentEquippedPickaxe);
+          const currentMiningSpeed = currentPickaxeItem?.stats?.mining_speed || 0;
+          const newBreakTime = getBreakTime(newBlock, currentPickaxeTier, currentMiningSpeed);
+          const newCanReceive = canReceiveItem(newBlock, currentPickaxeTier);
+          
+          setTimeout(() => {
+            if (isHoldingRef.current) {
+              startMiningBlock(newBlock, newBreakTime, newCanReceive);
+            }
+          }, 50);
+        }
+      }
+    }, 50);
+  }, [usePickaxeDurability, addItemToStorage, addBlockMined, addXp, warning]);
   
   const handleMiningStart = useCallback(() => {
     if (!equippedPickaxe) {
@@ -1699,51 +1781,39 @@ function MinesView() {
       return;
     }
     
-    setIsMining(true);
-    startTimeRef.current = Date.now();
-    
-    miningIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const progress = Math.min((elapsed / breakTime) * 100, 100);
-      setMiningProgress(progress);
-      
-      if (progress >= 100) {
-        if (miningIntervalRef.current) {
-          clearInterval(miningIntervalRef.current);
-          miningIntervalRef.current = null;
-        }
-        
-        const stillHasDurability = usePickaxeDurability();
-        
-        if (canReceive) {
-          addItemToStorage(currentBlock.itemId, 1);
-          addBlockMined(currentBlock.itemId);
-          addXp(currentBlock.xpReward);
-          success('Block Mined!', `Obtained 1x ${blockItem?.name || currentBlock.itemId}`);
-        } else {
-          addBlockMined(currentBlock.itemId);
-          warning('Block Destroyed', `Your pickaxe tier is too low to obtain ${blockItem?.name}`);
-        }
-        
-        if (!stillHasDurability) {
-          warning('Pickaxe Broken!', 'Your pickaxe has broken! Buy or craft a new one.');
-        }
-        
-        setMiningProgress(0);
-        setIsMining(false);
-        setCurrentBlock(selectRandomBlock());
-      }
-    }, 50);
-  }, [equippedPickaxe, storageFull, breakTime, canReceive, currentBlock, blockItem, usePickaxeDurability, addItemToStorage, addBlockMined, addXp, success, warning]);
+    setIsHolding(true);
+    isHoldingRef.current = true;
+    startMiningBlock(currentBlock, breakTime, canReceive);
+  }, [equippedPickaxe, storageFull, breakTime, canReceive, currentBlock, startMiningBlock, warning]);
   
   const handleMiningStop = useCallback(() => {
+    isHoldingRef.current = false;
+    setIsHolding(false);
+    
     if (miningIntervalRef.current) {
       clearInterval(miningIntervalRef.current);
       miningIntervalRef.current = null;
     }
     setIsMining(false);
     setMiningProgress(0);
+    setCursorPosition(null);
   }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isMining || isHolding) {
+      setCursorPosition({ x: e.clientX, y: e.clientY });
+    }
+  }, [isMining, isHolding]);
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    if (isMining || isHolding) {
+      setCursorPosition({ x: e.clientX, y: e.clientY });
+    }
+  }, [isMining, isHolding]);
+
+  const handleMouseLeave = useCallback(() => {
+    handleMiningStop();
+  }, [handleMiningStop]);
   
   useEffect(() => {
     return () => {
@@ -1794,16 +1864,32 @@ function MinesView() {
               Mining Area
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6 py-8">
+          <CardContent className="flex flex-col items-center gap-6 py-8 relative">
+            {(isMining || isHolding) && cursorPosition && pickaxeItem && (
+              <div 
+                className="fixed pointer-events-none z-50"
+                style={{ 
+                  left: cursorPosition.x - 16, 
+                  top: cursorPosition.y - 16,
+                  transform: isMining ? `rotate(${-20 + breakStage * 8}deg)` : 'rotate(-15deg)',
+                  transition: 'transform 0.1s ease-out'
+                }}
+              >
+                <PixelIcon icon={pickaxeItem.icon} size="lg" />
+              </div>
+            )}
             <div 
+              ref={miningAreaRef}
               className={cn(
-                "relative w-32 h-32 pixel-border border-border cursor-pointer select-none transition-transform",
+                "relative w-32 h-32 pixel-border border-border select-none transition-transform",
                 isMining && "scale-95",
-                !equippedPickaxe && "opacity-50 cursor-not-allowed"
+                !equippedPickaxe ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               )}
               onMouseDown={handleMiningStart}
               onMouseUp={handleMiningStop}
-              onMouseLeave={handleMiningStop}
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
               onTouchStart={handleMiningStart}
               onTouchEnd={handleMiningStop}
               data-testid="mining-block"

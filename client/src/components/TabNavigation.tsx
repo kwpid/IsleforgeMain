@@ -2,8 +2,14 @@ import { useGameStore } from '@/lib/gameStore';
 import { MainTab, IslandSubTab, HubSubTab, SettingsSubTab } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
+import { Newspaper } from 'lucide-react';
 
-export function TabNavigation() {
+interface TabNavigationProps {
+  onOpenNews?: () => void;
+  hasUnreadNews?: boolean;
+}
+
+export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps) {
   const mainTab = useGameStore((s) => s.mainTab);
   const islandSubTab = useGameStore((s) => s.islandSubTab);
   const hubSubTab = useGameStore((s) => s.hubSubTab);
@@ -38,6 +44,7 @@ export function TabNavigation() {
     { id: 'audio', label: 'AUDIO' },
     { id: 'controls', label: 'CONTROLS' },
     { id: 'notifications', label: 'NOTIFICATIONS' },
+    { id: 'info', label: 'INFO' },
   ];
 
   return (
@@ -66,6 +73,25 @@ export function TabNavigation() {
             </button>
           ))}
         </nav>
+        
+        <div className="ml-auto flex items-center gap-2">
+          {onOpenNews && (
+            <button
+              onClick={onOpenNews}
+              className={cn(
+                'relative flex items-center gap-2 px-3 py-2 pixel-text-sm transition-all duration-200',
+                'hover-elevate active-elevate-2 text-muted-foreground hover:text-foreground'
+              )}
+              data-testid="button-open-news"
+            >
+              <Newspaper className="w-4 h-4" />
+              <span className="hidden sm:inline">NEWS</span>
+              {hasUnreadNews && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {mainTab === 'island' && (

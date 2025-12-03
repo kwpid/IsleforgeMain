@@ -66,10 +66,17 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Upgradeable capacity (9 tiers): 500 → 1.5K → 5K → 15K → 35K → 75K → 150K → 300K → 500K
 
 ### Player Stats (Right Sidebar)
-- Level with XP bar
+- Level with XP bar (proper fill indicator)
 - Coins (gold currency)
-- UP (Universal Points for future prestige)
+- UP (Universal Points displayed with 2 decimal places: 0.00)
 - Tab-specific stats below divider
+
+### Settings Tabs
+- **General**: Save data management, display options, danger zone
+- **Audio**: Volume controls and toggles
+- **Controls**: Customizable keyboard shortcuts
+- **Notifications**: Toggle notification types
+- **Info**: Game version, credits, technical stats, play time
 
 ### Crafting System (Island Tab)
 - **Crafting Station**: Create items using materials from storage
@@ -116,10 +123,24 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Supported formats: PNG, GIF, JPG, JPEG, WEBP, APNG
 - See `client/public/item_images/README.md` for full documentation
 
+### Manual Mining (Hub Tab - Mines)
+- **Hold-to-Mine**: Click and hold on blocks to mine continuously
+- **Auto-Restart**: Mining automatically continues to the next block
+- **Cursor Pickaxe**: Your equipped pickaxe follows your cursor while mining
+- **Pickaxe Tiers**: Higher tier pickaxes mine faster and unlock rarer blocks
+- **Block Index**: View all mineable blocks and their requirements
+
+### News & Updates System
+- Auto-shows on first launch with unread articles
+- Filter by category: All, Updates, Fixes, News
+- Markdown-style content with headers, bold, lists
+- Read tracking via localStorage
+- News button in navigation with unread indicator
+
 ### Developer Console
 - Press `Y` to open (when not in input field)
 - Press `Escape` or click outside to close
-- Commands: spawn, give, cash, xp, items, status, clear, help
+- Commands: spawn, give, cash, xp, up, items, status, clear, help
 - Arrow keys for command history
 
 ### Keyboard Shortcuts

@@ -141,7 +141,7 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting'];
         const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'mines', 'dungeons'];
-        const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications'];
+        const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications', 'info'];
 
         if (state.mainTab === 'island') {
           const currentIndex = islandSubTabs.indexOf(state.islandSubTab);

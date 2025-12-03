@@ -204,7 +204,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 export type MainTab = 'island' | 'hub' | 'settings';
 export type IslandSubTab = 'generators' | 'storage' | 'crafting';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
-export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications';
+export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications' | 'info';
 
 export interface MiningStats {
   totalBlocksMined: number;
