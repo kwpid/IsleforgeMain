@@ -18,14 +18,18 @@ client/src/
 │   ├── DevConsole.tsx      # Developer console (Y key)
 │   ├── FloatingNumbers.tsx # Floating +1 animations
 │   ├── GameLayout.tsx      # Main game container
+│   ├── GameNotifications.tsx # Toast-style notifications
 │   ├── GeneratorCard.tsx   # Generator tiles
-│   ├── HubTab.tsx          # Marketplace & Bank
+│   ├── HubTab.tsx          # Marketplace, Bank & Mines
 │   ├── InventoryPopup.tsx  # TAB key inventory modal
 │   ├── IslandTab.tsx       # Generators, Storage & Crafting views
 │   ├── ItemTooltip.tsx     # Item hover tooltips
+│   ├── KeybindsModal.tsx   # Keyboard shortcut customization popup
+│   ├── NewsModal.tsx       # News & Updates modal
 │   ├── PixelIcon.tsx       # SVG pixel-art icons
 │   ├── PlayerStats.tsx     # Right sidebar stats
 │   ├── SettingsTab.tsx     # Game settings
+│   ├── ShopTab.tsx         # Shop with Limited, Daily & Coins tabs
 │   ├── StorageView.tsx     # Storage with drag-drop sell
 │   └── TabNavigation.tsx   # Main navigation tabs
 ├── lib/
@@ -71,10 +75,20 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - UP (Universal Points displayed with 2 decimal places: 0.00)
 - Tab-specific stats below divider
 
+### Shop System (Shop Tab)
+- **Limited Shop**: Coming soon - exclusive limited-time items
+- **Daily Deals**: 6 rotating items (tools, armor, materials) priced in UP
+  - One random item gets 30% discount each day
+  - Resets at midnight
+- **Coin Exchange**: Buy coins with UP
+  - Packages: 100K, 250K, 500K, 1M, 5M, 25M, 100M coins
+  - One random package on sale each day (10-25% off)
+  - Exchange rate: 1 UP = 100,000 Coins
+
 ### Settings Tabs
 - **General**: Save data management, display options, danger zone
 - **Audio**: Volume controls and toggles
-- **Controls**: Customizable keyboard shortcuts
+- **Controls**: Customizable keyboard shortcuts via KeybindsModal popup
 - **Notifications**: Toggle notification types
 - **Info**: Game version, credits, technical stats, play time
 

@@ -1,5 +1,5 @@
 import { useGameStore } from '@/lib/gameStore';
-import { MainTab, IslandSubTab, HubSubTab, SettingsSubTab } from '@/lib/gameTypes';
+import { MainTab, IslandSubTab, HubSubTab, ShopSubTab, SettingsSubTab } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
 import { Newspaper } from 'lucide-react';
@@ -13,15 +13,19 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
   const mainTab = useGameStore((s) => s.mainTab);
   const islandSubTab = useGameStore((s) => s.islandSubTab);
   const hubSubTab = useGameStore((s) => s.hubSubTab);
+  const shopSubTab = useGameStore((s) => s.shopSubTab);
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
+  const shopHasNewItems = useGameStore((s) => s.shopHasNewItems);
   const setMainTab = useGameStore((s) => s.setMainTab);
   const setIslandSubTab = useGameStore((s) => s.setIslandSubTab);
   const setHubSubTab = useGameStore((s) => s.setHubSubTab);
+  const setShopSubTab = useGameStore((s) => s.setShopSubTab);
   const setSettingsSubTab = useGameStore((s) => s.setSettingsSubTab);
 
-  const mainTabs: { id: MainTab; label: string; icon: string }[] = [
+  const mainTabs: { id: MainTab; label: string; icon: string; hasNotification?: boolean }[] = [
     { id: 'island', label: 'ISLAND', icon: 'island' },
     { id: 'hub', label: 'HUB', icon: 'hub' },
+    { id: 'shop', label: 'SHOP', icon: 'coin', hasNotification: shopHasNewItems },
     { id: 'settings', label: 'SETTINGS', icon: 'settings' },
   ];
 
@@ -37,6 +41,12 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
     { id: 'bank', label: 'BANK', icon: 'coin' },
     { id: 'mines', label: 'MINES', icon: 'iron_pickaxe' },
     { id: 'dungeons', label: 'DUNGEONS', icon: 'dungeon', disabled: true },
+  ];
+
+  const shopSubTabs: { id: ShopSubTab; label: string; icon: string }[] = [
+    { id: 'limited', label: 'LIMITED', icon: 'rare_gem' },
+    { id: 'daily', label: 'DAILY', icon: 'coin' },
+    { id: 'coins', label: 'COINS', icon: 'universal_point' },
   ];
 
   const settingsSubTabs: { id: SettingsSubTab; label: string }[] = [
@@ -60,7 +70,7 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
               key={tab.id}
               onClick={() => setMainTab(tab.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 pixel-text-sm transition-all duration-200',
+                'relative flex items-center gap-2 px-4 py-2 pixel-text-sm transition-all duration-200',
                 'border-b-4 hover-elevate active-elevate-2',
                 mainTab === tab.id
                   ? 'border-primary text-primary bg-primary/10'
@@ -70,6 +80,11 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
             >
               <PixelIcon icon={tab.icon} size="sm" />
               <span className="hidden sm:inline">{tab.label}</span>
+              {tab.hasNotification && (
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 bg-destructive pixel-text-sm text-[6px] text-destructive-foreground">
+                  !
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -139,6 +154,28 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
               {tab.disabled && (
                 <span className="pixel-text-sm text-muted-foreground ml-1">(SOON)</span>
               )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mainTab === 'shop' && (
+        <div className="flex items-center gap-1 px-4 pb-2 border-t border-border/50 pt-2 animate-tab-slide">
+          {shopSubTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setShopSubTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 pixel-text-sm transition-all duration-200',
+                'hover-elevate active-elevate-2',
+                shopSubTab === tab.id
+                  ? 'bg-secondary text-secondary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              data-testid={`subtab-shop-${tab.id}`}
+            >
+              <PixelIcon icon={tab.icon} size="sm" />
+              <span>{tab.label}</span>
             </button>
           ))}
         </div>
