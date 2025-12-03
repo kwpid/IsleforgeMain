@@ -194,7 +194,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export type MainTab = 'island' | 'hub' | 'settings';
-export type IslandSubTab = 'generators' | 'storage';
+export type IslandSubTab = 'generators' | 'storage' | 'crafting';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications';
 
@@ -222,6 +222,7 @@ export const PICKAXE_TIERS: Record<string, number> = {
   'iron_pickaxe': 3,
   'diamond_pickaxe': 4,
   'netherite_pickaxe': 5,
+  'winter_pickaxe': 6,
 };
 
 export function getPickaxeTier(pickaxeId: string): number {

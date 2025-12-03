@@ -1,9 +1,12 @@
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface PixelIconProps {
   icon: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  customImage?: string;
+  animatedImage?: string;
 }
 
 const ICON_COLORS: Record<string, { bg: string; accent: string; detail?: string }> = {
@@ -87,9 +90,10 @@ const SIZE_MAP = {
   xl: 'w-16 h-16',
 };
 
-export function PixelIcon({ icon, size = 'md', className }: PixelIconProps) {
+export function PixelIcon({ icon, size = 'md', className, customImage, animatedImage }: PixelIconProps) {
   const colors = ICON_COLORS[icon] || { bg: '#888888', accent: '#666666', detail: '#aaaaaa' };
   const sizeClass = SIZE_MAP[size];
+  const [imageError, setImageError] = useState(false);
 
   const isPotion = icon.startsWith('potion_');
   const isTool = ['pickaxe', 'sword', 'axe'].some(t => icon.includes(t));
@@ -99,6 +103,25 @@ export function PixelIcon({ icon, size = 'md', className }: PixelIconProps) {
   const isOre = icon.includes('ore');
   const isLog = icon.includes('log');
   const isFood = ['apple', 'bread', 'beef', 'golden_apple', 'enchanted_golden_apple'].some(f => icon.includes(f));
+
+  const imageToUse = animatedImage || customImage;
+  
+  if (imageToUse && !imageError) {
+    return (
+      <div 
+        className={cn('relative pixel-image', sizeClass, className)}
+        style={{ imageRendering: 'pixelated' }}
+      >
+        <img 
+          src={imageToUse}
+          alt={icon}
+          className="w-full h-full object-contain"
+          style={{ imageRendering: 'pixelated' }}
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div 

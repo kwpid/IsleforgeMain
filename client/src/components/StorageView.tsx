@@ -264,7 +264,7 @@ export function StorageView() {
     const isSelected = source === 'storage' && selectedItems.has(inv.itemId);
 
     return (
-      <Tooltip key={inv.itemId}>
+      <Tooltip key={inv.itemId} delayDuration={0}>
         <TooltipTrigger asChild>
           <div
             draggable={!isSelectionMode}
@@ -275,7 +275,9 @@ export function StorageView() {
               'item-slot-uniform item-slot-filled cursor-grab hover-elevate active-elevate-2',
               `rarity-${item.rarity}`,
               draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
-              isSelected && 'ring-2 ring-primary ring-offset-1'
+              isSelected && 'ring-2 ring-primary ring-offset-1',
+              item.isEnchanted && 'enchanted-item',
+              item.isSpecial && 'special-item'
             )}
             data-testid={`${source}-item-${inv.itemId}`}
           >

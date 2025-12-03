@@ -21,7 +21,7 @@ client/src/
 │   ├── GeneratorCard.tsx   # Generator tiles
 │   ├── HubTab.tsx          # Marketplace & Bank
 │   ├── InventoryPopup.tsx  # TAB key inventory modal
-│   ├── IslandTab.tsx       # Generators & Storage views
+│   ├── IslandTab.tsx       # Generators, Storage & Crafting views
 │   ├── ItemTooltip.tsx     # Item hover tooltips
 │   ├── PixelIcon.tsx       # SVG pixel-art icons
 │   ├── PlayerStats.tsx     # Right sidebar stats
@@ -39,6 +39,7 @@ client/src/
 │   │   ├── potions.ts
 │   │   ├── special.ts      # Special/enchanted items
 │   │   └── index.ts
+│   ├── crafting.ts         # Crafting recipes
 │   ├── gameStore.ts        # Zustand game state
 │   ├── gameTypes.ts        # TypeScript types
 │   └── generators.ts       # Generator definitions
@@ -69,6 +70,22 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Coins (gold currency)
 - UP (Universal Points for future prestige)
 - Tab-specific stats below divider
+
+### Crafting System (Island Tab)
+- **Crafting Station**: Create items using materials from storage
+- **Cost**: 50% of item's market value (Minecraft-style)
+- **Categories**: Tools, Armor, Materials, Food, Potions
+- **Search**: Filter recipes by name
+- **Progress Bar**: Visual feedback during crafting time
+- **Ingredients**: Shows required materials with have/need counts
+- **Key Recipes**:
+  - Stick: 2 Oak Planks → 4 Sticks
+  - Oak Planks: 1 Oak Log → 4 Oak Planks
+  - Iron Ingot: 1 Iron Ore + 1 Coal → 1 Iron Ingot
+  - Wooden Pickaxe: 3 Oak Planks + 2 Sticks
+  - Stone Pickaxe: 3 Cobblestone + 2 Sticks
+  - Iron Pickaxe: 3 Iron Ingots + 2 Sticks
+  - Bread: 3 Wheat → 1 Bread
 
 ### Bank System (Hub Tab)
 - **Account**: Deposit/withdraw coins securely
@@ -131,10 +148,9 @@ Game state is saved to localStorage with key `isleforge-save`. Auto-saves every 
 
 ## Future Features (Coming Soon)
 - Dungeons tab with combat
-- Marketplace buying
-- Crafting system
 - Equipment from dungeons
 - Prestige/rebirth system with UP
+- Marketplace search/filtering
 
 ## Development Notes
 - All border-radius set to 0 for pixel aesthetic

@@ -1,6 +1,7 @@
 import { ItemDefinition, getRarityColor, formatNumber } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
+import { Sparkles, Wand2 } from 'lucide-react';
 
 interface ItemTooltipProps {
   item: ItemDefinition;
@@ -32,21 +33,35 @@ export function ItemTooltip({ item, quantity, className }: ItemTooltipProps) {
     <div 
       className={cn(
         'pixel-border border-border bg-popover p-3 min-w-48 max-w-64 z-50',
+        item.isEnchanted && 'enchanted-item',
         className
       )}
     >
       <div className="flex items-start gap-3 mb-2">
-        <PixelIcon icon={item.icon} size="lg" />
+        <div className={cn(
+          'relative',
+          item.isSpecial && 'special-item'
+        )}>
+          <PixelIcon icon={item.icon} size="lg" />
+        </div>
         <div className="flex-1 min-w-0">
-          <h4 className={cn('pixel-text-sm', getRarityColor(item.rarity))}>
-            {item.name}
-          </h4>
+          <div className="flex items-center gap-1">
+            <h4 className={cn('pixel-text-sm', getRarityColor(item.rarity))}>
+              {item.name}
+            </h4>
+            {item.isEnchanted && (
+              <Wand2 className="w-3 h-3 text-purple-400" />
+            )}
+          </div>
           <div className={cn(
-            'pixel-text-sm text-xs mt-0.5',
+            'pixel-text-sm text-xs mt-0.5 flex items-center gap-1',
             `rarity-${item.rarity}`,
             getRarityColor(item.rarity)
           )}>
             {rarityLabels[item.rarity]}
+            {item.isSpecial && (
+              <Sparkles className="w-3 h-3 text-yellow-400" />
+            )}
           </div>
         </div>
       </div>
