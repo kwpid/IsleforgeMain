@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
-import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement } from '@/lib/gameTypes';
+import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
 import { getItemById, getItemsByType } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
+import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,10 @@ import {
   Vault,
   TrendingUp,
   History,
-  Coins
+  Coins,
+  Pickaxe,
+  Info,
+  BarChart3
 } from 'lucide-react';
 import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
 
@@ -209,6 +213,7 @@ export function HubTab() {
       {hubSubTab === 'marketplace' && <MarketplaceView />}
       {hubSubTab === 'blueprints' && <BlueprintsView />}
       {hubSubTab === 'bank' && <BankView />}
+      {hubSubTab === 'mines' && <MinesView />}
       {hubSubTab === 'dungeons' && <DungeonsView />}
     </div>
   );
@@ -646,6 +651,35 @@ function BlueprintsView() {
                           <span className="pixel-text-sm text-game-coin">
                             {formatNumber(selectedBlueprint.cost)}
                           </span>
+                        </div>
+                      </div>
+                      
+                      <div className="pixel-border border-accent/30 bg-accent/5 p-3">
+                        <p className="pixel-text-sm text-[8px] text-muted-foreground mb-3">
+                          Materials Needed (Preview)
+                        </p>
+                        <div className="space-y-2">
+                          {selectedBlueprint.requirements.map((req) => {
+                            const item = getItemById(req.itemId);
+                            const storageItem = storage.items.find(i => i.itemId === req.itemId);
+                            const currentQty = storageItem?.quantity || 0;
+                            const hasEnough = currentQty >= req.quantity;
+                            
+                            return item ? (
+                              <div key={req.itemId} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <PixelIcon icon={item.icon} size="sm" />
+                                  <span className="pixel-text-sm text-[8px]">{item.name}</span>
+                                </div>
+                                <span className={cn(
+                                  'pixel-text-sm text-[8px] tabular-nums',
+                                  hasEnough ? 'text-primary' : 'text-muted-foreground'
+                                )}>
+                                  {currentQty}/{req.quantity}
+                                </span>
+                              </div>
+                            ) : null;
+                          })}
                         </div>
                       </div>
                       
@@ -1280,6 +1314,367 @@ function BankView() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+function MinesView() {
+  const [currentBlock, setCurrentBlock] = useState(selectRandomBlock());
+  const [miningProgress, setMiningProgress] = useState(0);
+  const [isMining, setIsMining] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showBlockIndex, setShowBlockIndex] = useState(false);
+  
+  const miningIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
+  
+  const equipment = useGameStore((s) => s.equipment);
+  const equipmentDurability = useGameStore((s) => s.equipmentDurability);
+  const miningStats = useGameStore((s) => s.miningStats);
+  const storage = useGameStore((s) => s.storage);
+  const getStorageUsed = useGameStore((s) => s.getStorageUsed);
+  const addItemToStorage = useGameStore((s) => s.addItemToStorage);
+  const addBlockMined = useGameStore((s) => s.addBlockMined);
+  const usePickaxeDurability = useGameStore((s) => s.usePickaxeDurability);
+  const addXp = useGameStore((s) => s.addXp);
+  const getEquippedPickaxe = useGameStore((s) => s.getEquippedPickaxe);
+  
+  const { success, warning } = useGameNotifications();
+  
+  const equippedPickaxe = getEquippedPickaxe();
+  const pickaxeItem = equippedPickaxe ? getItemById(equippedPickaxe) : null;
+  const pickaxeTier = equippedPickaxe ? getPickaxeTier(equippedPickaxe) : 0;
+  const miningSpeed = pickaxeItem?.stats?.mining_speed || 0;
+  
+  const blockItem = getItemById(currentBlock.itemId);
+  const breakTime = equippedPickaxe ? getBreakTime(currentBlock, pickaxeTier, miningSpeed) : currentBlock.breakTime * 5;
+  const canReceive = equippedPickaxe ? canReceiveItem(currentBlock, pickaxeTier) : false;
+  
+  const storageUsed = getStorageUsed();
+  const storageFull = storageUsed >= storage.capacity;
+  
+  const currentDurability = equipmentDurability.mainHand;
+  const maxDurability = pickaxeItem?.stats?.durability || 0;
+  
+  const handleMiningStart = useCallback(() => {
+    if (!equippedPickaxe) {
+      warning('No Pickaxe', 'You need a pickaxe to mine! Buy one from the Marketplace.');
+      return;
+    }
+    
+    if (storageFull) {
+      warning('Storage Full', 'Clear some storage space before mining.');
+      return;
+    }
+    
+    setIsMining(true);
+    startTimeRef.current = Date.now();
+    
+    miningIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const progress = Math.min((elapsed / breakTime) * 100, 100);
+      setMiningProgress(progress);
+      
+      if (progress >= 100) {
+        if (miningIntervalRef.current) {
+          clearInterval(miningIntervalRef.current);
+          miningIntervalRef.current = null;
+        }
+        
+        const stillHasDurability = usePickaxeDurability();
+        
+        if (canReceive) {
+          addItemToStorage(currentBlock.itemId, 1);
+          addBlockMined(currentBlock.itemId);
+          addXp(currentBlock.xpReward);
+          success('Block Mined!', `Obtained 1x ${blockItem?.name || currentBlock.itemId}`);
+        } else {
+          addBlockMined(currentBlock.itemId);
+          warning('Block Destroyed', `Your pickaxe tier is too low to obtain ${blockItem?.name}`);
+        }
+        
+        if (!stillHasDurability) {
+          warning('Pickaxe Broken!', 'Your pickaxe has broken! Buy or craft a new one.');
+        }
+        
+        setMiningProgress(0);
+        setIsMining(false);
+        setCurrentBlock(selectRandomBlock());
+      }
+    }, 50);
+  }, [equippedPickaxe, storageFull, breakTime, canReceive, currentBlock, blockItem, usePickaxeDurability, addItemToStorage, addBlockMined, addXp, success, warning]);
+  
+  const handleMiningStop = useCallback(() => {
+    if (miningIntervalRef.current) {
+      clearInterval(miningIntervalRef.current);
+      miningIntervalRef.current = null;
+    }
+    setIsMining(false);
+    setMiningProgress(0);
+  }, []);
+  
+  useEffect(() => {
+    return () => {
+      if (miningIntervalRef.current) {
+        clearInterval(miningIntervalRef.current);
+      }
+    };
+  }, []);
+  
+  const breakStage = Math.floor(miningProgress / 20);
+  
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-2">
+          <h2 className="pixel-text text-xl text-foreground">Manual Mines</h2>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStats(true)}
+              data-testid="button-mining-stats"
+            >
+              <BarChart3 className="w-4 h-4 mr-1" />
+              Stats
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBlockIndex(true)}
+              data-testid="button-block-index"
+            >
+              <Info className="w-4 h-4 mr-1" />
+              Block Index
+            </Button>
+          </div>
+        </div>
+        <p className="font-sans text-muted-foreground text-base mb-4">
+          Mine blocks manually to gather resources. Better pickaxes mine faster and unlock rarer drops!
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 pixel-border border-card-border overflow-visible">
+          <CardHeader className="pb-2">
+            <CardTitle className="pixel-text text-sm flex items-center gap-2">
+              <Pickaxe className="w-4 h-4" />
+              Mining Area
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-6 py-8">
+            <div 
+              className={cn(
+                "relative w-32 h-32 pixel-border border-border cursor-pointer select-none transition-transform",
+                isMining && "scale-95",
+                !equippedPickaxe && "opacity-50 cursor-not-allowed"
+              )}
+              onMouseDown={handleMiningStart}
+              onMouseUp={handleMiningStop}
+              onMouseLeave={handleMiningStop}
+              onTouchStart={handleMiningStart}
+              onTouchEnd={handleMiningStop}
+              data-testid="mining-block"
+            >
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+                <PixelIcon icon={currentBlock.itemId} size="xl" />
+              </div>
+              
+              {isMining && (
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                  <div 
+                    className="absolute inset-0 border-4 border-white/50 animate-pulse"
+                    style={{ opacity: breakStage * 0.2 }}
+                  />
+                  <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-full h-full p-2">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "bg-black/30 transition-opacity duration-100",
+                          i < breakStage * 2 && "bg-black/60"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {!canReceive && equippedPickaxe && (
+                <div className="absolute -top-2 -right-2 z-10">
+                  <Badge variant="destructive" className="pixel-text-sm text-[8px]">
+                    LOW TIER
+                  </Badge>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="pixel-text text-sm mb-1">{blockItem?.name || 'Unknown Block'}</p>
+              <p className="pixel-text-sm text-[9px] text-muted-foreground">
+                {canReceive ? 'Click and hold to mine' : `Requires Tier ${currentBlock.minPickaxeTier} pickaxe`}
+              </p>
+            </div>
+            
+            <div className="w-full max-w-xs">
+              <div className="flex items-center justify-between mb-1">
+                <span className="pixel-text-sm text-[9px] text-muted-foreground">Mining Progress</span>
+                <span className="pixel-text-sm text-[9px]">{Math.floor(miningProgress)}%</span>
+              </div>
+              <Progress value={miningProgress} className="h-3" />
+            </div>
+            
+            {!equippedPickaxe && (
+              <div className="pixel-border border-destructive/50 bg-destructive/10 p-4 text-center">
+                <p className="pixel-text-sm text-destructive">No pickaxe equipped!</p>
+                <p className="font-sans text-[10px] text-muted-foreground mt-1">
+                  Visit the Marketplace to buy a pickaxe, then equip it from your Inventory (TAB).
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card className="pixel-border border-card-border overflow-visible">
+          <CardHeader className="pb-2">
+            <CardTitle className="pixel-text text-sm">Equipment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="pixel-border border-border bg-muted/20 p-4">
+              <p className="pixel-text-sm text-[9px] text-muted-foreground mb-2">Current Pickaxe</p>
+              {pickaxeItem ? (
+                <div className="flex items-center gap-3">
+                  <PixelIcon icon={pickaxeItem.icon} size="lg" />
+                  <div>
+                    <p className="pixel-text-sm text-[10px]">{pickaxeItem.name}</p>
+                    <p className="pixel-text-sm text-[8px] text-muted-foreground">
+                      Tier {pickaxeTier} | Speed: {miningSpeed}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="pixel-text-sm text-[10px] text-muted-foreground">None equipped</p>
+              )}
+            </div>
+            
+            {pickaxeItem && currentDurability !== null && (
+              <div className="pixel-border border-border bg-muted/20 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="pixel-text-sm text-[9px] text-muted-foreground">Durability</p>
+                  <p className="pixel-text-sm text-[9px]">{currentDurability} / {maxDurability}</p>
+                </div>
+                <Progress 
+                  value={(currentDurability / maxDurability) * 100} 
+                  className={cn(
+                    "h-2",
+                    currentDurability / maxDurability < 0.2 && "[&>div]:bg-destructive"
+                  )} 
+                />
+              </div>
+            )}
+            
+            <div className="pixel-border border-border bg-muted/20 p-4">
+              <p className="pixel-text-sm text-[9px] text-muted-foreground mb-2">Storage</p>
+              <div className="flex items-center justify-between">
+                <span className="pixel-text-sm text-[10px]">{storageUsed} / {storage.capacity}</span>
+                {storageFull && (
+                  <Badge variant="destructive" className="pixel-text-sm text-[8px]">FULL</Badge>
+                )}
+              </div>
+              <Progress value={(storageUsed / storage.capacity) * 100} className="h-2 mt-2" />
+            </div>
+            
+            <div className="pixel-border border-accent/30 bg-accent/5 p-3">
+              <p className="pixel-text-sm text-[8px] text-center text-muted-foreground">
+                Coming Soon: Tiered Mines with better blocks!
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Dialog open={showStats} onOpenChange={setShowStats}>
+        <DialogContent className="pixel-border border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="pixel-text text-sm">Mining Statistics</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="pixel-border border-border bg-muted/20 p-4">
+              <p className="pixel-text-sm text-[9px] text-muted-foreground mb-1">Total Blocks Mined</p>
+              <p className="pixel-text text-lg">{formatNumber(miningStats.totalBlocksMined)}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="pixel-text-sm text-[10px]">Blocks by Type</p>
+              {Object.entries(miningStats.blocksMined).length === 0 ? (
+                <p className="font-sans text-muted-foreground text-sm">No blocks mined yet!</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto scrollbar-pixel">
+                  {Object.entries(miningStats.blocksMined)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([itemId, count]) => {
+                      const item = getItemById(itemId);
+                      return (
+                        <div key={itemId} className="pixel-border border-border bg-card p-2 flex items-center gap-2">
+                          <PixelIcon icon={itemId} size="sm" />
+                          <div>
+                            <p className="pixel-text-sm text-[8px]">{item?.name || itemId}</p>
+                            <p className="pixel-text-sm text-[10px] text-muted-foreground">{formatNumber(count)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={showBlockIndex} onOpenChange={setShowBlockIndex}>
+        <DialogContent className="pixel-border border-border max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="pixel-text text-sm">Block Index</DialogTitle>
+            <DialogDescription className="font-sans text-muted-foreground">
+              All blocks available in the mines and their requirements.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto scrollbar-pixel pr-2">
+            {MINEABLE_BLOCKS.map((block) => {
+              const item = getItemById(block.itemId);
+              const tierNames = ['Wood', 'Stone', 'Iron', 'Diamond', 'Netherite'];
+              return (
+                <div 
+                  key={block.itemId}
+                  className={cn(
+                    "pixel-border border-border bg-card p-3 flex items-start gap-3",
+                    pickaxeTier >= block.minPickaxeTier && "border-primary/50"
+                  )}
+                >
+                  <PixelIcon icon={block.itemId} size="lg" />
+                  <div className="flex-1 min-w-0">
+                    <p className="pixel-text-sm text-[10px]">{item?.name || block.itemId}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                        {block.spawnChance}% chance
+                      </Badge>
+                      <Badge 
+                        variant={pickaxeTier >= block.minPickaxeTier ? "default" : "secondary"}
+                        className="pixel-text-sm text-[7px]"
+                      >
+                        {tierNames[block.minPickaxeTier - 1]} Tier+
+                      </Badge>
+                    </div>
+                    <p className="pixel-text-sm text-[8px] text-muted-foreground mt-1">
+                      XP: {block.xpReward} | Time: {(block.breakTime / 1000).toFixed(1)}s
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

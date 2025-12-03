@@ -20,6 +20,8 @@ import {
   ArmorSlot,
   NotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
+  MiningStats,
+  EquipmentDurability,
 } from './gameTypes';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
@@ -55,6 +57,7 @@ interface GameStore extends GameState {
   moveToStorage: (itemId: string, quantity: number) => boolean;
   sellItem: (itemId: string, quantity: number) => boolean;
   sellAllItems: () => number;
+  bulkSellItems: (items: { itemId: string; quantity: number }[]) => number;
   getStorageUsed: () => number;
   getInventoryUsed: () => number;
   upgradeStorage: () => boolean;
@@ -91,6 +94,16 @@ interface GameStore extends GameState {
   updateNotificationSetting: <K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) => void;
   resetNotificationSettings: () => void;
   isStorageFull: () => boolean;
+
+  addBlockMined: (itemId: string) => void;
+  getMiningStats: () => MiningStats;
+  
+  getEquippedPickaxe: () => string | null;
+  getEquipmentDurability: (slot: 'mainHand' | 'offHand') => number | null;
+  setEquipmentDurability: (slot: 'mainHand' | 'offHand', durability: number | null) => void;
+  usePickaxeDurability: () => boolean;
+  
+  sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -120,7 +133,7 @@ export const useGameStore = create<GameStore>()(
       navigateSubTab: (direction) => {
         const state = get();
         const islandSubTabs: IslandSubTab[] = ['generators', 'storage'];
-        const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'dungeons'];
+        const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'mines', 'dungeons'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications'];
 
         if (state.mainTab === 'island') {
@@ -134,7 +147,7 @@ export const useGameStore = create<GameStore>()(
           const newIndex = direction === 'next'
             ? Math.min(currentIndex + 1, hubSubTabs.length - 1)
             : Math.max(currentIndex - 1, 0);
-          if (hubSubTabs[newIndex] !== 'dungeons') { // Dungeons not implemented yet
+          if (hubSubTabs[newIndex] !== 'dungeons') {
             set({ hubSubTab: hubSubTabs[newIndex] });
           }
         } else if (state.mainTab === 'settings') {
@@ -409,6 +422,55 @@ export const useGameStore = create<GameStore>()(
           get().addTransaction('sell', totalEarnings, `Sold All (${totalItems} items)`);
         }
 
+        return totalEarnings;
+      },
+
+      bulkSellItems: (items) => {
+        const state = get();
+        let totalEarnings = 0;
+        let totalItemsSold = 0;
+        
+        const newStorageItems = [...state.storage.items];
+        
+        for (const sellItem of items) {
+          const item = getItemById(sellItem.itemId);
+          if (!item) continue;
+          
+          const storageIndex = newStorageItems.findIndex(i => i.itemId === sellItem.itemId);
+          if (storageIndex < 0) continue;
+          
+          const actualQuantity = Math.min(sellItem.quantity, newStorageItems[storageIndex].quantity);
+          if (actualQuantity <= 0) continue;
+          
+          totalEarnings += item.sellPrice * actualQuantity;
+          totalItemsSold += actualQuantity;
+          
+          if (newStorageItems[storageIndex].quantity === actualQuantity) {
+            newStorageItems.splice(storageIndex, 1);
+          } else {
+            newStorageItems[storageIndex] = {
+              ...newStorageItems[storageIndex],
+              quantity: newStorageItems[storageIndex].quantity - actualQuantity,
+            };
+          }
+        }
+        
+        if (totalItemsSold > 0) {
+          set({
+            storage: {
+              ...state.storage,
+              items: newStorageItems,
+            },
+            player: {
+              ...state.player,
+              coins: state.player.coins + totalEarnings,
+              totalCoinsEarned: state.player.totalCoinsEarned + totalEarnings,
+              totalItemsSold: state.player.totalItemsSold + totalItemsSold,
+            }
+          });
+          get().addTransaction('sell', totalEarnings, `Bulk Sold (${totalItemsSold} items)`);
+        }
+        
         return totalEarnings;
       },
 
@@ -788,29 +850,32 @@ export const useGameStore = create<GameStore>()(
         const item = getItemById(itemId);
         if (!item) return false;
 
-        // Simple validation
         if (slot !== 'mainHand' && slot !== 'offHand') {
-          // For armor, we could check if item.type === 'armor' and item.armorSlot === slot
-          // But for now, let's assume the UI handles valid drops or we just check basic type
           if (item.type !== 'armor') return false;
           if (item.armorSlot !== slot) return false;
         }
 
         const currentEquippedId = state.equipment[slot];
 
-        // Remove 1 from inventory
         const removeSuccess = get().removeItemFromInventory(itemId, 1);
         if (!removeSuccess) return false;
 
-        // If something was equipped, move it to inventory
         if (currentEquippedId) {
           get().addItemToInventory(currentEquippedId, 1);
         }
+
+        const newDurability = (slot === 'mainHand' || slot === 'offHand') && item.stats?.durability
+          ? item.stats.durability
+          : null;
 
         set((state) => ({
           equipment: {
             ...state.equipment,
             [slot]: itemId,
+          },
+          equipmentDurability: {
+            ...state.equipmentDurability,
+            [slot]: newDurability,
           },
         }));
         return true;
@@ -851,6 +916,135 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         return get().getStorageUsed() >= state.storage.capacity;
       },
+
+      addBlockMined: (itemId) => {
+        set((state) => ({
+          miningStats: {
+            totalBlocksMined: state.miningStats.totalBlocksMined + 1,
+            blocksMined: {
+              ...state.miningStats.blocksMined,
+              [itemId]: (state.miningStats.blocksMined[itemId] || 0) + 1,
+            },
+          },
+        }));
+      },
+
+      getMiningStats: () => {
+        return get().miningStats;
+      },
+
+      getEquippedPickaxe: () => {
+        const state = get();
+        const mainHandItem = state.equipment.mainHand;
+        if (!mainHandItem) return null;
+        
+        const item = getItemById(mainHandItem);
+        if (item && item.toolType === 'pickaxe') {
+          return mainHandItem;
+        }
+        return null;
+      },
+
+      getEquipmentDurability: (slot) => {
+        return get().equipmentDurability[slot];
+      },
+
+      setEquipmentDurability: (slot, durability) => {
+        set((state) => ({
+          equipmentDurability: {
+            ...state.equipmentDurability,
+            [slot]: durability,
+          },
+        }));
+      },
+
+      usePickaxeDurability: () => {
+        const state = get();
+        const pickaxeId = get().getEquippedPickaxe();
+        if (!pickaxeId) return false;
+
+        const pickaxe = getItemById(pickaxeId);
+        if (!pickaxe || !pickaxe.stats?.durability) return true;
+
+        let currentDurability = state.equipmentDurability.mainHand;
+        
+        if (currentDurability === null) {
+          currentDurability = pickaxe.stats.durability;
+        }
+
+        currentDurability -= 1;
+
+        if (currentDurability <= 0) {
+          set((state) => ({
+            equipment: {
+              ...state.equipment,
+              mainHand: null,
+            },
+            equipmentDurability: {
+              ...state.equipmentDurability,
+              mainHand: null,
+            },
+          }));
+          return false;
+        }
+
+        set((state) => ({
+          equipmentDurability: {
+            ...state.equipmentDurability,
+            mainHand: currentDurability,
+          },
+        }));
+        return true;
+      },
+
+      sellSelectedItems: (items) => {
+        const state = get();
+        let totalEarnings = 0;
+        let totalItemsSold = 0;
+
+        const newStorageItems = [...state.storage.items];
+
+        for (const sellItem of items) {
+          const item = getItemById(sellItem.itemId);
+          if (!item) continue;
+
+          const storageIndex = newStorageItems.findIndex(i => i.itemId === sellItem.itemId);
+          if (storageIndex < 0) continue;
+
+          const actualQuantity = Math.min(sellItem.quantity, newStorageItems[storageIndex].quantity);
+          if (actualQuantity <= 0) continue;
+
+          totalEarnings += item.sellPrice * actualQuantity;
+          totalItemsSold += actualQuantity;
+
+          if (newStorageItems[storageIndex].quantity === actualQuantity) {
+            newStorageItems.splice(storageIndex, 1);
+          } else {
+            newStorageItems[storageIndex] = {
+              ...newStorageItems[storageIndex],
+              quantity: newStorageItems[storageIndex].quantity - actualQuantity,
+            };
+          }
+        }
+
+        if (totalItemsSold > 0) {
+          set({
+            storage: {
+              ...state.storage,
+              items: newStorageItems,
+            },
+            player: {
+              ...state.player,
+              coins: state.player.coins + totalEarnings,
+              totalCoinsEarned: state.player.totalCoinsEarned + totalEarnings,
+              totalItemsSold: state.player.totalItemsSold + totalItemsSold,
+            },
+          });
+          get().addTransaction('sell', totalEarnings, `Bulk Sold (${totalItemsSold} items)`);
+        }
+
+        return totalEarnings;
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -859,6 +1053,7 @@ export const useGameStore = create<GameStore>()(
         storage: state.storage,
         inventory: state.inventory,
         equipment: state.equipment,
+        equipmentDurability: state.equipmentDurability,
         generators: state.generators,
         unlockedGenerators: state.unlockedGenerators,
         ownedBlueprints: state.ownedBlueprints,
@@ -870,6 +1065,7 @@ export const useGameStore = create<GameStore>()(
         playTime: state.playTime,
         keybinds: state.keybinds,
         notificationSettings: state.notificationSettings,
+        miningStats: state.miningStats,
       }),
     }
   )
