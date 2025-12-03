@@ -63,7 +63,7 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 ### Storage System
 - Drag items to sell zone with confirmation
 - Sell all items button
-- Upgradeable capacity (100 → 200 → 400 → 800 → 1600 → 3200)
+- Upgradeable capacity (500 → 2.5K → 10K → 50K → 150K → 500K)
 
 ### Player Stats (Right Sidebar)
 - Level with XP bar
@@ -97,8 +97,10 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 
 ### Marketplace System (Hub Tab)
 - **Main Shop**: Permanent vendors with unlimited stock
-- **Special Vendors**: 1-3 rotating vendors, change every 12 hours, limited stock
-- Category tabs: All, Blocks, Tools, Armor, Potions, Food, Materials, Special
+- **Special Vendors**: 1-3 rotating vendors, change every 12 hours, limited stock, sell items cheaper
+- Category tabs: All, Blocks, Tools, Armor, Potions, Food, Materials, Ores & Minerals
+- Ores available at 5x price multiplier (expensive but convenient)
+- Special Items only available at Special Vendors at full price
 - Purchase quantity selector with +/- buttons
 - Instant item tooltips on hover
 

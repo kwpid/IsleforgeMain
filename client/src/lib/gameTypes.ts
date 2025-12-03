@@ -306,11 +306,11 @@ export const TIER_NUMERALS: Record<number, string> = {
 
 export const STORAGE_UPGRADES: StorageUpgrade[] = [
   { level: 0, capacity: 500, cost: 0 },
-  { level: 1, capacity: 1000, cost: 2500 },
-  { level: 2, capacity: 2000, cost: 12500 },
-  { level: 3, capacity: 4000, cost: 62500 },
-  { level: 4, capacity: 8000, cost: 250000 },
-  { level: 5, capacity: 16000, cost: 1000000 },
+  { level: 1, capacity: 2500, cost: 5000 },
+  { level: 2, capacity: 10000, cost: 25000 },
+  { level: 3, capacity: 50000, cost: 100000 },
+  { level: 4, capacity: 150000, cost: 500000 },
+  { level: 5, capacity: 500000, cost: 2500000 },
 ];
 
 export interface BankUpgrade {

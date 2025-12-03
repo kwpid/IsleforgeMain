@@ -181,10 +181,6 @@ function CraftingView() {
             Craft items using materials from your storage. Costs 50% of market value.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <PixelIcon icon="coin" size="sm" />
-          <span className="pixel-text-sm text-game-coin">{formatNumber(coins)}</span>
-        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -267,7 +263,7 @@ function CraftingView() {
                         <PixelIcon icon={resultItem.icon} size="md" />
                       </div>
                     </HoverCardTrigger>
-                    <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                    <HoverCardContent side="top" className="p-0 border-0 w-auto">
                       <ItemTooltip item={resultItem} />
                     </HoverCardContent>
                   </HoverCard>
