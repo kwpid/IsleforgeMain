@@ -42,7 +42,7 @@ export function PlayerStats() {
         <StatCard 
           icon="up" 
           label="UP" 
-          value={formatNumber(player.universalPoints)}
+          value={player.universalPoints.toFixed(2)}
           highlight="purple"
         />
       </div>
@@ -169,7 +169,8 @@ function StatCard({ icon, label, value, subValue, progress, progressColor, highl
           {progress !== undefined && (
             <Progress 
               value={progress} 
-              className={cn('h-2 mt-2 bg-muted', progressColor)}
+              className="h-2 mt-2 bg-muted"
+              indicatorClassName={progressColor}
             />
           )}
         </div>

@@ -16,7 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Bell, Package, Coins, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Bell, Package, Coins, TrendingUp, AlertTriangle, Sparkles, Heart, Code, Info, ExternalLink } from 'lucide-react';
 
 export function SettingsTab() {
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
@@ -27,6 +28,7 @@ export function SettingsTab() {
       {settingsSubTab === 'audio' && <AudioSettings />}
       {settingsSubTab === 'controls' && <ControlsSettings />}
       {settingsSubTab === 'notifications' && <NotificationsSettings />}
+      {settingsSubTab === 'info' && <InfoSettings />}
     </div>
   );
 }
@@ -502,6 +504,135 @@ function NotificationsSettings() {
               />
             </div>
           ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const GAME_VERSION = '1.1.0';
+
+function InfoSettings() {
+  const player = useGameStore((s) => s.player);
+  const playTime = useGameStore((s) => s.playTime);
+
+  const formatPlayTime = (ms: number): string => {
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <h2 className="pixel-text text-lg text-foreground mb-6">
+        Game Information
+      </h2>
+
+      <Card className="pixel-border border-card-border">
+        <CardHeader>
+          <CardTitle className="pixel-text-sm flex items-center gap-2">
+            <Info className="w-4 h-4" />
+            About IsleForge
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="pixel-border border-border bg-muted/20 p-4">
+              <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Version</p>
+              <p className="pixel-text text-sm text-primary">v{GAME_VERSION}</p>
+            </div>
+            <div className="pixel-border border-border bg-muted/20 p-4">
+              <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Play Time</p>
+              <p className="pixel-text text-sm">{formatPlayTime(playTime)}</p>
+            </div>
+          </div>
+
+          <p className="font-sans text-sm text-muted-foreground">
+            IsleForge is a Nintendo-style resource management and idle game where you build 
+            generators, mine resources, craft items, and grow your island empire!
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="pixel-border border-card-border">
+        <CardHeader>
+          <CardTitle className="pixel-text-sm flex items-center gap-2">
+            <Heart className="w-4 h-4 text-destructive" />
+            Credits
+          </CardTitle>
+          <CardDescription className="font-sans">
+            The people behind IsleForge
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="pixel-text-sm text-[10px]">Game Design & Development</p>
+                <p className="font-sans text-sm text-muted-foreground">IsleForge Team</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="pixel-text-sm text-[10px]">Art & Visual Design</p>
+                <p className="font-sans text-sm text-muted-foreground">Pixel Art Sprites</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="pixel-text-sm text-[10px]">Built With</p>
+                <p className="font-sans text-sm text-muted-foreground">
+                  React, TypeScript, Tailwind CSS, Zustand
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="pixel-border border-card-border">
+        <CardHeader>
+          <CardTitle className="pixel-text-sm flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Technical Info
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="pixel-text-sm text-[8px] text-muted-foreground">Player Level</p>
+              <p className="font-sans">{player.level}</p>
+            </div>
+            <div>
+              <p className="pixel-text-sm text-[8px] text-muted-foreground">Total XP</p>
+              <p className="font-sans">{player.xp.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="pixel-text-sm text-[8px] text-muted-foreground">Total Coins Earned</p>
+              <p className="font-sans">{player.totalCoinsEarned.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="pixel-text-sm text-[8px] text-muted-foreground">Items Sold</p>
+              <p className="font-sans">{player.totalItemsSold.toLocaleString()}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="pixel-border border-primary/30 bg-primary/5">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-2">
+            <p className="pixel-text text-sm text-primary">Thank you for playing!</p>
+            <p className="font-sans text-sm text-muted-foreground">
+              We hope you enjoy building your island empire.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
