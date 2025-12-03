@@ -44,8 +44,8 @@ import { Package, Backpack, Check, X, ShoppingCart } from 'lucide-react';
 type SortOption = 'name' | 'quantity' | 'rarity' | 'value';
 type DragSource = 'storage' | 'inventory';
 
-const GRID_GAP = 'gap-2';
-const GRID_COLS = 'grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10';
+const GRID_GAP = 'gap-3';
+const GRID_COLS = 'grid-cols-4 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9';
 
 export function StorageView() {
   const storage = useGameStore((s) => s.storage);
@@ -264,7 +264,7 @@ export function StorageView() {
     const isSelected = source === 'storage' && selectedItems.has(inv.itemId);
 
     return (
-      <Tooltip key={inv.itemId} delayDuration={0}>
+      <Tooltip key={inv.itemId}>
         <TooltipTrigger asChild>
           <div
             draggable={!isSelectionMode}
@@ -272,7 +272,7 @@ export function StorageView() {
             onDragEnd={handleDragEnd}
             onClick={(e) => source === 'storage' && handleItemClick(e, inv.itemId, inv.quantity)}
             className={cn(
-              'item-slot-uniform item-slot-filled cursor-grab hover-elevate active-elevate-2',
+              'item-slot-lg item-slot-filled cursor-grab hover-elevate active-elevate-2',
               `rarity-${item.rarity}`,
               draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
               isSelected && 'ring-2 ring-primary ring-offset-1',
@@ -281,15 +281,15 @@ export function StorageView() {
             )}
             data-testid={`${source}-item-${inv.itemId}`}
           >
-            <PixelIcon icon={item.icon} size="md" />
+            <PixelIcon icon={item.icon} size="lg" />
             {inv.quantity > 1 && (
-              <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums">
+              <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                 {formatNumber(inv.quantity)}
               </span>
             )}
             {isSelected && (
               <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 z-10">
-                <Check className="w-2 h-2 text-primary-foreground" />
+                <Check className="w-2.5 h-2.5 text-primary-foreground" />
               </div>
             )}
           </div>
@@ -302,7 +302,7 @@ export function StorageView() {
   };
 
   const renderEmptySlot = (key: string) => (
-    <div key={key} className="item-slot-uniform" />
+    <div key={key} className="item-slot-lg" />
   );
 
   return (

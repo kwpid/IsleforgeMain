@@ -76,23 +76,23 @@ export function InventoryPopup() {
 
   return (
     <Dialog open={inventoryOpen} onOpenChange={toggleInventory}>
-      <DialogContent className="pixel-border border-border bg-popover max-w-2xl p-0 gap-0">
-        <DialogHeader className="p-3 border-b-2 border-border">
+      <DialogContent className="pixel-border border-border bg-popover max-w-3xl p-0 gap-0">
+        <DialogHeader className="p-4 border-b-2 border-border bg-muted/20">
           <DialogTitle className="pixel-text text-sm text-center">
             INVENTORY
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-[160px_1fr] gap-0 p-4">
-          <div className="border-r-2 border-border pr-4">
-            <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
+        <div className="grid grid-cols-[180px_1fr] gap-0 p-5">
+          <div className="border-r-2 border-border pr-5">
+            <h3 className="pixel-text-sm text-muted-foreground mb-4 text-center text-[10px]">
               EQUIPMENT
             </h3>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <span className="pixel-text-sm text-[8px] text-muted-foreground">Armor</span>
-                <div className="grid grid-cols-2 gap-2">
+                <span className="pixel-text-sm text-[9px] text-muted-foreground">Armor</span>
+                <div className="grid grid-cols-2 gap-3">
                   {armorSlots.map(({ slot, label }) => {
                     const itemId = equipment[slot];
                     const item = itemId ? getItemById(itemId) : null;
@@ -145,8 +145,8 @@ export function InventoryPopup() {
               </div>
 
               <div className="space-y-2">
-                <span className="pixel-text-sm text-[8px] text-muted-foreground">Hands</span>
-                <div className="grid grid-cols-2 gap-2">
+                <span className="pixel-text-sm text-[9px] text-muted-foreground">Hands</span>
+                <div className="grid grid-cols-2 gap-3">
                   {(['mainHand', 'offHand'] as const).map((hand) => {
                     const itemId = equipment[hand];
                     const item = itemId ? getItemById(itemId) : null;
@@ -211,7 +211,7 @@ export function InventoryPopup() {
           </div>
 
           <div
-            className="pl-4"
+            className="pl-5"
             onDragOver={(e) => {
               if (draggedItem?.source === 'equipment') {
                 e.preventDefault();
@@ -219,12 +219,12 @@ export function InventoryPopup() {
             }}
             onDrop={handleDropOnInventory}
           >
-            <h3 className="pixel-text-sm text-muted-foreground mb-3 text-center text-[9px]">
+            <h3 className="pixel-text-sm text-muted-foreground mb-4 text-center text-[10px]">
               ITEMS ({inventory.items.length}/{inventory.maxSlots})
             </h3>
 
             <div
-              className="grid grid-cols-5 gap-2"
+              className="grid grid-cols-5 gap-3"
               data-testid="inventory-grid"
             >
               {inventory.items.map((inv) => {
@@ -236,7 +236,7 @@ export function InventoryPopup() {
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
-                          'item-slot-compact item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
+                          'item-slot-uniform item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
                           `rarity-${item.rarity}`,
                           item.isEnchanted && 'enchanted-item',
                           item.isSpecial && 'special-item',
@@ -247,9 +247,9 @@ export function InventoryPopup() {
                         onDragEnd={handleDragEnd}
                         data-testid={`inventory-item-${inv.itemId}`}
                       >
-                        <PixelIcon icon={item.icon} size="md" />
+                        <PixelIcon icon={item.icon} size="lg" />
                         {inv.quantity > 1 && (
-                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                             {formatNumber(inv.quantity)}
                           </span>
                         )}
@@ -263,7 +263,7 @@ export function InventoryPopup() {
               })}
 
               {Array.from({ length: Math.max(0, 24 - inventory.items.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="item-slot-compact" />
+                <div key={`empty-${i}`} className="item-slot-uniform" />
               ))}
             </div>
 
@@ -277,8 +277,8 @@ export function InventoryPopup() {
           </div>
         </div>
 
-        <div className="border-t-2 border-border p-2 bg-muted/30 text-center">
-          <span className="pixel-text-sm text-[6px] text-muted-foreground">
+        <div className="border-t-2 border-border p-3 bg-muted/20 text-center">
+          <span className="pixel-text-sm text-[8px] text-muted-foreground">
             Press TAB to close
           </span>
         </div>
