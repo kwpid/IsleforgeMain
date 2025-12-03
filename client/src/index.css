@@ -405,4 +405,127 @@
   .scrollbar-pixel::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+
+  @keyframes enchant-shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes enchant-glow {
+    0%, 100% {
+      box-shadow: 
+        0 0 5px rgba(168, 85, 247, 0.5),
+        0 0 10px rgba(168, 85, 247, 0.3),
+        0 0 15px rgba(168, 85, 247, 0.1);
+    }
+    50% {
+      box-shadow: 
+        0 0 10px rgba(168, 85, 247, 0.8),
+        0 0 20px rgba(168, 85, 247, 0.5),
+        0 0 30px rgba(168, 85, 247, 0.2);
+    }
+  }
+
+  @keyframes enchant-pulse {
+    0%, 100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes sparkle {
+    0%, 100% {
+      transform: scale(0) rotate(0deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1) rotate(180deg);
+      opacity: 1;
+    }
+  }
+
+  .enchanted-item {
+    position: relative;
+    animation: enchant-glow 2s ease-in-out infinite;
+  }
+
+  .enchanted-item::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(168, 85, 247, 0.3) 25%,
+      rgba(236, 72, 153, 0.3) 50%,
+      rgba(168, 85, 247, 0.3) 75%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: enchant-shimmer 3s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .enchanted-item::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid transparent;
+    background: linear-gradient(
+      45deg,
+      rgba(168, 85, 247, 0.6),
+      rgba(236, 72, 153, 0.6),
+      rgba(59, 130, 246, 0.6),
+      rgba(168, 85, 247, 0.6)
+    ) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: enchant-pulse 2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .special-item {
+    position: relative;
+  }
+
+  .special-item::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    background: linear-gradient(135deg, #ffd700, #ffec8b);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: sparkle 1.5s ease-in-out infinite;
+    z-index: 3;
+  }
+
+  .dev-console {
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid hsl(var(--primary));
+  }
+
+  .dev-console-input {
+    font-family: 'Courier New', Courier, monospace;
+    caret-color: hsl(var(--primary));
+  }
+
+  .marketplace-section {
+    @apply p-4 pixel-border border-card-border bg-card/50;
+  }
+
+  .vendor-category-header {
+    @apply flex items-center gap-3 mb-4 pb-3 border-b border-border;
+  }
 }

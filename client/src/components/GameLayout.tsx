@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
@@ -9,6 +9,7 @@ import { HubTab } from './HubTab';
 import { SettingsTab } from './SettingsTab';
 import { InventoryPopup } from './InventoryPopup';
 import { FloatingNumbers } from './FloatingNumbers';
+import { DevConsole } from './DevConsole';
 
 export function GameLayout() {
   const mainTab = useGameStore((s) => s.mainTab);
@@ -16,12 +17,38 @@ export function GameLayout() {
   const saveGame = useGameStore((s) => s.saveGame);
   const isStorageFull = useGameStore((s) => s.isStorageFull);
   const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const inventoryOpen = useGameStore((s) => s.inventoryOpen);
   const { warning } = useGameNotifications();
   
   const wasStorageFull = useRef(false);
   const lastNotificationTime = useRef(0);
+  
+  const [devConsoleOpen, setDevConsoleOpen] = useState(false);
 
   useKeyboardShortcuts();
+  
+  const handleDevConsoleToggle = useCallback(() => {
+    setDevConsoleOpen(prev => !prev);
+  }, []);
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInputField = target.tagName === 'INPUT' || 
+                          target.tagName === 'TEXTAREA' || 
+                          target.isContentEditable;
+      
+      if (isInputField && !devConsoleOpen) return;
+      
+      if (e.code === 'KeyY' && !devConsoleOpen) {
+        e.preventDefault();
+        handleDevConsoleToggle();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleDevConsoleToggle, devConsoleOpen]);
 
   useEffect(() => {
     const tickInterval = setInterval(() => {
@@ -71,6 +98,7 @@ export function GameLayout() {
 
       <InventoryPopup />
       <FloatingNumbers />
+      <DevConsole isOpen={devConsoleOpen} onClose={() => setDevConsoleOpen(false)} />
     </div>
   );
 }
