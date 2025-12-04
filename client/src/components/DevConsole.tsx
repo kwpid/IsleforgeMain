@@ -196,7 +196,7 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         addMessage('output', `  Level: ${player.level}`);
         addMessage('output', `  XP: ${player.xp}/${player.xpToNextLevel}`);
         addMessage('output', `  Coins: ${player.coins.toLocaleString()}`);
-        addMessage('output', `  Universal Points: ${player.universalPoints.toFixed(2)}`);
+        addMessage('output', `  Universal Points: U$${player.universalPoints}`);
         addMessage('output', `  Inventory: ${inventory.items.length}/${inventory.maxSlots} slots`);
         addMessage('output', `  Storage: ${storage.items.reduce((a, i) => a + i.quantity, 0)}/${storage.capacity} items`);
         break;

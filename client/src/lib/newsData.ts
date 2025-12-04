@@ -30,7 +30,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
 ## Currencies
 
 - **Coins** - The primary currency earned from selling resources
-- **Universal Points (UP)** - A premium currency for special items (1 UP = 100K Coins)
+- **Universal Points (U$)** - A premium currency for special items (1 U$ = 10,000 Coins)
 
 *Start building your empire today!*
     `.trim(),

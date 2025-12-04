@@ -45,8 +45,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews }: TabNavigationProps)
 
   const shopSubTabs: { id: ShopSubTab; label: string; icon: string }[] = [
     { id: 'limited', label: 'LIMITED', icon: 'rare_gem' },
-    { id: 'daily', label: 'DAILY', icon: 'coin' },
-    { id: 'coins', label: 'COINS', icon: 'universal_point' },
+    { id: 'daily', label: 'DAILY', icon: 'universal_point' },
+    { id: 'coins', label: 'COINS', icon: 'coin' },
   ];
 
   const settingsSubTabs: { id: SettingsSubTab; label: string }[] = [

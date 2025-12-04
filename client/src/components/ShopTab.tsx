@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ItemDefinition } from '@/lib/gameTypes';
 import { ALL_ITEMS, getItemById } from '@/lib/items/index';
@@ -7,8 +7,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart } from 'lucide-react';
+import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function ShopTab() {
   const shopSubTab = useGameStore((s) => s.shopSubTab);
@@ -45,11 +55,24 @@ function LimitedShop() {
   );
 }
 
+interface DailyItem {
+  item: ItemDefinition;
+  upPrice: number;
+  originalPrice: number;
+  isDiscounted: boolean;
+}
+
 function DailyShop() {
   const player = useGameStore((s) => s.player);
   const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const { notify, error: showError } = useGameNotifications();
+  
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; item: DailyItem | null }>({
+    open: false,
+    item: null,
+  });
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   const dailyItems = useMemo(() => {
     const today = new Date();
@@ -71,9 +94,10 @@ function DailyShop() {
     }));
     
     indexedItems.sort((a, b) => a.sortKey - b.sortKey);
-    const selected = indexedItems.slice(0, 6).map(i => i.item);
+    const selected = indexedItems.slice(0, 4).map(i => i.item);
 
-    const discountIndex = Math.floor(seededRandom(42) * 6);
+    const hasSale = seededRandom(42) < 0.5;
+    const discountIndex = hasSale ? Math.floor(seededRandom(99) * 4) : -1;
 
     return selected.map((item, index) => {
       const baseUpPrice = Math.ceil(item.sellPrice / 10000) + 1;
@@ -89,11 +113,24 @@ function DailyShop() {
     });
   }, []);
 
-  const handlePurchase = (item: ItemDefinition, upPrice: number) => {
+  const handlePurchaseClick = (dailyItem: DailyItem) => {
+    setConfirmDialog({ open: true, item: dailyItem });
+  };
+
+  const handleConfirmPurchase = async () => {
+    if (!confirmDialog.item) return;
+    
+    const { item, upPrice } = confirmDialog.item;
+    
     if (player.universalPoints < upPrice) {
-      showError('Not Enough UP', `You need ${upPrice} UP to purchase this item.`);
+      showError('Not Enough UP', `You need U$${upPrice} to purchase this item.`);
+      setConfirmDialog({ open: false, item: null });
       return;
     }
+
+    setIsPurchasing(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const success = addItemToInventory(item.id, 1);
     if (success) {
@@ -101,12 +138,15 @@ function DailyShop() {
       notify({
         type: 'item',
         title: 'Item Purchased!',
-        message: `You bought ${item.name} for ${upPrice} UP`,
+        message: `You bought ${item.name} for U$${upPrice}`,
         icon: item.icon,
       });
     } else {
       showError('Inventory Full', 'Make room in your inventory first.');
     }
+    
+    setIsPurchasing(false);
+    setConfirmDialog({ open: false, item: null });
   };
 
   const getTimeUntilReset = () => {
@@ -135,69 +175,72 @@ function DailyShop() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <PixelIcon icon="universal_point" size="sm" />
-        <span className="pixel-text text-sm">Your UP: {player.universalPoints}</span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {dailyItems.map(({ item, upPrice, originalPrice, isDiscounted }) => (
           <Card 
             key={item.id} 
             className={cn(
-              'pixel-border relative overflow-visible',
-              isDiscounted ? 'border-primary bg-primary/5' : 'border-card-border'
+              'pixel-border relative overflow-visible group transition-all duration-200',
+              isDiscounted 
+                ? 'border-primary bg-gradient-to-br from-primary/10 to-primary/5' 
+                : 'border-card-border bg-gradient-to-br from-card to-muted/20'
             )}
             data-testid={`shop-item-${item.id}`}
           >
             {isDiscounted && (
-              <div className="absolute -top-2 -right-2 z-10">
-                <Badge className="bg-primary text-primary-foreground pixel-text-sm text-[8px] gap-1">
+              <div className="absolute -top-3 -right-3 z-10">
+                <Badge className="bg-primary text-primary-foreground pixel-text-sm text-[10px] gap-1 px-2 py-1">
                   <Tag className="w-3 h-3" />
                   30% OFF
                 </Badge>
               </div>
             )}
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-12 h-12 flex items-center justify-center bg-muted/50 pixel-border border-border">
-                  <PixelIcon icon={item.icon} size="md" />
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4 mb-4">
+                <div className={cn(
+                  "w-16 h-16 flex items-center justify-center pixel-border rounded-sm",
+                  `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`
+                )}>
+                  <PixelIcon icon={item.icon} size="lg" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={cn(
-                    'pixel-text-sm text-[9px] truncate',
+                    'pixel-text text-sm mb-1',
                     `text-rarity-${item.rarity}`
                   )}>
                     {item.name}
                   </p>
+                  <Badge variant="outline" className="pixel-text-sm text-[8px] mb-2">
+                    {item.rarity.toUpperCase()}
+                  </Badge>
                   <p className="font-sans text-xs text-muted-foreground line-clamp-2">
                     {item.description}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                <div className="flex items-center gap-2">
                   <PixelIcon icon="universal_point" size="sm" />
                   <span className={cn(
-                    'pixel-text-sm',
-                    isDiscounted ? 'text-primary' : ''
+                    'pixel-text text-sm font-bold',
+                    isDiscounted ? 'text-primary' : 'text-game-up'
                   )}>
-                    {upPrice} UP
+                    U${upPrice}
                   </span>
                   {isDiscounted && (
-                    <span className="pixel-text-sm text-[8px] text-muted-foreground line-through ml-1">
-                      {originalPrice} UP
+                    <span className="pixel-text-sm text-[10px] text-muted-foreground line-through">
+                      U${originalPrice}
                     </span>
                   )}
                 </div>
                 <Button
-                  size="sm"
-                  onClick={() => handlePurchase(item, upPrice)}
+                  onClick={() => handlePurchaseClick({ item, upPrice, originalPrice, isDiscounted })}
                   disabled={player.universalPoints < upPrice}
-                  className="pixel-text-sm text-[8px]"
+                  className="pixel-text-sm"
                   data-testid={`button-buy-${item.id}`}
                 >
+                  <ShoppingCart className="w-4 h-4 mr-1" />
                   Buy
                 </Button>
               </div>
@@ -205,6 +248,52 @@ function DailyShop() {
           </Card>
         ))}
       </div>
+
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !isPurchasing && setConfirmDialog({ open, item: open ? confirmDialog.item : null })}>
+        <AlertDialogContent className="pixel-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="pixel-text flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              Confirm Purchase
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans">
+              {confirmDialog.item && (
+                <div className="flex items-center gap-3 mt-3 p-3 bg-muted/50 rounded-sm">
+                  <PixelIcon icon={confirmDialog.item.item.icon} size="md" />
+                  <div>
+                    <p className={cn('pixel-text-sm', `text-rarity-${confirmDialog.item.item.rarity}`)}>
+                      {confirmDialog.item.item.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                      <PixelIcon icon="universal_point" size="sm" />
+                      <span className="text-game-up font-bold">U${confirmDialog.item.upPrice}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPurchasing} className="pixel-text-sm">
+              <X className="w-4 h-4 mr-1" />
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPurchase} disabled={isPurchasing} className="pixel-text-sm">
+              {isPurchasing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-1" />
+                  Confirm
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -216,6 +305,8 @@ interface CoinPackage {
   isOnSale: boolean;
   salePercent?: number;
   originalUpCost?: number;
+  label: string;
+  featured?: boolean;
 }
 
 function CoinsShop() {
@@ -223,6 +314,12 @@ function CoinsShop() {
   const addCoins = useGameStore((s) => s.addCoins);
   const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
   const { notify, error: showError } = useGameNotifications();
+  
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; pkg: CoinPackage | null }>({
+    open: false,
+    pkg: null,
+  });
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   const coinPackages: CoinPackage[] = useMemo(() => {
     const today = new Date();
@@ -232,26 +329,25 @@ function CoinsShop() {
       return x - Math.floor(x);
     };
 
-    const saleIndex = Math.floor(seededRandom(77) * 7);
-    const salePercent = [10, 15, 20, 25][Math.floor(seededRandom(99) * 4)];
+    const hasSale = seededRandom(77) < 0.5;
+    const saleIndex = hasSale ? Math.floor(seededRandom(88) * 6) : -1;
 
     const packages: CoinPackage[] = [
-      { id: 'coins_100k', coins: 100000, upCost: 1, isOnSale: false },
-      { id: 'coins_250k', coins: 250000, upCost: 2, isOnSale: false },
-      { id: 'coins_500k', coins: 500000, upCost: 4, isOnSale: false },
-      { id: 'coins_1m', coins: 1000000, upCost: 8, isOnSale: false },
-      { id: 'coins_5m', coins: 5000000, upCost: 35, isOnSale: false },
-      { id: 'coins_25m', coins: 25000000, upCost: 150, isOnSale: false },
-      { id: 'coins_100m', coins: 100000000, upCost: 500, isOnSale: false },
+      { id: 'coins_10k', coins: 10000, upCost: 1, isOnSale: false, label: '10K' },
+      { id: 'coins_100k', coins: 100000, upCost: 10, isOnSale: false, label: '100K' },
+      { id: 'coins_500k', coins: 500000, upCost: 50, isOnSale: false, label: '500K', featured: true },
+      { id: 'coins_1m', coins: 1000000, upCost: 100, isOnSale: false, label: '1M', featured: true },
+      { id: 'coins_5m', coins: 5000000, upCost: 500, isOnSale: false, label: '5M' },
+      { id: 'coins_10m', coins: 10000000, upCost: 1000, isOnSale: false, label: '10M' },
     ];
 
     return packages.map((pkg, index) => {
       if (index === saleIndex) {
-        const discountedCost = Math.ceil(pkg.upCost * (1 - salePercent / 100));
+        const discountedCost = Math.ceil(pkg.upCost * 0.7);
         return {
           ...pkg,
           isOnSale: true,
-          salePercent,
+          salePercent: 30,
           originalUpCost: pkg.upCost,
           upCost: discountedCost,
         };
@@ -260,19 +356,35 @@ function CoinsShop() {
     });
   }, []);
 
-  const handlePurchase = (pkg: CoinPackage) => {
+  const handlePurchaseClick = (pkg: CoinPackage) => {
+    setConfirmDialog({ open: true, pkg });
+  };
+
+  const handleConfirmPurchase = async () => {
+    if (!confirmDialog.pkg) return;
+    
+    const pkg = confirmDialog.pkg;
+    
     if (player.universalPoints < pkg.upCost) {
-      showError('Not Enough UP', `You need ${pkg.upCost} UP to purchase this package.`);
+      showError('Not Enough UP', `You need U$${pkg.upCost} to purchase this package.`);
+      setConfirmDialog({ open: false, pkg: null });
       return;
     }
+
+    setIsPurchasing(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     addUniversalPoints(-pkg.upCost);
     addCoins(pkg.coins);
     notify({
       type: 'coin',
       title: 'Coins Purchased!',
-      message: `You received ${formatNumber(pkg.coins)} coins for ${pkg.upCost} UP`,
+      message: `You received ${formatNumber(pkg.coins)} coins for U$${pkg.upCost}`,
     });
+    
+    setIsPurchasing(false);
+    setConfirmDialog({ open: false, pkg: null });
   };
 
   const getTimeUntilReset = () => {
@@ -290,7 +402,7 @@ function CoinsShop() {
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Coins className="w-6 h-6 text-game-coin" />
+          <PixelIcon icon="coin" size="md" />
           <h2 className="pixel-text text-lg text-foreground">
             Coin Exchange
           </h2>
@@ -301,81 +413,101 @@ function CoinsShop() {
         </div>
       </div>
 
-      <Card className="pixel-border border-card-border mb-6">
+      <Card className="pixel-border border-game-coin/30 bg-gradient-to-r from-game-coin/5 to-transparent mb-6">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <PixelIcon icon="universal_point" size="sm" />
-                <span className="pixel-text text-sm">{player.universalPoints} UP</span>
-              </div>
-              <div className="text-muted-foreground">|</div>
-              <div className="flex items-center gap-2">
-                <PixelIcon icon="coin" size="sm" />
-                <span className="pixel-text text-sm">{formatNumber(player.coins)} Coins</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <PixelIcon icon="universal_point" size="sm" />
+              <span className="font-sans text-sm text-muted-foreground">Exchange Rate:</span>
             </div>
-            <p className="font-sans text-xs text-muted-foreground">
-              1 UP = 100,000 Coins
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="pixel-text text-sm text-game-up">U$1</span>
+              <span className="text-muted-foreground">=</span>
+              <PixelIcon icon="coin" size="sm" />
+              <span className="pixel-text text-sm text-game-coin">10,000 Coins</span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {coinPackages.map((pkg) => (
           <Card 
             key={pkg.id}
             className={cn(
-              'pixel-border relative overflow-visible',
-              pkg.isOnSale ? 'border-game-coin bg-game-coin/5' : 'border-card-border'
+              'pixel-border relative overflow-visible transition-all duration-200',
+              pkg.isOnSale 
+                ? 'border-game-coin bg-gradient-to-br from-game-coin/15 to-game-coin/5' 
+                : pkg.featured 
+                  ? 'border-primary/50 bg-gradient-to-br from-primary/10 to-muted/30'
+                  : 'border-card-border bg-gradient-to-br from-card to-muted/20'
             )}
             data-testid={`coin-package-${pkg.id}`}
           >
             {pkg.isOnSale && (
-              <div className="absolute -top-2 -right-2 z-10">
-                <Badge className="bg-game-coin text-game-coin-foreground pixel-text-sm text-[8px] gap-1">
+              <div className="absolute -top-3 -right-3 z-10">
+                <Badge className="bg-game-coin text-black pixel-text-sm text-[10px] gap-1 px-2 py-1">
                   <Tag className="w-3 h-3" />
                   {pkg.salePercent}% OFF
                 </Badge>
               </div>
             )}
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <PixelIcon icon="coin" size="md" />
-                <span className="pixel-text text-lg text-game-coin">
-                  {formatNumber(pkg.coins)}
-                </span>
+            {pkg.featured && !pkg.isOnSale && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                <Badge className="bg-primary text-primary-foreground pixel-text-sm text-[8px] px-2">
+                  POPULAR
+                </Badge>
               </div>
-              
-              <p className="font-sans text-sm text-muted-foreground mb-4">
-                {pkg.coins.toLocaleString()} coins
-              </p>
-
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <PixelIcon icon="universal_point" size="sm" />
-                  <span className={cn(
-                    'pixel-text-sm',
-                    pkg.isOnSale ? 'text-game-coin' : ''
-                  )}>
-                    {pkg.upCost} UP
-                  </span>
-                  {pkg.isOnSale && pkg.originalUpCost && (
-                    <span className="pixel-text-sm text-[8px] text-muted-foreground line-through ml-1">
-                      {pkg.originalUpCost} UP
-                    </span>
-                  )}
+            )}
+            <CardContent className="p-5">
+              <div className="flex flex-col items-center text-center">
+                <div className={cn(
+                  "w-16 h-16 flex items-center justify-center mb-3 pixel-border rounded-sm",
+                  pkg.isOnSale 
+                    ? "bg-game-coin/20 border-game-coin/40" 
+                    : "bg-muted/50 border-border"
+                )}>
+                  <PixelIcon icon="coin" size="lg" />
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => handlePurchase(pkg)}
-                  disabled={player.universalPoints < pkg.upCost}
-                  className="pixel-text-sm text-[8px] w-full"
-                  data-testid={`button-buy-${pkg.id}`}
-                >
-                  Purchase
-                </Button>
+                
+                <span className={cn(
+                  "pixel-text text-2xl mb-1",
+                  pkg.isOnSale ? "text-game-coin" : "text-foreground"
+                )}>
+                  {pkg.label}
+                </span>
+                <p className="font-sans text-xs text-muted-foreground mb-4">
+                  {pkg.coins.toLocaleString()} coins
+                </p>
+
+                <div className="w-full pt-3 border-t border-border/50">
+                  <div className="flex items-center justify-center gap-1 mb-3">
+                    <PixelIcon icon="universal_point" size="sm" />
+                    <span className={cn(
+                      'pixel-text text-sm font-bold',
+                      pkg.isOnSale ? 'text-game-coin' : 'text-game-up'
+                    )}>
+                      U${pkg.upCost}
+                    </span>
+                    {pkg.isOnSale && pkg.originalUpCost && (
+                      <span className="pixel-text-sm text-[10px] text-muted-foreground line-through ml-1">
+                        U${pkg.originalUpCost}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => handlePurchaseClick(pkg)}
+                    disabled={player.universalPoints < pkg.upCost}
+                    className={cn(
+                      "pixel-text-sm w-full",
+                      pkg.isOnSale && "bg-game-coin text-black hover:bg-game-coin/90"
+                    )}
+                    data-testid={`button-buy-${pkg.id}`}
+                  >
+                    <Coins className="w-4 h-4 mr-1" />
+                    Purchase
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -385,11 +517,60 @@ function CoinsShop() {
       <Card className="pixel-border border-border/50 bg-muted/20">
         <CardContent className="p-4">
           <p className="font-sans text-xs text-muted-foreground text-center">
-            Universal Points (UP) can be earned by leveling up. Each level grants 1 UP.
-            Use UP to purchase coins or exclusive items from the shop.
+            Universal Points (U$) can be earned by leveling up. Each level grants 1 U$.
+            Use U$ to purchase coins or exclusive items from the shop.
           </p>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !isPurchasing && setConfirmDialog({ open, pkg: open ? confirmDialog.pkg : null })}>
+        <AlertDialogContent className="pixel-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="pixel-text flex items-center gap-2">
+              <Coins className="w-5 h-5 text-game-coin" />
+              Confirm Purchase
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans">
+              {confirmDialog.pkg && (
+                <div className="flex items-center gap-3 mt-3 p-3 bg-muted/50 rounded-sm">
+                  <PixelIcon icon="coin" size="md" />
+                  <div>
+                    <p className="pixel-text text-game-coin">
+                      {confirmDialog.pkg.label} Coins
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {confirmDialog.pkg.coins.toLocaleString()} coins
+                    </p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                      <PixelIcon icon="universal_point" size="sm" />
+                      <span className="text-game-up font-bold">U${confirmDialog.pkg.upCost}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPurchasing} className="pixel-text-sm">
+              <X className="w-4 h-4 mr-1" />
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPurchase} disabled={isPurchasing} className="pixel-text-sm">
+              {isPurchasing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-1" />
+                  Confirm
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

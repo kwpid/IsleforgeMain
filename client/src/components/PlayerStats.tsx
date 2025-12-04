@@ -42,7 +42,7 @@ export function PlayerStats() {
         <StatCard 
           icon="up" 
           label="UP" 
-          value={player.universalPoints.toFixed(2)}
+          value={`U$${player.universalPoints}`}
           highlight="purple"
         />
       </div>
