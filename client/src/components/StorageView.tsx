@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, STORAGE_UNIT_PURCHASE_COST, MAX_STORAGE_UNITS, ItemType, Rarity, ItemDefinition } from '@/lib/gameTypes';
 import { getItemById } from '@/lib/items';
@@ -28,7 +28,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { Package, Backpack, Plus, Search, Filter, Pencil, X, Check } from 'lucide-react';
+import { Package, Backpack, Plus, Search, Filter, Pencil, X, Check, ArrowUp, ArrowDown } from 'lucide-react';
 
 type SortOption = 'name' | 'quantity' | 'rarity' | 'value';
 type DragSource = 'storage' | 'inventory';
@@ -87,6 +87,21 @@ export function StorageView() {
   const [touchedItem, setTouchedItem] = useState<{ item: ItemDefinition; quantity: number } | null>(null);
   const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMobile = useIsMobile();
+  
+  const [selectedItem, setSelectedItem] = useState<{ itemId: string; source: DragSource; unitId?: string; item: ItemDefinition; quantity: number } | null>(null);
+  
+  const [touchDrag, setTouchDrag] = useState<{
+    item: ItemDefinition;
+    quantity: number;
+    source: DragSource;
+    unitId?: string;
+    startY: number;
+    currentY: number;
+    isDragging: boolean;
+  } | null>(null);
+  const storageContainerRef = useRef<HTMLDivElement>(null);
+  const inventoryContainerRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTouchStart = useCallback((item: ItemDefinition, quantity: number) => {
     if (!isMobile) return;
@@ -110,6 +125,157 @@ export function StorageView() {
   }, []);
 
   const currentUnit = storageSystem.units.find(u => u.id === storageSystem.selectedUnitId);
+
+  const handleItemClick = useCallback((itemId: string, source: DragSource, item: ItemDefinition, quantity: number, unitId?: string) => {
+    if (!isMobile) return;
+    
+    if (selectedItem?.itemId === itemId && selectedItem?.source === source) {
+      setSelectedItem(null);
+    } else {
+      setSelectedItem({ itemId, source, unitId, item, quantity });
+    }
+  }, [isMobile, selectedItem]);
+
+  const handleMoveToInventory = useCallback(() => {
+    if (!selectedItem || selectedItem.source !== 'storage' || !selectedItem.unitId) return;
+    
+    moveFromStorageUnitToInventory(selectedItem.unitId, selectedItem.itemId, selectedItem.quantity);
+    setSelectedItem(null);
+  }, [selectedItem, moveFromStorageUnitToInventory]);
+
+  const handleMoveToStorage = useCallback(() => {
+    if (!selectedItem || selectedItem.source !== 'inventory' || !currentUnit) return;
+    
+    moveFromInventoryToStorageUnit(currentUnit.id, selectedItem.itemId, selectedItem.quantity);
+    setSelectedItem(null);
+  }, [selectedItem, currentUnit, moveFromInventoryToStorageUnit]);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectedItem(null);
+  }, []);
+
+  const handleTouchDragStart = useCallback((
+    e: React.TouchEvent,
+    item: ItemDefinition, 
+    quantity: number, 
+    source: DragSource, 
+    itemId: string,
+    unitId?: string
+  ) => {
+    if (!isMobile) return;
+    
+    const touch = e.touches[0];
+    setTouchDrag({
+      item,
+      quantity,
+      source,
+      unitId,
+      startY: touch.clientY,
+      currentY: touch.clientY,
+      isDragging: false,
+    });
+    
+    setSelectedItem({ itemId, source, unitId, item, quantity });
+  }, [isMobile]);
+
+  const handleTouchDragMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDrag || !isMobile) return;
+    
+    const touch = e.touches[0];
+    const deltaY = Math.abs(touch.clientY - touchDrag.startY);
+    
+    if (deltaY > 10 && !touchDrag.isDragging) {
+      setTouchDrag(prev => prev ? { ...prev, isDragging: true, currentY: touch.clientY } : null);
+    } else if (touchDrag.isDragging) {
+      setTouchDrag(prev => prev ? { ...prev, currentY: touch.clientY } : null);
+      
+      const viewportHeight = window.innerHeight;
+      const edgeThreshold = 80;
+      const scrollSpeed = 5;
+      
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+      
+      if (touch.clientY < edgeThreshold) {
+        scrollIntervalRef.current = setInterval(() => {
+          window.scrollBy(0, -scrollSpeed);
+        }, 16);
+      } else if (touch.clientY > viewportHeight - edgeThreshold) {
+        scrollIntervalRef.current = setInterval(() => {
+          window.scrollBy(0, scrollSpeed);
+        }, 16);
+      }
+      
+      const storageEl = storageContainerRef.current;
+      const inventoryEl = inventoryContainerRef.current;
+      
+      let overStorage = false;
+      let overInventory = false;
+      
+      if (storageEl) {
+        const rect = storageEl.getBoundingClientRect();
+        overStorage = touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                      touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+      }
+      
+      if (inventoryEl) {
+        const rect = inventoryEl.getBoundingClientRect();
+        overInventory = touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                        touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+      }
+      
+      setIsDragOverStorage(overStorage && touchDrag.source === 'inventory');
+      setIsDragOverInventory(overInventory && touchDrag.source === 'storage');
+    }
+  }, [touchDrag, isMobile]);
+
+  const handleTouchDragEnd = useCallback((e?: React.TouchEvent) => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+    
+    if (touchDrag?.isDragging && selectedItem && e?.changedTouches?.[0]) {
+      const touch = e.changedTouches[0];
+      const storageEl = storageContainerRef.current;
+      const inventoryEl = inventoryContainerRef.current;
+      
+      if (storageEl && selectedItem.source === 'inventory') {
+        const rect = storageEl.getBoundingClientRect();
+        const isOverStorage = touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                              touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+        if (isOverStorage && currentUnit) {
+          moveFromInventoryToStorageUnit(currentUnit.id, selectedItem.itemId, selectedItem.quantity);
+          setSelectedItem(null);
+        }
+      }
+      
+      if (inventoryEl && selectedItem.source === 'storage' && selectedItem.unitId) {
+        const rect = inventoryEl.getBoundingClientRect();
+        const isOverInventory = touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                                touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+        if (isOverInventory) {
+          moveFromStorageUnitToInventory(selectedItem.unitId, selectedItem.itemId, selectedItem.quantity);
+          setSelectedItem(null);
+        }
+      }
+    }
+    
+    setIsDragOverStorage(false);
+    setIsDragOverInventory(false);
+    setTouchDrag(null);
+  }, [touchDrag, selectedItem, currentUnit, moveFromInventoryToStorageUnit, moveFromStorageUnitToInventory]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+      }
+    };
+  }, []);
+
   const storageUsed = currentUnit ? getStorageUnitUsed(currentUnit.id) : 0;
   const storageProgress = currentUnit ? (storageUsed / currentUnit.maxSlots) * 100 : 0;
   const canPurchaseMore = storageSystem.units.length < MAX_STORAGE_UNITS;
@@ -238,21 +404,36 @@ export function StorageView() {
     const item = getItemById(inv.itemId);
     if (!item) return null;
 
+    const isSelected = selectedItem?.itemId === inv.itemId && selectedItem?.source === source;
+
     const slotContent = (
       <div
         draggable={!isMobile}
         onDragStart={() => handleDragStart(inv.itemId, source, unitId)}
         onDragEnd={handleDragEnd}
-        onTouchStart={() => handleTouchStart(item, inv.quantity)}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
+        onTouchStart={(e) => {
+          handleTouchStart(item, inv.quantity);
+          handleTouchDragStart(e, item, inv.quantity, source, inv.itemId, unitId);
+        }}
+        onTouchEnd={(e) => {
+          handleTouchEnd();
+          handleTouchDragEnd(e);
+        }}
+        onTouchMove={(e) => {
+          handleTouchMove();
+          handleTouchDragMove(e);
+        }}
+        onClick={() => handleItemClick(inv.itemId, source, item, inv.quantity, unitId)}
         className={cn(
-          'item-slot item-slot-filled cursor-grab hover-elevate active-elevate-2',
+          'item-slot item-slot-filled hover-elevate active-elevate-2',
+          isMobile ? 'cursor-pointer' : 'cursor-grab',
           `rarity-${item.rarity}`,
           draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
           item.isEnchanted && 'enchanted-item',
           item.isSpecial && 'special-item',
-          item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item'
+          item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item',
+          isSelected && 'ring-2 ring-primary ring-offset-1 ring-offset-background scale-110 z-10',
+          touchDrag?.isDragging && touchDrag?.item.id === item.id && 'opacity-50'
         )}
         data-testid={`${source}-item-${inv.itemId}`}
       >
@@ -445,10 +626,70 @@ export function StorageView() {
         )}
       </div>
 
+      {isMobile && selectedItem && !touchDrag?.isDragging && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-card pixel-border border-primary shadow-lg animate-content-fade">
+          <div className="flex items-center gap-2 px-2">
+            <PixelIcon icon={selectedItem.item.icon} size="sm" />
+            <span className="pixel-text-sm text-[8px] text-foreground">{selectedItem.item.name}</span>
+            <span className="pixel-text-sm text-[7px] text-muted-foreground">x{selectedItem.quantity}</span>
+          </div>
+          {selectedItem.source === 'storage' ? (
+            <Button 
+              size="sm" 
+              onClick={handleMoveToInventory}
+              className="pixel-text-sm text-[8px]"
+              data-testid="button-move-to-inventory"
+            >
+              <Backpack className="w-3 h-3 mr-1" />
+              To Inventory
+            </Button>
+          ) : (
+            <Button 
+              size="sm" 
+              onClick={handleMoveToStorage}
+              className="pixel-text-sm text-[8px]"
+              data-testid="button-move-to-storage"
+            >
+              <Package className="w-3 h-3 mr-1" />
+              To Storage
+            </Button>
+          )}
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={handleCancelSelection}
+            data-testid="button-cancel-selection"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
+      {isMobile && touchDrag?.isDragging && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1 pointer-events-none animate-content-fade"
+          style={{ top: touchDrag.currentY - 60 }}
+        >
+          <div className="flex items-center gap-2 p-2 bg-card/90 pixel-border border-primary shadow-lg backdrop-blur-sm">
+            <PixelIcon icon={touchDrag.item.icon} size="md" />
+            <div className="flex flex-col">
+              <span className="pixel-text-sm text-[8px] text-foreground">{touchDrag.item.name}</span>
+              <span className="pixel-text-sm text-[7px] text-muted-foreground">x{touchDrag.quantity}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <ArrowUp className="w-3 h-3 animate-bounce" />
+            <span className="pixel-text-sm text-[7px]">Scroll to edge</span>
+            <ArrowDown className="w-3 h-3 animate-bounce" />
+          </div>
+        </div>
+      )}
+
       <div 
+        ref={storageContainerRef}
         className={cn(
           'pixel-border border-card-border bg-card p-4 transition-all duration-200',
-          isDragOverStorage && draggedItem?.source === 'inventory' && 'border-primary bg-primary/10'
+          isDragOverStorage && (draggedItem?.source === 'inventory' || (isMobile && touchDrag?.source === 'inventory')) && 'border-primary bg-primary/10',
+          isMobile && selectedItem?.source === 'inventory' && !touchDrag?.isDragging && 'border-primary/50 cursor-pointer'
         )}
         onDragOver={(e) => {
           if (draggedItem?.source === 'inventory') {
@@ -458,6 +699,11 @@ export function StorageView() {
         }}
         onDragLeave={() => setIsDragOverStorage(false)}
         onDrop={handleDropOnStorage}
+        onClick={() => {
+          if (isMobile && selectedItem?.source === 'inventory' && !touchDrag?.isDragging) {
+            handleMoveToStorage();
+          }
+        }}
       >
         <div className="flex items-center justify-between mb-4 gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -526,9 +772,11 @@ export function StorageView() {
       </div>
 
       <div 
+        ref={inventoryContainerRef}
         className={cn(
           'pixel-border border-card-border bg-card p-4 transition-all duration-200',
-          isDragOverInventory && draggedItem?.source === 'storage' && 'border-primary bg-primary/10'
+          isDragOverInventory && (draggedItem?.source === 'storage' || (isMobile && touchDrag?.source === 'storage')) && 'border-accent bg-accent/10',
+          isMobile && selectedItem?.source === 'storage' && !touchDrag?.isDragging && 'border-accent/50 cursor-pointer'
         )}
         onDragOver={(e) => {
           if (draggedItem?.source === 'storage') {
@@ -538,6 +786,11 @@ export function StorageView() {
         }}
         onDragLeave={() => setIsDragOverInventory(false)}
         onDrop={handleDropOnInventory}
+        onClick={() => {
+          if (isMobile && selectedItem?.source === 'storage' && !touchDrag?.isDragging) {
+            handleMoveToInventory();
+          }
+        }}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -560,7 +813,7 @@ export function StorageView() {
 
         {inventory.items.length === 0 && (
           <p className="text-center py-4 font-sans text-sm text-muted-foreground">
-            Drag items here from storage
+            {isMobile ? 'Tap items in storage to move here' : 'Drag items here from storage'}
           </p>
         )}
 
