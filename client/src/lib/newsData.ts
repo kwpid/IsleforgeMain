@@ -19,7 +19,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
 
 The farming system is now live! Grow your own crops and expand your farming empire.
 
-![Farming Preview](/news/farming-preview.png)
+![Farming Preview](/news/farming_update.png)
 
 ## New Features
 
