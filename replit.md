@@ -82,6 +82,12 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Harvest Yield**: Collect crops with variable yields based on seed type
 - **Seed Icons**: Each seed has distinct "planted" and "grown" visual states
 - **Marketplace Seeds**: Purchase seeds from Main Shop farming category
+- **Watering System**: Three tiers of watering cans:
+  - Basic Watering Can: 10 water capacity, 50 coin refill
+  - Copper Watering Can: 25 water capacity, 100 coin refill
+  - Golden Watering Can: 50 water capacity, 200 coin refill
+- **Auto-Select**: Game automatically uses your highest tier watering can
+- **Multiple Farms**: Unlock up to 4 farms to grow more crops
 
 ### Marketplace Sell Tab (Hub Tab)
 - **Dedicated Selling**: Sell minerals, blocks, and crops in the Marketplace
