@@ -65,10 +65,16 @@ client/src/
 
 Each generator has 5 tiers (I-V) with exponential upgrade costs.
 
-### Storage System
-- Drag items to sell zone with confirmation
-- Sell all items button
-- Upgradeable capacity (9 tiers): 500 → 1.5K → 5K → 15K → 35K → 75K → 150K → 300K → 500K
+### Storage System (Multi-Unit)
+- **Multi-Unit Storage**: Up to 5 storage units (first free, additional units cost 250,000 coins each)
+- **128 Slots Per Unit**: Each storage unit supports up to 128 item slots
+- **Unit Tabs**: Switch between storage units with tabbed interface
+- **Rename Storage**: Each unit can be renamed for organization
+- **Search & Filter**: Search items by name, filter by type and rarity
+- **Backward Compatibility**: Generators and farming automatically use the first storage unit
+- **Drag-to-Sell**: Drag items to sell zone with confirmation
+- **Quick Sell**: Sell all items button for each storage unit
+- **Grid View**: Visual grid layout showing all items with quantities
 
 ### Player Stats (Right Sidebar)
 - Level with XP bar (proper fill indicator)

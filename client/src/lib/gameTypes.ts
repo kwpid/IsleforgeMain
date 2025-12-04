@@ -104,11 +104,27 @@ export interface StorageUpgrade {
   cost: number;
 }
 
+export interface StorageUnit {
+  id: string;
+  name: string;
+  maxSlots: number;
+  items: InventoryItem[];
+}
+
+export interface PlayerStorageSystem {
+  units: StorageUnit[];
+  selectedUnitId: string;
+}
+
 export interface PlayerStorage {
   capacity: number;
   upgradeLevel: number;
   items: InventoryItem[];
 }
+
+export const STORAGE_UNIT_MAX_SLOTS = 128;
+export const STORAGE_UNIT_PURCHASE_COST = 250000;
+export const MAX_STORAGE_UNITS = 5;
 
 export interface PlayerEquipment {
   helmet: string | null;
@@ -276,6 +292,7 @@ export function createDefaultFarmingState(): FarmingState {
 export interface GameState {
   player: PlayerStats;
   storage: PlayerStorage;
+  storageSystem: PlayerStorageSystem;
   inventory: PlayerInventory;
   equipment: PlayerEquipment;
   equipmentDurability: EquipmentDurability;
@@ -293,6 +310,20 @@ export interface GameState {
   vendorStockPurchases: VendorStockPurchases;
   vendorStockSeed: number;
   farming: FarmingState;
+}
+
+export function createDefaultStorageSystem(): PlayerStorageSystem {
+  return {
+    units: [
+      {
+        id: 'storage_1',
+        name: 'Main Storage',
+        maxSlots: STORAGE_UNIT_MAX_SLOTS,
+        items: [],
+      },
+    ],
+    selectedUnitId: 'storage_1',
+  };
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -525,6 +556,7 @@ export function createDefaultGameState(): GameState {
       upgradeLevel: 0,
       items: [],
     },
+    storageSystem: createDefaultStorageSystem(),
     inventory: {
       items: [],
       maxSlots: 36,
