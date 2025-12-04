@@ -124,4 +124,17 @@ export const SPECIAL_ITEMS: ItemDefinition[] = [
     isSpecial: true,
     isEnchanted: true,
   },
+  {
+    id: "watering_can",
+    name: "Watering Can",
+    description: "A rustic watering can for your crops. Holds 10 uses before needing to be refilled at a well.",
+    type: "tool",
+    rarity: "common",
+    sellPrice: 25,
+    stackable: false,
+    maxStack: 1,
+    icon: "watering_can",
+    toolType: "hoe",
+    stats: { water_capacity: 10 },
+  },
 ];

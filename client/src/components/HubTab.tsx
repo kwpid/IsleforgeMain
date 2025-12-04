@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
-import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, GameItem } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -82,7 +82,7 @@ import {
 } from '@/components/ui/select';
 import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
 
-type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'ores';
+type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'ores' | 'seeds';
 type SortOption = 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'rarity_asc' | 'rarity_desc';
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
@@ -105,6 +105,7 @@ const CATEGORY_ICONS: Record<MarketplaceCategory, typeof Store> = {
   food: UtensilsCrossed,
   materials: Gem,
   ores: Gem,
+  seeds: Sparkles,
 };
 
 const CATEGORY_LABELS: Record<MarketplaceCategory, string> = {
@@ -116,6 +117,7 @@ const CATEGORY_LABELS: Record<MarketplaceCategory, string> = {
   food: 'Food & Provisions',
   materials: 'Crafting Materials',
   ores: 'Ores & Minerals',
+  seeds: 'Seeds & Farming',
 };
 
 function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
@@ -145,15 +147,19 @@ function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
       items = MINERAL_ITEMS;
       priceMultiplier = 5.0;
       break;
+    case 'seeds':
+      items = SEED_ITEMS;
+      priceMultiplier = 3.0;
+      break;
     case 'all':
     default:
-      items = [...BLOCK_ITEMS, ...TOOL_ITEMS, ...ARMOR_ITEMS, ...POTION_ITEMS, ...FOOD_ITEMS.filter(i => !i.isSpecial), ...MATERIAL_ITEMS.filter(i => !i.isSpecial)];
+      items = [...BLOCK_ITEMS, ...TOOL_ITEMS, ...ARMOR_ITEMS, ...POTION_ITEMS, ...FOOD_ITEMS.filter(i => !i.isSpecial), ...MATERIAL_ITEMS.filter(i => !i.isSpecial), ...SEED_ITEMS];
   }
   
   return items.map(item => ({
     itemId: item.id,
     stock: 999,
-    priceMultiplier: category === 'ores' ? 5.0 : 2.0,
+    priceMultiplier: category === 'ores' ? 5.0 : (category === 'seeds' ? 3.0 : 2.0),
     unlimitedStock: true,
   }));
 }
