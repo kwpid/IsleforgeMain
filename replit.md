@@ -72,18 +72,20 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 ### Player Stats (Right Sidebar)
 - Level with XP bar (proper fill indicator)
 - Coins (gold currency)
-- UP (Universal Points displayed with 2 decimal places: 0.00)
+- UP (Universal Points displayed with U$ prefix, e.g. U$5)
 - Tab-specific stats below divider
 
 ### Shop System (Shop Tab)
 - **Limited Shop**: Coming soon - exclusive limited-time items
-- **Daily Deals**: 6 rotating items (tools, armor, materials) priced in UP
-  - One random item gets 30% discount each day
+- **Daily Deals**: 4 rotating items (tools, armor, materials) priced in U$
+  - 50% chance one item gets 30% discount each day
+  - Purchase confirmation dialog with loading animation
   - Resets at midnight
-- **Coin Exchange**: Buy coins with UP
-  - Packages: 100K, 250K, 500K, 1M, 5M, 25M, 100M coins
-  - One random package on sale each day (10-25% off)
-  - Exchange rate: 1 UP = 100,000 Coins
+- **Coin Exchange**: Buy coins with U$
+  - Packages: 10K, 100K, 500K, 1M, 5M, 10M coins
+  - 50% chance one package on sale each day (30% off)
+  - Purchase confirmation dialog with loading animation
+  - Exchange rate: 1 U$ = 10,000 Coins
 
 ### Settings Tabs
 - **General**: Save data management, display options, danger zone
