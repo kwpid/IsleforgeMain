@@ -121,8 +121,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
       </div>
 
       {mainTab === 'island' && (
-        <div className="overflow-x-auto scrollbar-pixel pb-2 border-t border-border/50 pt-2 animate-tab-slide">
-          <div className="flex items-center gap-1 px-4 min-w-max">
+        <div className="touch-scroll-x pb-2 border-t border-border/50 pt-2 animate-tab-slide">
+          <div className="flex items-center gap-2 px-4 min-w-max">
             {islandSubTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -145,8 +145,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
       )}
 
       {mainTab === 'hub' && (
-        <div className="overflow-x-auto scrollbar-pixel pb-2 border-t border-border/50 pt-2 animate-tab-slide">
-          <div className="flex items-center gap-1 px-4 min-w-max">
+        <div className="touch-scroll-x pb-2 border-t border-border/50 pt-2 animate-tab-slide">
+          <div className="flex items-center gap-2 px-4 min-w-max">
             {hubSubTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -175,8 +175,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
       )}
 
       {mainTab === 'shop' && (
-        <div className="overflow-x-auto scrollbar-pixel pb-2 border-t border-border/50 pt-2 animate-tab-slide">
-          <div className="flex items-center gap-1 px-4 min-w-max">
+        <div className="touch-scroll-x pb-2 border-t border-border/50 pt-2 animate-tab-slide">
+          <div className="flex items-center gap-2 px-4 min-w-max">
             {shopSubTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -199,8 +199,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
       )}
 
       {mainTab === 'settings' && (
-        <div className="overflow-x-auto scrollbar-pixel pb-2 border-t border-border/50 pt-2 animate-tab-slide">
-          <div className="flex items-center gap-1 px-4 min-w-max">
+        <div className="touch-scroll-x pb-2 border-t border-border/50 pt-2 animate-tab-slide">
+          <div className="flex items-center gap-2 px-4 min-w-max">
             {settingsSubTabs.map((tab) => (
               <button
                 key={tab.id}

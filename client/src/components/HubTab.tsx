@@ -573,22 +573,24 @@ function MarketplaceView() {
       {marketplaceView === 'main' && (
         <>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as MarketplaceCategory)} className="w-full">
-            <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/30 p-1">
-              {(Object.keys(CATEGORY_LABELS) as MarketplaceCategory[]).map((cat) => {
-                const Icon = CATEGORY_ICONS[cat];
-                return (
-                  <TabsTrigger
-                    key={cat}
-                    value={cat}
-                    className="pixel-text-sm text-[7px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                    data-testid={`tab-category-${cat}`}
-                  >
-                    <Icon className="w-3 h-3 mr-1" />
-                    {CATEGORY_LABELS[cat]}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+            <div className="touch-scroll-x bg-muted/30 p-1">
+              <TabsList className="flex gap-1 h-auto w-max min-w-full bg-transparent">
+                {(Object.keys(CATEGORY_LABELS) as MarketplaceCategory[]).map((cat) => {
+                  const Icon = CATEGORY_ICONS[cat];
+                  return (
+                    <TabsTrigger
+                      key={cat}
+                      value={cat}
+                      className="pixel-text-sm text-[7px] whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      data-testid={`tab-category-${cat}`}
+                    >
+                      <Icon className="w-3 h-3 mr-1" />
+                      {CATEGORY_LABELS[cat]}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
           </Tabs>
 
           <div className="marketplace-section">

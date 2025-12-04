@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useGameStore } from '@/lib/gameStore';
-import { formatNumber, STORAGE_UNIT_PURCHASE_COST, MAX_STORAGE_UNITS, ItemType, Rarity } from '@/lib/gameTypes';
+import { formatNumber, STORAGE_UNIT_PURCHASE_COST, MAX_STORAGE_UNITS, ItemType, Rarity, ItemDefinition } from '@/lib/gameTypes';
 import { getItemById } from '@/lib/items';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Select,
   SelectContent,
@@ -83,6 +84,30 @@ export function StorageView() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [touchedItem, setTouchedItem] = useState<{ item: ItemDefinition; quantity: number } | null>(null);
+  const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMobile = useIsMobile();
+
+  const handleTouchStart = useCallback((item: ItemDefinition, quantity: number) => {
+    if (!isMobile) return;
+    touchTimerRef.current = setTimeout(() => {
+      setTouchedItem({ item, quantity });
+    }, 300);
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  }, []);
 
   const currentUnit = storageSystem.units.find(u => u.id === storageSystem.selectedUnitId);
   const storageUsed = currentUnit ? getStorageUnitUsed(currentUnit.id) : 0;
@@ -213,38 +238,49 @@ export function StorageView() {
     const item = getItemById(inv.itemId);
     if (!item) return null;
 
+    const slotContent = (
+      <div
+        draggable={!isMobile}
+        onDragStart={() => handleDragStart(inv.itemId, source, unitId)}
+        onDragEnd={handleDragEnd}
+        onTouchStart={() => handleTouchStart(item, inv.quantity)}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        className={cn(
+          'item-slot item-slot-filled cursor-grab hover-elevate active-elevate-2',
+          `rarity-${item.rarity}`,
+          draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
+          item.isEnchanted && 'enchanted-item',
+          item.isSpecial && 'special-item',
+          item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item'
+        )}
+        data-testid={`${source}-item-${inv.itemId}`}
+      >
+        <PixelIcon icon={item.icon} size="md" />
+        {item.isLimited && item.limitedEffect === 'blue_flame' && (
+          <>
+            <span className="blue-ember-particle" />
+            <span className="blue-ember-particle" />
+            <span className="blue-ember-particle" />
+            <span className="blue-ember-particle" />
+          </>
+        )}
+        {inv.quantity > 1 && (
+          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+            {formatNumber(inv.quantity)}
+          </span>
+        )}
+      </div>
+    );
+
+    if (isMobile) {
+      return <div key={inv.itemId}>{slotContent}</div>;
+    }
+
     return (
       <Tooltip key={inv.itemId}>
         <TooltipTrigger asChild>
-          <div
-            draggable
-            onDragStart={() => handleDragStart(inv.itemId, source, unitId)}
-            onDragEnd={handleDragEnd}
-            className={cn(
-              'item-slot item-slot-filled cursor-grab hover-elevate active-elevate-2',
-              `rarity-${item.rarity}`,
-              draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
-              item.isEnchanted && 'enchanted-item',
-              item.isSpecial && 'special-item',
-              item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item'
-            )}
-            data-testid={`${source}-item-${inv.itemId}`}
-          >
-            <PixelIcon icon={item.icon} size="md" />
-            {item.isLimited && item.limitedEffect === 'blue_flame' && (
-              <>
-                <span className="blue-ember-particle" />
-                <span className="blue-ember-particle" />
-                <span className="blue-ember-particle" />
-                <span className="blue-ember-particle" />
-              </>
-            )}
-            {inv.quantity > 1 && (
-              <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[6px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
-                {formatNumber(inv.quantity)}
-              </span>
-            )}
-          </div>
+          {slotContent}
         </TooltipTrigger>
         <TooltipContent side="top" className="p-0 border-0 bg-transparent">
           <ItemTooltip item={item} quantity={inv.quantity} />
@@ -572,8 +608,16 @@ export function StorageView() {
         </DialogContent>
       </Dialog>
 
+      {touchedItem && (
+        <Dialog open={!!touchedItem} onOpenChange={() => setTouchedItem(null)}>
+          <DialogContent className="p-0 border-0 bg-transparent max-w-[280px] w-auto">
+            <ItemTooltip item={touchedItem.item} quantity={touchedItem.quantity} />
+          </DialogContent>
+        </Dialog>
+      )}
+
       <p className="pixel-text-sm text-muted-foreground text-[7px] text-center">
-        Drag items between storage and inventory
+        {isMobile ? 'Tap and hold items to see details' : 'Drag items between storage and inventory'}
       </p>
     </div>
   );

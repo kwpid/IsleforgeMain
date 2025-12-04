@@ -14,7 +14,7 @@ import { FloatingNumbers } from './FloatingNumbers';
 import { DevConsole } from './DevConsole';
 import { NewsModal, useNewsModal } from './NewsModal';
 import { MobileBottomNav } from './MobileBottomNav';
-import { MobileStatsDrawer } from './MobileStatsDrawer';
+import { MobileStatsPanel } from './MobileStatsPanel';
 
 export function GameLayout() {
   const mainTab = useGameStore((s) => s.mainTab);
@@ -29,7 +29,6 @@ export function GameLayout() {
   const lastNotificationTime = useRef(0);
   
   const [devConsoleOpen, setDevConsoleOpen] = useState(false);
-  const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isOpen: newsOpen, openNews, closeNews, markAllRead, hasUnread } = useNewsModal();
 
@@ -119,11 +118,10 @@ export function GameLayout() {
       {isMobile && (
         <>
           <MobileBottomNav 
-            onOpenStats={() => setMobileStatsOpen(true)} 
             onOpenNews={openNews}
             hasUnreadNews={hasUnread}
           />
-          <MobileStatsDrawer open={mobileStatsOpen} onOpenChange={setMobileStatsOpen} />
+          <MobileStatsPanel />
         </>
       )}
       <InventoryPopup />

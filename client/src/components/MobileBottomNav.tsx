@@ -2,15 +2,14 @@ import { useGameStore } from '@/lib/gameStore';
 import { MainTab } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
-import { User, Newspaper } from 'lucide-react';
+import { Newspaper } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  onOpenStats: () => void;
   onOpenNews?: () => void;
   hasUnreadNews?: boolean;
 }
 
-export function MobileBottomNav({ onOpenStats, onOpenNews, hasUnreadNews }: MobileBottomNavProps) {
+export function MobileBottomNav({ onOpenNews, hasUnreadNews }: MobileBottomNavProps) {
   const mainTab = useGameStore((s) => s.mainTab);
   const shopHasNewItems = useGameStore((s) => s.shopHasNewItems);
   const setMainTab = useGameStore((s) => s.setMainTab);
@@ -50,17 +49,6 @@ export function MobileBottomNav({ onOpenStats, onOpenNews, hasUnreadNews }: Mobi
             )}
           </button>
         ))}
-        <button
-          onClick={onOpenStats}
-          className={cn(
-            'flex-1 flex flex-col items-center gap-1 py-2 px-1 transition-all duration-200',
-            'active-elevate-2 text-muted-foreground'
-          )}
-          data-testid="mobile-tab-stats"
-        >
-          <User className="w-5 h-5" />
-          <span className="pixel-text-sm text-[6px]">STATS</span>
-        </button>
         {onOpenNews && (
           <button
             onClick={onOpenNews}
