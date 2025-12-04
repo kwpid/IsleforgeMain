@@ -539,6 +539,168 @@
     z-index: 3;
   }
 
+  @keyframes blue-flame-flicker {
+    0%, 100% {
+      box-shadow: 
+        0 0 8px rgba(59, 130, 246, 0.6),
+        0 0 16px rgba(59, 130, 246, 0.4),
+        0 0 24px rgba(59, 130, 246, 0.2),
+        inset 0 0 8px rgba(59, 130, 246, 0.1);
+    }
+    25% {
+      box-shadow: 
+        0 0 12px rgba(79, 150, 255, 0.7),
+        0 0 20px rgba(59, 130, 246, 0.5),
+        0 0 32px rgba(59, 130, 246, 0.3),
+        inset 0 0 10px rgba(59, 130, 246, 0.15);
+    }
+    50% {
+      box-shadow: 
+        0 0 10px rgba(100, 170, 255, 0.65),
+        0 0 18px rgba(59, 130, 246, 0.45),
+        0 0 28px rgba(59, 130, 246, 0.25),
+        inset 0 0 9px rgba(59, 130, 246, 0.12);
+    }
+    75% {
+      box-shadow: 
+        0 0 14px rgba(59, 130, 246, 0.75),
+        0 0 22px rgba(59, 130, 246, 0.55),
+        0 0 36px rgba(59, 130, 246, 0.35),
+        inset 0 0 12px rgba(59, 130, 246, 0.18);
+    }
+  }
+
+  @keyframes blue-flame-shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes blue-flame-pulse {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.02);
+    }
+  }
+
+  @keyframes flame-particle {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-12px) scale(0.3);
+      opacity: 0;
+    }
+  }
+
+  .blue-flame-item {
+    position: relative;
+    animation: blue-flame-flicker 1.5s ease-in-out infinite;
+  }
+
+  .blue-flame-item::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(59, 130, 246, 0.25) 25%,
+      rgba(147, 197, 253, 0.3) 50%,
+      rgba(59, 130, 246, 0.25) 75%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: blue-flame-shimmer 2s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .blue-flame-item::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid transparent;
+    background: linear-gradient(
+      45deg,
+      rgba(59, 130, 246, 0.7),
+      rgba(147, 197, 253, 0.7),
+      rgba(96, 165, 250, 0.7),
+      rgba(59, 130, 246, 0.7)
+    ) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: blue-flame-pulse 1.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .blue-flame-card {
+    position: relative;
+    overflow: visible;
+  }
+
+  .blue-flame-card::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(147, 197, 253, 0.1) 50%,
+      rgba(59, 130, 246, 0.15) 100%
+    );
+    border-radius: inherit;
+    z-index: -1;
+    animation: blue-flame-pulse 2s ease-in-out infinite;
+  }
+
+  .blue-flame-card::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    right: 10%;
+    height: 60%;
+    background: linear-gradient(
+      to top,
+      rgba(59, 130, 246, 0.2) 0%,
+      rgba(147, 197, 253, 0.15) 30%,
+      rgba(96, 165, 250, 0.1) 60%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+    animation: blue-flame-pulse 1.8s ease-in-out infinite;
+  }
+
+  .limited-badge {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+    background-size: 200% 200%;
+    animation: limited-badge-gradient 3s ease infinite;
+  }
+
+  @keyframes limited-badge-gradient {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
   .dev-console {
     font-family: 'Courier New', Courier, monospace;
     background: rgba(0, 0, 0, 0.95);

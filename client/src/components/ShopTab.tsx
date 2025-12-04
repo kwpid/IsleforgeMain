@@ -1,16 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ItemDefinition } from '@/lib/gameTypes';
 import { ALL_ITEMS, getItemById } from '@/lib/items/index';
+import { 
+  getActivePackages, 
+  getPackageItems, 
+  getPackageTotalValue, 
+  getPackageDiscountedPrice,
+  getRemainingTime,
+  LimitedPackage,
+  LimitedItem,
+  getLimitedItemById,
+} from '@/lib/items/limited';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X } from 'lucide-react';
+import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X, Package, Flame, Timer } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
+import { useItemAcquisitionStore } from './ItemAcquisitionPopup';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +33,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 export function ShopTab() {
   const shopSubTab = useGameStore((s) => s.shopSubTab);
@@ -35,24 +55,415 @@ export function ShopTab() {
 }
 
 function LimitedShop() {
+  const player = useGameStore((s) => s.player);
+  const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
+  const addItemToInventory = useGameStore((s) => s.addItemToInventory);
+  const limitedPurchases = useGameStore((s) => s.limitedPurchases);
+  const addLimitedPurchase = useGameStore((s) => s.addLimitedPurchase);
+  const { notify, error: showError } = useGameNotifications();
+  const addItems = useItemAcquisitionStore((s) => s.addItems);
+
+  const [selectedPackage, setSelectedPackage] = useState<LimitedPackage | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  const activePackages = useMemo(() => getActivePackages(), []);
+  const mainShowcase = activePackages.find(pkg => pkg.isMainShowcase);
+  const otherPackages = activePackages.filter(pkg => !pkg.isMainShowcase);
+
+  useEffect(() => {
+    if (!mainShowcase) return;
+    
+    const updateTimer = () => {
+      const remaining = getRemainingTime(mainShowcase);
+      setTimeRemaining(remaining);
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [mainShowcase]);
+
+  const handleOpenPackage = (pkg: LimitedPackage) => {
+    setSelectedPackage(pkg);
+    const items = getPackageItems(pkg);
+    const availableItems = items.filter(item => !limitedPurchases.includes(item.id));
+    setSelectedItems(new Set(availableItems.map(i => i.id)));
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    if (limitedPurchases.includes(itemId)) {
+      return;
+    }
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const getSelectedPrice = (): number => {
+    if (!selectedPackage) return 0;
+    
+    const items = getPackageItems(selectedPackage);
+    const selectedItemsList = items.filter(item => selectedItems.has(item.id));
+    
+    if (selectedItems.size === items.length) {
+      return getPackageDiscountedPrice(selectedPackage);
+    }
+    
+    return selectedItemsList.reduce((sum, item) => {
+      return sum + Math.ceil(item.sellPrice / 10);
+    }, 0);
+  };
+
+  const handlePurchase = async () => {
+    if (!selectedPackage || selectedItems.size === 0) return;
+    
+    const items = getPackageItems(selectedPackage);
+    const purchasedItems = items.filter(item => 
+      selectedItems.has(item.id) && !limitedPurchases.includes(item.id)
+    );
+    
+    if (purchasedItems.length === 0) {
+      showError('Already Owned', 'You already own all selected items.');
+      return;
+    }
+    
+    const price = getSelectedPrice();
+    
+    if (player.universalPoints < price) {
+      showError('Not Enough UP', `You need U$${price} to complete this purchase.`);
+      return;
+    }
+
+    setIsPurchasing(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    let allSuccess = true;
+    const successfulItems: LimitedItem[] = [];
+    
+    for (const item of purchasedItems) {
+      if (limitedPurchases.includes(item.id)) {
+        continue;
+      }
+      const success = addItemToInventory(item.id, 1);
+      if (success) {
+        addLimitedPurchase(item.id);
+        successfulItems.push(item);
+      } else {
+        allSuccess = false;
+        showError('Inventory Full', `Could not add ${item.name}. Make room in your inventory.`);
+        break;
+      }
+    }
+
+    if (successfulItems.length > 0) {
+      addUniversalPoints(-price);
+      
+      addItems(successfulItems.map(item => ({
+        item,
+        quantity: 1,
+        source: 'purchase' as const,
+      })));
+
+      notify({
+        type: 'item',
+        title: 'Limited Items Acquired!',
+        message: `You purchased ${successfulItems.length} limited item${successfulItems.length > 1 ? 's' : ''}!`,
+      });
+    }
+
+    setIsPurchasing(false);
+    if (allSuccess) {
+      setSelectedPackage(null);
+      setSelectedItems(new Set());
+    }
+  };
+
+  const isItemPurchased = (itemId: string) => limitedPurchases.includes(itemId);
+
+  if (activePackages.length === 0) {
+    return (
+      <div className="w-full space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Sparkles className="w-6 h-6 text-rarity-legendary" />
+          <h2 className="pixel-text text-lg text-foreground">
+            Limited Shop
+          </h2>
+        </div>
+
+        <Card className="pixel-border border-rarity-legendary/30 bg-rarity-legendary/5">
+          <CardContent className="p-8 text-center">
+            <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="pixel-text text-foreground mb-2">No Active Limiteds</p>
+            <p className="font-sans text-sm text-muted-foreground">
+              Check back soon for exclusive limited-time items and special deals!
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Sparkles className="w-6 h-6 text-rarity-legendary" />
-        <h2 className="pixel-text text-lg text-foreground">
-          Limited Shop
-        </h2>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+        <div className="flex items-center gap-3">
+          <Flame className="w-6 h-6 text-blue-400" />
+          <h2 className="pixel-text text-lg text-foreground">
+            Limited Shop
+          </h2>
+        </div>
+        {timeRemaining && (
+          <div className="flex items-center gap-2 text-blue-400">
+            <Timer className="w-4 h-4" />
+            <span className="pixel-text-sm">
+              {timeRemaining.days}d {timeRemaining.hours}h {timeRemaining.minutes}m
+            </span>
+          </div>
+        )}
       </div>
 
-      <Card className="pixel-border border-rarity-legendary/30 bg-rarity-legendary/5">
-        <CardContent className="p-8 text-center">
-          <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="pixel-text text-foreground mb-2">Coming Soon</p>
-          <p className="font-sans text-sm text-muted-foreground">
-            Exclusive limited-time items will appear here. Check back later for rare finds!
-          </p>
-        </CardContent>
-      </Card>
+      {mainShowcase && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-blue-400" />
+            <h3 className="pixel-text text-sm text-foreground">Main Showcase</h3>
+            <Badge className="limited-badge text-white pixel-text-sm text-[8px]">
+              {mainShowcase.discountPercent}% OFF BUNDLE
+            </Badge>
+          </div>
+
+          <Card 
+            className="pixel-border border-blue-500/50 bg-gradient-to-br from-blue-500/10 to-blue-900/20 blue-flame-card cursor-pointer transition-transform hover:scale-[1.01]"
+            onClick={() => handleOpenPackage(mainShowcase)}
+            data-testid="card-main-showcase"
+          >
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="flex items-center gap-4">
+                  {getPackageItems(mainShowcase).map((item) => (
+                    <HoverCard key={item.id} openDelay={0} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div 
+                          className={cn(
+                            "w-20 h-20 flex items-center justify-center pixel-border rounded-sm cursor-pointer relative",
+                            `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
+                            "blue-flame-item",
+                            isItemPurchased(item.id) && "opacity-50"
+                          )}
+                        >
+                          <PixelIcon icon={item.icon} size="lg" />
+                          {isItemPurchased(item.id) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                              <Check className="w-8 h-8 text-green-400" />
+                            </div>
+                          )}
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                        <ItemTooltip item={item} />
+                      </HoverCardContent>
+                    </HoverCard>
+                  ))}
+                </div>
+
+                <div className="flex-1 text-center md:text-left">
+                  <h4 className="pixel-text text-lg text-blue-400 mb-2">
+                    {mainShowcase.name}
+                  </h4>
+                  <p className="font-sans text-sm text-muted-foreground mb-3">
+                    {mainShowcase.description}
+                  </p>
+                  <div className="flex items-center justify-center md:justify-start gap-3">
+                    <div className="flex items-center gap-1">
+                      <PixelIcon icon="universal_point" size="sm" />
+                      <span className="pixel-text text-blue-400 text-lg">
+                        U${getPackageDiscountedPrice(mainShowcase)}
+                      </span>
+                    </div>
+                    <span className="pixel-text-sm text-muted-foreground line-through">
+                      U${getPackageTotalValue(mainShowcase)}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  className="pixel-text bg-blue-500 hover:bg-blue-600 text-white"
+                  disabled={getPackageItems(mainShowcase).every(item => isItemPurchased(item.id))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPackage(mainShowcase);
+                  }}
+                  data-testid="button-view-package"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {getPackageItems(mainShowcase).every(item => isItemPurchased(item.id)) 
+                    ? 'Owned' 
+                    : 'View Pack'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {otherPackages.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="pixel-text text-sm text-muted-foreground">Other Limited Items</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {otherPackages.map((pkg) => (
+              <Card 
+                key={pkg.id}
+                className="pixel-border border-card-border bg-card cursor-pointer hover-elevate"
+                onClick={() => handleOpenPackage(pkg)}
+                data-testid={`card-package-${pkg.id}`}
+              >
+                <CardContent className="p-4">
+                  <p className="pixel-text text-sm text-foreground mb-2">{pkg.name}</p>
+                  <p className="font-sans text-xs text-muted-foreground">{pkg.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Dialog open={!!selectedPackage} onOpenChange={(open) => !open && setSelectedPackage(null)}>
+        <DialogContent className="pixel-border bg-card max-w-lg p-0 gap-0">
+          <DialogHeader className="p-4 border-b-2 border-border bg-gradient-to-r from-blue-500/10 to-transparent">
+            <DialogTitle className="pixel-text text-sm flex items-center gap-2">
+              <Flame className="w-4 h-4 text-blue-400" />
+              {selectedPackage?.name}
+            </DialogTitle>
+            <DialogDescription className="font-sans text-sm text-muted-foreground">
+              Select which items you want to purchase. Buy all for {selectedPackage?.discountPercent}% off!
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
+            {selectedPackage && getPackageItems(selectedPackage).map((item) => {
+              const itemPrice = Math.ceil(item.sellPrice / 10);
+              const purchased = isItemPurchased(item.id);
+              const isSelected = selectedItems.has(item.id);
+              
+              return (
+                <div 
+                  key={item.id}
+                  className={cn(
+                    "flex items-center gap-4 p-3 pixel-border rounded-sm transition-colors",
+                    purchased 
+                      ? "bg-muted/30 border-muted" 
+                      : isSelected 
+                        ? "bg-blue-500/10 border-blue-500/50" 
+                        : "bg-card border-card-border hover:border-blue-500/30",
+                    !purchased && "cursor-pointer"
+                  )}
+                  onClick={() => !purchased && toggleItemSelection(item.id)}
+                  data-testid={`package-item-${item.id}`}
+                >
+                  <Checkbox 
+                    checked={isSelected}
+                    disabled={purchased}
+                    onCheckedChange={() => !purchased && toggleItemSelection(item.id)}
+                    className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  />
+                  
+                  <div 
+                    className={cn(
+                      "w-14 h-14 flex items-center justify-center pixel-border rounded-sm",
+                      `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
+                      item.limitedEffect === 'blue_flame' && !purchased && "blue-flame-item"
+                    )}
+                  >
+                    <PixelIcon icon={item.icon} size="md" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      'pixel-text-sm',
+                      purchased ? 'text-muted-foreground' : `text-rarity-${item.rarity}`
+                    )}>
+                      {item.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                        {item.rarity.toUpperCase()}
+                      </Badge>
+                      <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
+                        LIMITED
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    {purchased ? (
+                      <Badge className="bg-green-500/20 text-green-400 pixel-text-sm text-[8px]">
+                        <Check className="w-3 h-3 mr-1" />
+                        OWNED
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <PixelIcon icon="universal_point" size="sm" />
+                        <span className="pixel-text-sm text-game-up">U${itemPrice}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="p-4 border-t-2 border-border bg-muted/20 flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="font-sans text-sm text-muted-foreground">Total:</span>
+              <div className="flex items-center gap-1">
+                <PixelIcon icon="universal_point" size="sm" />
+                <span className="pixel-text text-blue-400">U${getSelectedPrice()}</span>
+              </div>
+              {selectedPackage && selectedItems.size === getPackageItems(selectedPackage).length && (
+                <Badge className="bg-green-500/20 text-green-400 pixel-text-sm text-[8px]">
+                  {selectedPackage.discountPercent}% OFF
+                </Badge>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedPackage(null)}
+                className="pixel-text-sm"
+                disabled={isPurchasing}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePurchase}
+                disabled={selectedItems.size === 0 || player.universalPoints < getSelectedPrice() || isPurchasing}
+                className="pixel-text-sm bg-blue-500 hover:bg-blue-600"
+                data-testid="button-purchase-selected"
+              >
+                {isPurchasing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4 mr-1" />
+                    Purchase
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

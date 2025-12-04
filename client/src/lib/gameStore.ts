@@ -48,6 +48,7 @@ interface GameStore extends GameState {
   keybinds: Keybinds;
   lastShopVisit: number;
   shopHasNewItems: boolean;
+  limitedPurchases: string[];
 
   setMainTab: (tab: MainTab) => void;
   setIslandSubTab: (tab: IslandSubTab) => void;
@@ -142,6 +143,7 @@ interface GameStore extends GameState {
   getWateringCanUses: () => number;
   getBestWateringCan: () => { id: string; capacity: number; refillCost: number } | null;
   refillWateringCan: () => { success: boolean; reason?: string; capacity?: number; cost?: number };
+  addLimitedPurchase: (itemId: string) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -158,6 +160,7 @@ export const useGameStore = create<GameStore>()(
       keybinds: { ...DEFAULT_KEYBINDS },
       lastShopVisit: 0,
       shopHasNewItems: true,
+      limitedPurchases: [],
 
       setMainTab: (tab) => {
         if (tab === 'shop') {
@@ -1607,6 +1610,13 @@ export const useGameStore = create<GameStore>()(
         
         return { success: true, capacity: bestCan.capacity, cost: bestCan.refillCost };
       },
+      
+      addLimitedPurchase: (itemId) => {
+        const state = get();
+        if (!state.limitedPurchases.includes(itemId)) {
+          set({ limitedPurchases: [...state.limitedPurchases, itemId] });
+        }
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -1631,6 +1641,7 @@ export const useGameStore = create<GameStore>()(
         vendorStockPurchases: state.vendorStockPurchases,
         vendorStockSeed: state.vendorStockSeed,
         farming: state.farming,
+        limitedPurchases: state.limitedPurchases,
       }),
     }
   )

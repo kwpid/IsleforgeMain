@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GameNotifications } from "@/components/GameNotifications";
+import { ItemAcquisitionPopup } from "@/components/ItemAcquisitionPopup";
 import NotFound from "@/pages/not-found";
 import Game from "@/pages/Game";
 
@@ -22,6 +23,7 @@ function App() {
       <TooltipProvider delayDuration={0} skipDelayDuration={0}>
         <Toaster />
         <GameNotifications />
+        <ItemAcquisitionPopup />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>

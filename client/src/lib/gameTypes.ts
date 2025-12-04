@@ -15,6 +15,8 @@ export interface ItemRecipe {
   category: 'tools' | 'armor' | 'materials' | 'blocks' | 'food' | 'potions';
 }
 
+export type LimitedEffect = 'blue_flame' | 'golden_glow' | 'ice_crystal' | 'shadow_pulse' | 'rainbow_shimmer';
+
 export interface ItemDefinition {
   id: string;
   name: string;
@@ -32,6 +34,8 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  isLimited?: boolean;
+  limitedEffect?: LimitedEffect;
   isCrop?: boolean;
   plantedIcon?: string;
   grownIcon?: string;
