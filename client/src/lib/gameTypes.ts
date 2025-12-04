@@ -338,6 +338,7 @@ export const PICKAXE_TIERS: Record<string, number> = {
   'diamond_pickaxe': 4,
   'netherite_pickaxe': 5,
   'winter_pickaxe': 6,
+  'fiery_infernal_pickaxe': 7,
 };
 
 export function getPickaxeTier(pickaxeId: string): number {
@@ -419,6 +420,8 @@ export const TIER_NUMERALS: Record<number, string> = {
   3: 'III',
   4: 'IV',
   5: 'V',
+  6: 'VI',
+  7: 'VII',
 };
 
 export const STORAGE_UPGRADES: StorageUpgrade[] = [
