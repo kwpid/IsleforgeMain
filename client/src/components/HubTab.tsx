@@ -166,6 +166,22 @@ function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
 
 const DEFAULT_VENDORS: Vendor[] = [
   {
+    id: 'farmer',
+    name: 'Farmer Flora',
+    description: 'Sells farming supplies and equipment',
+    type: 'seeds',
+    icon: 'vendor_food',
+    priceModifier: 1.0,
+    items: [
+      { itemId: 'watering_can', stock: 5, priceMultiplier: 2.0 },
+      { itemId: 'wheat_seeds', stock: 50, priceMultiplier: 2.5 },
+      { itemId: 'carrot_seeds', stock: 30, priceMultiplier: 2.5 },
+      { itemId: 'potato_seeds', stock: 20, priceMultiplier: 2.5 },
+      { itemId: 'melon_seeds', stock: 10, priceMultiplier: 3.0, isRotating: true },
+      { itemId: 'pumpkin_seeds', stock: 10, priceMultiplier: 3.0, isRotating: true },
+    ],
+  },
+  {
     id: 'blacksmith',
     name: 'Blacksmith Bronson',
     description: 'Forges quality tools and weapons',

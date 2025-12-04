@@ -11,6 +11,49 @@ export interface NewsArticle {
 
 export const NEWS_ARTICLES: NewsArticle[] = [
   {
+    id: "farming-update-v1",
+    title: "Farming Update v1.0",
+    date: "12/04/2025",
+    tags: ["Update"],
+    content: `
+# Farming Update v1.0
+
+The farming system is now live! Grow your own crops and expand your farming empire.
+
+## New Features
+
+### Farming System
+- **New Farming Tab** - Access farming from the Island menu
+- **Multiple Farms** - Unlock up to 4 farms to grow more crops
+- **Farm Upgrades** - Upgrade your farms to unlock more planting slots (up to 16 per farm)
+
+### Seeds & Crops
+- **Wheat Seeds** - Basic crop, 5 minute growth time
+- **Carrot Seeds** - 8 minute growth time, higher yield
+- **Potato Seeds** - 10 minute growth time
+- **Melon Seeds** - Uncommon, 15 minute growth time
+- **Pumpkin Seeds** - Uncommon, 20 minute growth time
+- **Beetroot Seeds** - 12 minute growth time
+
+### Watering System
+- **Watering Can** - Purchase from Farmer Flora in the Marketplace
+- **Water your crops** - Double growth speed when watered
+- **Refill at the well** - Keep your watering can topped up
+
+### Farmer Flora
+- New vendor in the Marketplace
+- Sells watering cans, seeds, and farming supplies
+
+## Quality of Life
+- Seed Guide now accessible via popup button
+- Progress bars show crop growth in hover tooltips
+- Upgrade buttons now display costs clearly
+- Fixed farm unlock purchasing system
+
+*Happy farming!*
+    `.trim(),
+  },
+  {
     id: "what-is-this",
     title: "What is this?",
     date: "12/03/2025",

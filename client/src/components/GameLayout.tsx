@@ -81,6 +81,9 @@ export function GameLayout() {
     return () => clearInterval(saveInterval);
   }, [saveGame]);
 
+  const gitBranch = import.meta.env.VITE_GIT_BRANCH || 'unknown';
+  const isMainBranch = gitBranch === 'main' || gitBranch === 'master';
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <TabNavigation onOpenNews={openNews} hasUnreadNews={hasUnread} />
@@ -99,6 +102,14 @@ export function GameLayout() {
           <PlayerStats />
         </aside>
       </div>
+
+      {!isMainBranch && gitBranch !== 'unknown' && (
+        <div className="fixed bottom-2 left-2 z-50">
+          <span className="pixel-text-sm text-[10px] text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/30">
+            DEVELOPMENT BRANCH: {gitBranch}
+          </span>
+        </div>
+      )}
 
       <InventoryPopup />
       <FloatingNumbers />

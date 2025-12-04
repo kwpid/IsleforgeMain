@@ -29,6 +29,7 @@ import {
   createDefaultSkillStats,
   PlantedCrop,
   FARM_TIER_UPGRADES,
+  FARM_UNLOCK_COSTS,
 } from './gameTypes';
 import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
@@ -1496,8 +1497,8 @@ export const useGameStore = create<GameStore>()(
         if (!farm) return false;
         if (farm.unlocked) return false;
         
-        const farmIndex = state.farming.farms.findIndex(f => f.id === farmId);
-        const unlockCost = 1000 * Math.pow(5, farmIndex);
+        const unlockInfo = FARM_UNLOCK_COSTS.find(u => u.farmId === farmId);
+        const unlockCost = unlockInfo?.cost || 0;
         
         if (state.player.coins < unlockCost) return false;
         

@@ -269,6 +269,20 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
                 </div>
                 <ScrollArea className="flex-1 px-6 py-4">
                   <article className="prose prose-sm dark:prose-invert max-w-none">
+                    {selectedArticle.images && selectedArticle.images.length > 0 && (
+                      <div className="mb-4 grid grid-cols-1 gap-3">
+                        {selectedArticle.images.map((image, idx) => (
+                          <div key={idx} className="pixel-border border-border overflow-hidden rounded-md">
+                            <img 
+                              src={image} 
+                              alt={`${selectedArticle.title} image ${idx + 1}`}
+                              className="w-full h-auto object-cover"
+                              style={{ imageRendering: 'pixelated' }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {renderMarkdown(selectedArticle.content)}
                   </article>
                 </ScrollArea>
