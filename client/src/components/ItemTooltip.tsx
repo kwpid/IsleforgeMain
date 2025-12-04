@@ -16,6 +16,7 @@ export function ItemTooltip({ item, quantity, className }: ItemTooltipProps) {
     rare: 'RARE',
     epic: 'EPIC',
     legendary: 'LEGENDARY',
+    limited: 'LIMITED',
     mythic: 'MYTHIC',
   };
 

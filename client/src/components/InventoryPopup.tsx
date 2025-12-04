@@ -108,6 +108,7 @@ export function InventoryPopup() {
                               item && `rarity-${item.rarity}`,
                               item?.isEnchanted && 'enchanted-item',
                               item?.isSpecial && 'special-item',
+                              item?.isLimited && item?.limitedEffect === 'blue_flame' && 'blue-flame-item',
                               isDragOver && 'border-primary bg-primary/20',
                               draggedItem?.source === 'equipment' && draggedItem.slot === slot && 'opacity-50'
                             )}
@@ -163,6 +164,7 @@ export function InventoryPopup() {
                               item && `rarity-${item.rarity}`,
                               item?.isEnchanted && 'enchanted-item',
                               item?.isSpecial && 'special-item',
+                              item?.isLimited && item?.limitedEffect === 'blue_flame' && 'blue-flame-item',
                               isDragOver && 'border-primary bg-primary/20',
                               draggedItem?.source === 'equipment' && draggedItem.slot === hand && 'opacity-50'
                             )}
@@ -240,6 +242,7 @@ export function InventoryPopup() {
                           `rarity-${item.rarity}`,
                           item.isEnchanted && 'enchanted-item',
                           item.isSpecial && 'special-item',
+                          item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item',
                           draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
                         )}
                         draggable

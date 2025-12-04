@@ -1,4 +1,4 @@
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'limited' | 'mythic';
 export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
 export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -14,6 +14,8 @@ export interface ItemRecipe {
   craftTime: number;
   category: 'tools' | 'armor' | 'materials' | 'blocks' | 'food' | 'potions';
 }
+
+export type LimitedEffect = 'blue_flame' | 'golden_glow' | 'ice_crystal' | 'shadow_pulse' | 'rainbow_shimmer';
 
 export interface ItemDefinition {
   id: string;
@@ -32,6 +34,8 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  isLimited?: boolean;
+  limitedEffect?: LimitedEffect;
   isCrop?: boolean;
   plantedIcon?: string;
   grownIcon?: string;
@@ -40,6 +44,8 @@ export interface ItemDefinition {
   cropItemId?: string;
   recipe?: ItemRecipe;
 }
+
+export type GameItem = ItemDefinition;
 
 export interface InventoryItem {
   itemId: string;
@@ -479,6 +485,7 @@ export function getRarityColor(rarity: Rarity): string {
     rare: 'text-rarity-rare',
     epic: 'text-rarity-epic',
     legendary: 'text-rarity-legendary',
+    limited: 'text-rarity-limited',
     mythic: 'text-rarity-mythic',
   };
   return colors[rarity];

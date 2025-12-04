@@ -46,7 +46,7 @@ export function StorageView() {
   const nextUpgrade = STORAGE_UPGRADES.find(u => u.level === storage.upgradeLevel + 1);
   const canUpgrade = nextUpgrade && player.coins >= nextUpgrade.cost;
 
-  const rarityOrder: Record<string, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+  const rarityOrder: Record<string, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, limited: 5, mythic: 6 };
 
   const sortItems = (items: typeof storage.items) => {
     return [...items].sort((a, b) => {
@@ -124,7 +124,8 @@ export function StorageView() {
               `rarity-${item.rarity}`,
               draggedItem?.itemId === inv.itemId && draggedItem?.source === source && 'opacity-50',
               item.isEnchanted && 'enchanted-item',
-              item.isSpecial && 'special-item'
+              item.isSpecial && 'special-item',
+              item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item'
             )}
             data-testid={`${source}-item-${inv.itemId}`}
           >

@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
-import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
+import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS, GameItem } from '@/lib/gameTypes';
 import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
+import { useItemAcquisitionStore } from './ItemAcquisitionPopup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -85,7 +86,7 @@ import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTy
 type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'ores' | 'seeds';
 type SortOption = 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'rarity_asc' | 'rarity_desc';
 
-const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'limited', 'mythic'];
 
 const SORT_LABELS: Record<SortOption, string> = {
   price_asc: 'Price: Low to High',
@@ -376,6 +377,7 @@ function MarketplaceView() {
   const vendorStockPurchases = useGameStore((s) => s.vendorStockPurchases);
   const purchaseVendorItem = useGameStore((s) => s.purchaseVendorItem);
   const resetVendorStockIfNeeded = useGameStore((s) => s.resetVendorStockIfNeeded);
+  const addItems = useItemAcquisitionStore((s) => s.addItems);
   
   const getVendorStockPurchased = (vendorId: string, itemId: string) => {
     return vendorStockPurchases[vendorId]?.[itemId] || 0;
@@ -496,6 +498,11 @@ function MarketplaceView() {
         if (vendorId && isSpecialVendor) {
           purchaseVendorItem(vendorId, item.itemId, quantity);
         }
+        addItems([{
+          item: itemData,
+          quantity,
+          source: 'purchase' as const,
+        }]);
         if (notificationSettings.enabled && notificationSettings.itemPurchased) {
           success('Item Purchased!', `Bought ${quantity}x ${itemData.name} for ${formatNumber(price)} coins`);
         }
@@ -946,7 +953,7 @@ function SellView() {
       .map((inv) => {
         const item = getItemById(inv.itemId);
         if (!item) return null;
-        if (item.type === 'tool' || item.type === 'enhancement') return null;
+        if (item.type === 'tool' || item.type === 'armor') return null;
         if (item.sellPrice <= 0) return null;
         return { inv, item };
       })
@@ -1775,7 +1782,8 @@ function BankView() {
                               slot ? `item-slot-filled rarity-${item?.rarity}` : '',
                               slot && 'hover-elevate cursor-pointer',
                               item?.isEnchanted && 'enchanted-item',
-                              item?.isSpecial && 'special-item'
+                              item?.isSpecial && 'special-item',
+                              item?.isLimited && item?.limitedEffect === 'blue_flame' && 'blue-flame-item'
                             )}
                             draggable={!!slot}
                             onDragStart={(e) => slot && handleDragStart(e, slot.itemId, slot.quantity, 'vault')}
@@ -1833,7 +1841,8 @@ function BankView() {
                               'item-slot-vault item-slot-filled cursor-pointer hover-elevate',
                               `rarity-${item.rarity}`,
                               item.isEnchanted && 'enchanted-item',
-                              item.isSpecial && 'special-item'
+                              item.isSpecial && 'special-item',
+                              item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item'
                             )}
                             draggable
                             onDragStart={(e) => handleDragStart(e, inv.itemId, inv.quantity, 'inventory')}

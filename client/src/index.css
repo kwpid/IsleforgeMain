@@ -61,6 +61,7 @@
   --rarity-rare: 210 90% 55%;
   --rarity-epic: 280 80% 60%;
   --rarity-legendary: 45 100% 55%;
+  --rarity-limited: 210 100% 60%;
   --rarity-mythic: 320 90% 60%;
   --game-coin: 45 100% 55%;
   --game-up: 280 80% 60%;
@@ -326,6 +327,9 @@
   .rarity-legendary {
     border-color: hsl(var(--rarity-legendary));
   }
+  .rarity-limited {
+    border-color: hsl(var(--rarity-limited));
+  }
   .rarity-mythic {
     border-color: hsl(var(--rarity-mythic));
   }
@@ -537,6 +541,203 @@
     clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
     animation: sparkle 1.5s ease-in-out infinite;
     z-index: 3;
+  }
+
+  @keyframes blue-ember-rise-1 {
+    0% {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.9;
+    }
+    50% {
+      transform: translateY(-10px) translateX(2px) scale(0.8);
+      opacity: 0.7;
+    }
+    100% {
+      transform: translateY(-20px) translateX(-1px) scale(0.3);
+      opacity: 0;
+    }
+  }
+
+  @keyframes blue-ember-rise-2 {
+    0% {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.85;
+    }
+    60% {
+      transform: translateY(-12px) translateX(-2px) scale(0.7);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateY(-22px) translateX(1px) scale(0.2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes blue-ember-rise-3 {
+    0% {
+      transform: translateY(0) translateX(0) scale(0.8);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.8;
+    }
+    55% {
+      transform: translateY(-8px) translateX(1px) scale(0.6);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(-18px) translateX(-2px) scale(0.25);
+      opacity: 0;
+    }
+  }
+
+  @keyframes blue-ember-glow {
+    0%, 100% {
+      box-shadow: 
+        0 0 4px rgba(59, 130, 246, 0.4),
+        0 0 8px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+      box-shadow: 
+        0 0 6px rgba(96, 165, 250, 0.5),
+        0 0 12px rgba(59, 130, 246, 0.3);
+    }
+  }
+
+  .blue-flame-item {
+    position: relative;
+    overflow: visible;
+    animation: blue-ember-glow 2s ease-in-out infinite;
+  }
+
+  .blue-flame-item::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(59, 130, 246, 0.4) 0%,
+      rgba(96, 165, 250, 0.25) 30%,
+      rgba(147, 197, 253, 0.12) 50%,
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 15;
+    animation: blue-flame-flicker 1.5s ease-in-out infinite alternate;
+  }
+
+  .blue-flame-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    pointer-events: none;
+    z-index: 16;
+    animation: blue-ember-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes blue-flame-flicker {
+    0% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.85;
+    }
+  }
+
+  .blue-flame-item > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .blue-flame-card {
+    position: relative;
+    overflow: visible;
+  }
+
+  .blue-flame-card::before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(
+      to top,
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(96, 165, 250, 0.08) 40%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .blue-flame-card::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    pointer-events: none;
+    z-index: 2;
+    animation: blue-ember-glow 2s ease-in-out infinite;
+  }
+
+  .blue-ember-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: radial-gradient(circle, rgba(147, 197, 253, 1) 0%, rgba(59, 130, 246, 0.7) 60%, transparent 100%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: blue-ember-rise-3 1.8s ease-out infinite;
+  }
+
+  .blue-ember-particle:nth-child(1) {
+    left: 15%;
+    bottom: 0;
+    animation-delay: 0s;
+  }
+
+  .blue-ember-particle:nth-child(2) {
+    left: 40%;
+    bottom: 0;
+    animation-delay: 0.4s;
+  }
+
+  .blue-ember-particle:nth-child(3) {
+    left: 65%;
+    bottom: 0;
+    animation-delay: 0.8s;
+  }
+
+  .blue-ember-particle:nth-child(4) {
+    left: 85%;
+    bottom: 0;
+    animation-delay: 1.2s;
+  }
+
+  .limited-badge {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+    background-size: 200% 200%;
+    animation: limited-badge-gradient 3s ease infinite;
+  }
+
+  @keyframes limited-badge-gradient {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
   }
 
   .dev-console {

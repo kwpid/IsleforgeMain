@@ -106,7 +106,13 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - XP curve: Level 1 requires 50 XP, scales with formula floor(50 * 1.5^(level-1))
 
 ### Shop System (Shop Tab)
-- **Limited Shop**: Coming soon - exclusive limited-time items
+- **Limited Shop**: Exclusive limited-time items and packages
+  - Fiery Infernal Pack: Blue flame blade and pickaxe set (available until Dec 18, 2025)
+  - Timer-based offers with countdown display
+  - Package bundles with 10% discount when buying all items
+  - One-time purchase per item (tracked and persisted)
+  - Blue flame visual effect on limited items
+  - Item acquisition popup with Rocket League-style display
 - **Daily Deals**: 4 rotating items (tools, armor, materials) priced in U$
   - 50% chance one item gets 30% discount each day
   - Purchase confirmation dialog with loading animation
