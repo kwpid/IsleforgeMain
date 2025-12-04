@@ -54,6 +54,12 @@ export interface OwnedGenerator {
   isActive: boolean;
 }
 
+export interface SkillStats {
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+}
+
 export interface PlayerStats {
   level: number;
   xp: number;
@@ -62,6 +68,9 @@ export interface PlayerStats {
   universalPoints: number;
   totalCoinsEarned: number;
   totalItemsSold: number;
+  miningSkill: SkillStats;
+  farmingSkill: SkillStats;
+  dungeonSkill: SkillStats;
 }
 
 export interface StorageUpgrade {
@@ -360,6 +369,18 @@ export function getXpForLevel(level: number): number {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 }
 
+export function getSkillXpForLevel(level: number): number {
+  return Math.floor(50 * Math.pow(1.4, level - 1));
+}
+
+export function createDefaultSkillStats(): SkillStats {
+  return {
+    level: 1,
+    xp: 0,
+    xpToNextLevel: getSkillXpForLevel(1),
+  };
+}
+
 export function getRarityColor(rarity: Rarity): string {
   const colors: Record<Rarity, string> = {
     common: 'text-rarity-common',
@@ -394,6 +415,9 @@ export function createDefaultGameState(): GameState {
       universalPoints: 0,
       totalCoinsEarned: 0,
       totalItemsSold: 0,
+      miningSkill: createDefaultSkillStats(),
+      farmingSkill: createDefaultSkillStats(),
+      dungeonSkill: createDefaultSkillStats(),
     },
     storage: {
       capacity: 500,

@@ -1779,7 +1779,7 @@ function MinesView() {
   const addItemToStorage = useGameStore((s) => s.addItemToStorage);
   const addBlockMined = useGameStore((s) => s.addBlockMined);
   const usePickaxeDurability = useGameStore((s) => s.usePickaxeDurability);
-  const addXp = useGameStore((s) => s.addXp);
+  const addMiningXp = useGameStore((s) => s.addMiningXp);
   const getEquippedPickaxe = useGameStore((s) => s.getEquippedPickaxe);
   
   const { success, warning } = useGameNotifications();
@@ -1824,7 +1824,7 @@ function MinesView() {
         if (canReceiveBlock) {
           addItemToStorage(block.itemId, 1);
           addBlockMined(block.itemId);
-          addXp(block.xpReward);
+          addMiningXp(block.xpReward);
         } else {
           addBlockMined(block.itemId);
         }
@@ -1875,7 +1875,7 @@ function MinesView() {
         }
       }
     }, 50);
-  }, [usePickaxeDurability, addItemToStorage, addBlockMined, addXp, warning]);
+  }, [usePickaxeDurability, addItemToStorage, addBlockMined, addMiningXp, warning]);
   
   const handleMiningStart = useCallback(() => {
     if (!equippedPickaxe) {
