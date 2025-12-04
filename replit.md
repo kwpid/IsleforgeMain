@@ -131,6 +131,7 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Search**: Filter recipes by name
 - **Progress Bar**: Visual feedback during crafting time
 - **Ingredients**: Shows required materials with have/need counts
+- **Inline Recipes**: Recipes are defined within item definitions for easier maintenance
 - **Key Recipes**:
   - Stick: 2 Oak Planks → 4 Sticks
   - Oak Planks: 1 Oak Log → 4 Oak Planks
@@ -138,7 +139,12 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
   - Wooden Pickaxe: 3 Oak Planks + 2 Sticks
   - Stone Pickaxe: 3 Cobblestone + 2 Sticks
   - Iron Pickaxe: 3 Iron Ingots + 2 Sticks
+  - Diamond Pickaxe: 3 Diamonds + 2 Sticks
+  - Watering Can: 3 Iron Ingots
+  - Copper Watering Can: 6 Iron Ingots
+  - Golden Watering Can: 10 Iron Ingots
   - Bread: 3 Wheat → 1 Bread
+  - Golden Apple: 1 Apple + 8 Gold Ingots
 
 ### Bank System (Hub Tab)
 - **Account**: Deposit/withdraw coins securely
