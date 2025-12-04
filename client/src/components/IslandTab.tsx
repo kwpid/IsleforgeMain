@@ -777,7 +777,7 @@ function FarmingView() {
                             "item-slot-xl cursor-pointer hover-elevate active-elevate-2 relative",
                             slot === null && "bg-muted/30 border-dashed",
                             slot && !isReady && "bg-green-900/20",
-                            isReady && "bg-amber-500/20 animate-pulse"
+                            isReady && "bg-amber-500/30 border-amber-500"
                           )}
                           onClick={() => handlePlotClick(idx)}
                           data-testid={`farm-slot-${idx}`}

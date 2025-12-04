@@ -148,7 +148,8 @@ function getPermanentVendorItems(category: MarketplaceCategory): VendorItem[] {
       priceMultiplier = 5.0;
       break;
     case 'seeds':
-      items = SEED_ITEMS;
+      const wateringCan = TOOL_ITEMS.find(t => t.id === 'watering_can');
+      items = [...SEED_ITEMS, ...(wateringCan ? [wateringCan] : [])];
       priceMultiplier = 3.0;
       break;
     case 'all':

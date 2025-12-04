@@ -1,6 +1,6 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
-export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe';
+export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
 export interface ItemDefinition {
@@ -105,7 +105,7 @@ export interface PlayerInventory {
   maxSlots: number;
 }
 
-export type VendorType = 'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare';
+export type VendorType = 'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare' | 'seeds';
 
 export interface VendorItem {
   itemId: string;

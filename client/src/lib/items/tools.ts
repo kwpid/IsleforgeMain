@@ -131,4 +131,17 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     toolType: "axe",
     stats: { chopping_speed: 6, attack_damage: 9, durability: 250 },
   },
+  {
+    id: "watering_can",
+    name: "Watering Can",
+    description: "Water your crops to help them grow faster. Essential farming tool.",
+    type: "tool",
+    rarity: "common",
+    sellPrice: 25,
+    stackable: false,
+    maxStack: 1,
+    icon: "watering_can",
+    toolType: "watering_can",
+    stats: { water_capacity: 10, durability: 500 },
+  },
 ];
