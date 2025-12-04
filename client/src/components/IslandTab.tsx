@@ -520,6 +520,15 @@ function FarmingView() {
   };
 
   const handleRefillWateringCan = () => {
+    const currentBestCan = getBestWateringCan();
+    if (!currentBestCan) {
+      warning('No Watering Can', 'Purchase a watering can from the marketplace');
+      return;
+    }
+    if (coins < currentBestCan.refillCost) {
+      warning('Not Enough Coins', `You need ${formatNumber(currentBestCan.refillCost)} coins to refill`);
+      return;
+    }
     const result = refillWateringCan();
     if (result.success) {
       success('Watering Can Refilled!', `${result.capacity} uses available (cost: ${formatNumber(result.cost || 0)} coins)`);
@@ -534,8 +543,9 @@ function FarmingView() {
 
   const bestWateringCan = getBestWateringCan();
   const hasWateringCan = bestWateringCan !== null;
-  const maxWaterCapacity = bestWateringCan?.capacity || 10;
-  const refillCost = bestWateringCan?.refillCost || 0;
+  const maxWaterCapacity = hasWateringCan ? bestWateringCan.capacity : 0;
+  const refillCost = hasWateringCan ? bestWateringCan.refillCost : 0;
+  const canAffordRefill = coins >= refillCost;
   const readyCrops = selectedFarm?.slots.filter(s => s && s.growthStage >= s.maxGrowthStage).length || 0;
   
   const nextUpgrade = selectedFarm ? FARM_TIER_UPGRADES.find(u => u.tier === selectedFarm.tier + 1) : null;
@@ -629,7 +639,7 @@ function FarmingView() {
               size="sm" 
               variant="outline" 
               onClick={handleRefillWateringCan} 
-              disabled={coins < refillCost}
+              disabled={!canAffordRefill}
               className="pixel-text-sm text-[8px]" 
               data-testid="button-refill-watering-can"
             >
@@ -764,15 +774,16 @@ function FarmingView() {
               <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/30 p-1">
                 {farming.farms.map((farm) => {
                   const unlockCost = getUnlockCost(farm.id);
-                  const unlockInfo = FARM_UNLOCK_COSTS.find(u => u.farmId === farm.id);
-                  const canAfford = coins >= unlockCost;
+                  const canAffordFarm = coins >= unlockCost;
                   return (
                     <TabsTrigger
                       key={farm.id}
                       value={farm.id}
                       className={cn(
                         "pixel-text-sm text-[7px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-                        !farm.unlocked && !canAfford && "opacity-50"
+                        !farm.unlocked && "border border-dashed border-muted-foreground/50",
+                        !farm.unlocked && !canAffordFarm && "opacity-50",
+                        !farm.unlocked && canAffordFarm && "border-green-500/50"
                       )}
                       data-testid={`tab-farm-${farm.id}`}
                     >

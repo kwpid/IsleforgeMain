@@ -36,9 +36,11 @@ The farming system is now live! Grow your own crops and expand your farming empi
 - **Beetroot Seeds** - 12 minute growth time
 
 ### Watering System
-- **Watering Can** - Purchase from Farmer Flora in the Marketplace
+- **Basic Watering Can** - Holds 10 water, refill costs 50 coins
+- **Copper Watering Can** - Holds 25 water, refill costs 100 coins
+- **Golden Watering Can** - Holds 50 water, refill costs 200 coins
 - **Water your crops** - Double growth speed when watered
-- **Refill at the well** - Keep your watering can topped up
+- **Auto-select best can** - Game automatically uses your highest tier watering can
 
 ### Farmer Flora
 - New vendor in the Marketplace
