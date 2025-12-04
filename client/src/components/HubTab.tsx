@@ -6,6 +6,7 @@ import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
+import { useItemAcquisitionStore } from './ItemAcquisitionPopup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -376,6 +377,7 @@ function MarketplaceView() {
   const vendorStockPurchases = useGameStore((s) => s.vendorStockPurchases);
   const purchaseVendorItem = useGameStore((s) => s.purchaseVendorItem);
   const resetVendorStockIfNeeded = useGameStore((s) => s.resetVendorStockIfNeeded);
+  const addItems = useItemAcquisitionStore((s) => s.addItems);
   
   const getVendorStockPurchased = (vendorId: string, itemId: string) => {
     return vendorStockPurchases[vendorId]?.[itemId] || 0;
@@ -496,6 +498,11 @@ function MarketplaceView() {
         if (vendorId && isSpecialVendor) {
           purchaseVendorItem(vendorId, item.itemId, quantity);
         }
+        addItems([{
+          item: itemData,
+          quantity,
+          source: 'purchase' as const,
+        }]);
         if (notificationSettings.enabled && notificationSettings.itemPurchased) {
           success('Item Purchased!', `Bought ${quantity}x ${itemData.name} for ${formatNumber(price)} coins`);
         }

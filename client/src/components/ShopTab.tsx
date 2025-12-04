@@ -480,6 +480,7 @@ function DailyShop() {
   const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const { notify, error: showError } = useGameNotifications();
+  const addItems = useItemAcquisitionStore((s) => s.addItems);
   
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; item: DailyItem | null }>({
     open: false,
@@ -549,6 +550,11 @@ function DailyShop() {
     const success = addItemToInventory(item.id, 1);
     if (success) {
       addUniversalPoints(-upPrice);
+      addItems([{
+        item,
+        quantity: 1,
+        source: 'purchase' as const,
+      }]);
       notify({
         type: 'item',
         title: 'Item Purchased!',
