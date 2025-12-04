@@ -46,7 +46,7 @@ export function ShopTab() {
   const shopSubTab = useGameStore((s) => s.shopSubTab);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-pixel p-6">
+    <div className="h-full overflow-y-auto scrollbar-pixel p-4 md:p-6">
       {shopSubTab === 'limited' && <div key="limited" className="animate-subtab-content"><LimitedShop /></div>}
       {shopSubTab === 'daily' && <div key="daily" className="animate-subtab-content"><DailyShop /></div>}
       {shopSubTab === 'coins' && <div key="coins" className="animate-subtab-content"><CoinsShop /></div>}

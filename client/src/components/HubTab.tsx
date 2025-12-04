@@ -349,7 +349,7 @@ export function HubTab() {
   const hubSubTab = useGameStore((s) => s.hubSubTab);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-pixel p-6">
+    <div className="h-full overflow-y-auto scrollbar-pixel p-4 md:p-6">
       {hubSubTab === 'marketplace' && <div key="marketplace" className="animate-subtab-content"><MarketplaceView /></div>}
       {hubSubTab === 'blueprints' && <div key="blueprints" className="animate-subtab-content"><BlueprintsView /></div>}
       {hubSubTab === 'bank' && <div key="bank" className="animate-subtab-content"><BankView /></div>}

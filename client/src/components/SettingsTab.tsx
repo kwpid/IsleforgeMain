@@ -24,7 +24,7 @@ export function SettingsTab() {
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-pixel p-6">
+    <div className="h-full overflow-y-auto scrollbar-pixel p-4 md:p-6">
       {settingsSubTab === 'general' && <div key="general" className="animate-subtab-content"><GeneralSettings /></div>}
       {settingsSubTab === 'audio' && <div key="audio" className="animate-subtab-content"><AudioSettings /></div>}
       {settingsSubTab === 'controls' && <div key="controls" className="animate-subtab-content"><ControlsSettings /></div>}

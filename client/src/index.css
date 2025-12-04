@@ -775,4 +775,23 @@
   .vendor-category-header {
     @apply flex items-center gap-3 mb-4 pb-3 border-b border-border;
   }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  @media (max-width: 767px) {
+    .scrollbar-pixel::-webkit-scrollbar {
+      height: 4px;
+      width: 4px;
+    }
+    
+    .scrollbar-pixel::-webkit-scrollbar-thumb {
+      border-width: 1px;
+    }
+  }
 }
