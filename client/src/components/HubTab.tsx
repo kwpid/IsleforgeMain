@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS } from '@/lib/gameTypes';
-import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, GameItem } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -335,12 +335,14 @@ export function HubTab() {
   );
 }
 
+type MarketplaceViewType = 'main' | 'sell' | 'special';
+
 function MarketplaceView() {
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory>('all');
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean; baseVendorModifier?: number; isSpecialItem?: boolean; vendorId?: string } | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
-  const [marketplaceView, setMarketplaceView] = useState<'main' | 'special'>('main');
+  const [marketplaceView, setMarketplaceView] = useState<MarketplaceViewType>('main');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('price_asc');
   
@@ -495,22 +497,41 @@ function MarketplaceView() {
             Browse items by category. Unlimited stock on main vendors!
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-md pixel-border border-border">
           <Button
-            variant={marketplaceView === 'main' ? 'default' : 'outline'}
+            variant={marketplaceView === 'main' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMarketplaceView('main')}
-            className="pixel-text-sm text-[8px]"
+            className={cn(
+              "pixel-text-sm text-[9px] font-bold",
+              marketplaceView === 'main' && "bg-primary text-primary-foreground shadow-md"
+            )}
             data-testid="button-main-marketplace"
           >
             <Store className="w-4 h-4 mr-1" />
             Main Shop
           </Button>
           <Button
-            variant={marketplaceView === 'special' ? 'default' : 'outline'}
+            variant={marketplaceView === 'sell' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setMarketplaceView('sell')}
+            className={cn(
+              "pixel-text-sm text-[9px] font-bold",
+              marketplaceView === 'sell' && "bg-green-600 text-white shadow-md"
+            )}
+            data-testid="button-sell-marketplace"
+          >
+            <Coins className="w-4 h-4 mr-1" />
+            Sell
+          </Button>
+          <Button
+            variant={marketplaceView === 'special' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMarketplaceView('special')}
-            className="pixel-text-sm text-[8px]"
+            className={cn(
+              "pixel-text-sm text-[9px] font-bold",
+              marketplaceView === 'special' && "bg-purple-600 text-white shadow-md"
+            )}
             data-testid="button-special-vendors"
           >
             <Sparkles className="w-4 h-4 mr-1" />
@@ -519,7 +540,7 @@ function MarketplaceView() {
         </div>
       </div>
 
-      {marketplaceView === 'main' ? (
+      {marketplaceView === 'main' && (
         <>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as MarketplaceCategory)} className="w-full">
             <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/30 p-1">
@@ -637,7 +658,13 @@ function MarketplaceView() {
             )}
           </div>
         </>
-      ) : (
+      )}
+
+      {marketplaceView === 'sell' && (
+        <SellView />
+      )}
+
+      {marketplaceView === 'special' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -877,6 +904,209 @@ function MarketplaceView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function SellView() {
+  const inventory = useGameStore((s) => s.inventory);
+  const addCoins = useGameStore((s) => s.addCoins);
+  const removeItemFromInventory = useGameStore((s) => s.removeItemFromInventory);
+  const notificationSettings = useGameStore((s) => s.notificationSettings);
+  const { success, warning } = useGameNotifications();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sellQuantities, setSellQuantities] = useState<Record<string, number>>({});
+  
+  const sellableItems = useMemo(() => {
+    return inventory.items
+      .map((inv) => {
+        const item = getItemById(inv.itemId);
+        if (!item) return null;
+        if (item.type === 'tool' || item.type === 'enhancement') return null;
+        if (item.sellPrice <= 0) return null;
+        return { inv, item };
+      })
+      .filter(Boolean) as { inv: { itemId: string; quantity: number }; item: GameItem }[];
+  }, [inventory.items]);
+  
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return sellableItems;
+    const q = searchQuery.toLowerCase();
+    return sellableItems.filter(({ item }) => 
+      item.name.toLowerCase().includes(q) || 
+      item.description.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q)
+    );
+  }, [sellableItems, searchQuery]);
+  
+  const getSellQty = (itemId: string) => sellQuantities[itemId] || 1;
+  const setSellQty = (itemId: string, qty: number) => {
+    setSellQuantities(prev => ({ ...prev, [itemId]: Math.max(1, qty) }));
+  };
+  
+  const handleSell = (itemId: string, quantity: number, item: GameItem) => {
+    const inv = inventory.items.find(i => i.itemId === itemId);
+    if (!inv) return;
+    
+    const actualQty = Math.min(quantity, inv.quantity);
+    const totalValue = item.sellPrice * actualQty;
+    
+    removeItemFromInventory(itemId, actualQty);
+    addCoins(totalValue);
+    
+    if (notificationSettings.enabled && notificationSettings.itemSold) {
+      success('Item Sold!', `Sold ${actualQty}x ${item.name} for ${formatNumber(totalValue)} coins`);
+    }
+    
+    setSellQuantities(prev => {
+      const newQties = { ...prev };
+      delete newQties[itemId];
+      return newQties;
+    });
+  };
+  
+  const handleSellAll = (itemId: string, item: GameItem) => {
+    const inv = inventory.items.find(i => i.itemId === itemId);
+    if (!inv) return;
+    handleSell(itemId, inv.quantity, item);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Coins className="w-5 h-5 text-green-500" />
+          <h3 className="pixel-text-sm text-[11px] text-foreground">Sell Your Items</h3>
+          <Badge variant="outline" className="pixel-text-sm text-[7px] bg-green-500/10 border-green-500/30">
+            {filteredItems.length} sellable items
+          </Badge>
+        </div>
+      </div>
+      
+      <div className="pixel-border border-border bg-muted/20 p-4">
+        <div className="flex items-start gap-3">
+          <div className="pixel-border p-2 bg-green-500/10 border-green-500/30">
+            <Coins className="w-8 h-8 text-green-500" />
+          </div>
+          <div>
+            <p className="pixel-text-sm text-[10px] text-foreground mb-1">Sell Items for Coins</p>
+            <p className="font-sans text-sm text-muted-foreground">
+              Sell minerals, blocks, and crops here. Tools cannot be sold.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search items to sell..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 pixel-text-sm text-[10px]"
+          data-testid="input-sell-search"
+        />
+      </div>
+
+      {filteredItems.length === 0 ? (
+        <div className="text-center py-12 pixel-border border-border bg-card">
+          <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="pixel-text text-foreground mb-2">No Sellable Items</p>
+          <p className="font-sans text-sm text-muted-foreground">
+            {searchQuery ? `No items match "${searchQuery}"` : 'Collect minerals, blocks, or crops to sell them here.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {filteredItems.map(({ inv, item }) => {
+            const sellQty = Math.min(getSellQty(inv.itemId), inv.quantity);
+            const totalValue = item.sellPrice * sellQty;
+            
+            return (
+              <Card 
+                key={inv.itemId}
+                className="pixel-border overflow-visible"
+                data-testid={`sell-item-${inv.itemId}`}
+              >
+                <CardContent className="p-3">
+                  <div className="flex flex-col items-center gap-2">
+                    <HoverCard openDelay={0} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div className={cn(
+                          "pixel-border p-2 bg-muted/30 cursor-pointer",
+                          `rarity-${item.rarity}`
+                        )}>
+                          <PixelIcon icon={item.icon} size="lg" />
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                        <ItemTooltip item={item} quantity={inv.quantity} />
+                      </HoverCardContent>
+                    </HoverCard>
+                    
+                    <div className="text-center w-full">
+                      <p className="pixel-text-sm text-[7px] truncate">{item.name}</p>
+                      <p className="pixel-text-sm text-[6px] text-muted-foreground">x{formatNumber(inv.quantity)}</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5"
+                        onClick={() => setSellQty(inv.itemId, sellQty - 1)}
+                        disabled={sellQty <= 1}
+                        data-testid={`button-decrease-sell-${inv.itemId}`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                      <span className="pixel-text-sm text-[8px] w-8 text-center">{sellQty}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5"
+                        onClick={() => setSellQty(inv.itemId, sellQty + 1)}
+                        disabled={sellQty >= inv.quantity}
+                        data-testid={`button-increase-sell-${inv.itemId}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <PixelIcon icon="coin" size="sm" />
+                      <span className="pixel-text-sm text-[8px] text-game-coin">{formatNumber(totalValue)}</span>
+                    </div>
+                    
+                    <div className="flex gap-1 w-full">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSellAll(inv.itemId, item)}
+                        className="flex-1 pixel-text-sm text-[6px]"
+                        data-testid={`button-sell-all-${inv.itemId}`}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSell(inv.itemId, sellQty, item)}
+                        className="flex-1 pixel-text-sm text-[6px] bg-green-600 hover:bg-green-700"
+                        data-testid={`button-sell-${inv.itemId}`}
+                      >
+                        <Coins className="w-3 h-3 mr-0.5" />
+                        Sell
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

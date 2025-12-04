@@ -7,6 +7,7 @@ import { TOOL_ITEMS } from './tools';
 import { ARMOR_ITEMS } from './armor';
 import { POTION_ITEMS } from './potions';
 import { SPECIAL_ITEMS } from './special';
+import { SEED_ITEMS, CROP_ITEMS } from './seeds';
 
 export const ALL_ITEMS: ItemDefinition[] = [
   ...BLOCK_ITEMS,
@@ -17,6 +18,8 @@ export const ALL_ITEMS: ItemDefinition[] = [
   ...ARMOR_ITEMS,
   ...POTION_ITEMS,
   ...SPECIAL_ITEMS,
+  ...SEED_ITEMS,
+  ...CROP_ITEMS,
 ];
 
 export const ITEMS_BY_ID: Record<string, ItemDefinition> = ALL_ITEMS.reduce(
@@ -47,4 +50,4 @@ export function getEnchantedItems(): ItemDefinition[] {
   return ALL_ITEMS.filter(item => item.isEnchanted);
 }
 
-export { BLOCK_ITEMS, MINERAL_ITEMS, MATERIAL_ITEMS, FOOD_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, SPECIAL_ITEMS };
+export { BLOCK_ITEMS, MINERAL_ITEMS, MATERIAL_ITEMS, FOOD_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, SPECIAL_ITEMS, SEED_ITEMS, CROP_ITEMS };

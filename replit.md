@@ -42,6 +42,7 @@ client/src/
 │   │   ├── armor.ts
 │   │   ├── potions.ts
 │   │   ├── special.ts      # Special/enchanted items
+│   │   ├── seeds.ts        # Seeds and crops for farming
 │   │   └── index.ts
 │   ├── crafting.ts         # Crafting recipes
 │   ├── gameStore.ts        # Zustand game state
@@ -75,9 +76,23 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - UP (Universal Points displayed with U$ prefix, e.g. U$5)
 - Tab-specific stats below divider
 
+### Farming System (Island Tab)
+- **Seeds**: Plant seeds to grow crops (Wheat, Carrot, Potato, Pumpkin, Melon, Beetroot, Cocoa)
+- **Growth Time**: Seeds take time to mature (varies by type)
+- **Harvest Yield**: Collect crops with variable yields based on seed type
+- **Seed Icons**: Each seed has distinct "planted" and "grown" visual states
+- **Marketplace Seeds**: Purchase seeds from Main Shop farming category
+
+### Marketplace Sell Tab (Hub Tab)
+- **Dedicated Selling**: Sell minerals, blocks, and crops in the Marketplace
+- **Tools Excluded**: Tools and enhancements cannot be sold (protected)
+- **Quantity Control**: Adjust sell quantities with +/- buttons
+- **Sell All**: Quick button to sell entire stack
+- **Search**: Filter items to sell by name or type
+
 ### Skill System
 - **Mining Skill**: Levels up from mining blocks in the Mines
-- **Farming Skill**: Levels up from farming activities (future)
+- **Farming Skill**: Levels up from farming activities
 - **Dungeon Skill**: Levels up from dungeon combat (future)
 - Each skill has independent XP tracking with progress bars
 - **Main XP Bonus**: Leveling any skill grants 25 Main XP to player level

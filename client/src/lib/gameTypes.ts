@@ -1,5 +1,5 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
-export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion';
+export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
 export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
@@ -20,6 +20,11 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  plantedIcon?: string;
+  grownIcon?: string;
+  growthTime?: number;
+  harvestYield?: { min: number; max: number };
+  cropItemId?: string;
 }
 
 export interface InventoryItem {
@@ -211,9 +216,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export type MainTab = 'island' | 'hub' | 'shop' | 'settings';
-export type IslandSubTab = 'generators' | 'storage' | 'crafting';
+export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type ShopSubTab = 'limited' | 'daily' | 'coins';
+export type MarketplaceViewTab = 'main' | 'sell' | 'special';
 export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications' | 'info';
 
 export interface MiningStats {
