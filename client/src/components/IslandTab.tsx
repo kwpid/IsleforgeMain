@@ -764,17 +764,22 @@ function FarmingView() {
               <TabsList className="flex flex-wrap gap-1 h-auto bg-muted/30 p-1">
                 {farming.farms.map((farm) => {
                   const unlockCost = getUnlockCost(farm.id);
+                  const unlockInfo = FARM_UNLOCK_COSTS.find(u => u.farmId === farm.id);
+                  const canAfford = coins >= unlockCost;
                   return (
                     <TabsTrigger
                       key={farm.id}
                       value={farm.id}
-                      disabled={!farm.unlocked}
-                      className="pixel-text-sm text-[7px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className={cn(
+                        "pixel-text-sm text-[7px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
+                        !farm.unlocked && !canAfford && "opacity-50"
+                      )}
                       data-testid={`tab-farm-${farm.id}`}
                     >
                       {farm.unlocked ? farm.name : (
                         <span className="flex items-center gap-1">
                           <Lock className="w-3 h-3" />
+                          <PixelIcon icon="coin" size="sm" />
                           {formatNumber(unlockCost)}
                         </span>
                       )}
