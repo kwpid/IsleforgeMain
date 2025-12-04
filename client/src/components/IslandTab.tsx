@@ -787,7 +787,7 @@ function FarmingView() {
                           ) : (
                             <>
                               <PixelIcon 
-                                icon={isReady ? (seed?.grownIcon || seed?.icon || 'wheat_grown') : (seed?.icon?.replace('_seeds', '_planted') || 'wheat_planted')} 
+                                icon={isReady ? (seed?.grownIcon || seed?.icon || 'wheat_grown') : (seed?.plantedIcon || 'planted')} 
                                 size="lg" 
                               />
                               {slot.watered && (

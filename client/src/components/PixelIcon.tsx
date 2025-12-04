@@ -117,6 +117,7 @@ const ICON_COLORS: Record<string, { bg: string; accent: string; detail?: string 
   melon_planted: { bg: '#228b22', accent: '#166616', detail: '#7cbb4f' },
   pumpkin_planted: { bg: '#228b22', accent: '#166616', detail: '#ff8c00' },
   beetroot_planted: { bg: '#228b22', accent: '#166616', detail: '#8b2252' },
+  planted: { bg: '#228b22', accent: '#166616', detail: '#5a9930' },
   wheat_grown: { bg: '#daa520', accent: '#228b22', detail: '#ffd700' },
   carrot_grown: { bg: '#ff7f32', accent: '#228b22', detail: '#ffa066' },
   potato_grown: { bg: '#c4a776', accent: '#228b22', detail: '#e6d4a0' },

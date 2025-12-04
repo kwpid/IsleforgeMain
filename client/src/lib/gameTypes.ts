@@ -20,6 +20,7 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  isCrop?: boolean;
   plantedIcon?: string;
   grownIcon?: string;
   growthTime?: number;
