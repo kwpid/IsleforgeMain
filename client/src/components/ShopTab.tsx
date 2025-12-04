@@ -3,9 +3,11 @@ import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ItemDefinition } from '@/lib/gameTypes';
 import { ALL_ITEMS, getItemById } from '@/lib/items/index';
 import { PixelIcon } from './PixelIcon';
+import { ItemTooltip } from './ItemTooltip';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
@@ -197,14 +199,21 @@ function DailyShop() {
             )}
             <CardContent className="p-5">
               <div className="flex items-start gap-4 mb-4">
-                <div className={cn(
-                  "w-16 h-16 flex items-center justify-center pixel-border rounded-sm overflow-visible",
-                  `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`,
-                  item.isEnchanted && "enchanted-item",
-                  item.isSpecial && "special-item"
-                )}>
-                  <PixelIcon icon={item.icon} size="lg" />
-                </div>
+                <HoverCard openDelay={0} closeDelay={0}>
+                  <HoverCardTrigger asChild>
+                    <div className={cn(
+                      "w-16 h-16 flex items-center justify-center pixel-border rounded-sm overflow-visible cursor-pointer",
+                      `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`,
+                      item.isEnchanted && "enchanted-item",
+                      item.isSpecial && "special-item"
+                    )}>
+                      <PixelIcon icon={item.icon} size="lg" />
+                    </div>
+                  </HoverCardTrigger>
+                  <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                    <ItemTooltip item={item} />
+                  </HoverCardContent>
+                </HoverCard>
                 <div className="flex-1 min-w-0">
                   <p className={cn(
                     'pixel-text text-sm mb-1',
