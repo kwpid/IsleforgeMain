@@ -27,7 +27,12 @@ import {
   VendorStockPurchases,
   SkillStats,
   createDefaultSkillStats,
+  PlantedCrop,
+  FARM_TIER_UPGRADES,
+  FARM_UNLOCK_COSTS,
+  WATERING_CAN_TIERS,
 } from './gameTypes';
+import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
 import { getRecipeById, getCraftingCost, canCraftRecipe } from './crafting';
@@ -125,6 +130,18 @@ interface GameStore extends GameState {
   getVendorStockPurchased: (vendorId: string, itemId: string) => number;
   purchaseVendorItem: (vendorId: string, itemId: string, quantity: number) => void;
   resetVendorStockIfNeeded: () => void;
+  
+  plantCrop: (farmId: string, slotIndex: number, seedId: string) => boolean;
+  waterCrop: (farmId: string, slotIndex: number) => boolean;
+  harvestCrop: (farmId: string, slotIndex: number) => boolean;
+  harvestAllCrops: (farmId: string) => number;
+  upgradeFarm: (farmId: string) => boolean;
+  unlockFarm: (farmId: string) => boolean;
+  setSelectedFarm: (farmId: string) => void;
+  tickFarming: () => void;
+  getWateringCanUses: () => number;
+  getBestWateringCan: () => { id: string; capacity: number; refillCost: number } | null;
+  refillWateringCan: () => { success: boolean; reason?: string; capacity?: number; cost?: number };
 }
 
 export const useGameStore = create<GameStore>()(
@@ -1282,6 +1299,314 @@ export const useGameStore = create<GameStore>()(
           });
         }
       },
+      
+      plantCrop: (farmId, slotIndex, seedId) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm || !farm.unlocked) return false;
+        if (slotIndex < 0 || slotIndex >= farm.slots.length) return false;
+        if (farm.slots[slotIndex] !== null) return false;
+        
+        const seed = SEED_ITEMS.find(s => s.id === seedId);
+        if (!seed) return false;
+        
+        const hasSeeds = state.inventory.items.some(i => i.itemId === seedId && i.quantity > 0) ||
+                        state.storage.items.some(i => i.itemId === seedId && i.quantity > 0);
+        if (!hasSeeds) return false;
+        
+        const inventoryItem = state.inventory.items.find(i => i.itemId === seedId);
+        const storageItem = state.storage.items.find(i => i.itemId === seedId);
+        
+        let newInventoryItems = [...state.inventory.items];
+        let newStorageItems = [...state.storage.items];
+        
+        if (inventoryItem && inventoryItem.quantity > 0) {
+          if (inventoryItem.quantity === 1) {
+            newInventoryItems = newInventoryItems.filter(i => i.itemId !== seedId);
+          } else {
+            const idx = newInventoryItems.findIndex(i => i.itemId === seedId);
+            newInventoryItems[idx] = { ...inventoryItem, quantity: inventoryItem.quantity - 1 };
+          }
+        } else if (storageItem && storageItem.quantity > 0) {
+          if (storageItem.quantity === 1) {
+            newStorageItems = newStorageItems.filter(i => i.itemId !== seedId);
+          } else {
+            const idx = newStorageItems.findIndex(i => i.itemId === seedId);
+            newStorageItems[idx] = { ...storageItem, quantity: storageItem.quantity - 1 };
+          }
+        }
+        
+        const cropId = seedId.replace('_seeds', '');
+        const growthTime = seed.stats?.growTime || 60;
+        
+        const newCrop: PlantedCrop = {
+          seedId,
+          cropId,
+          plantedAt: Date.now(),
+          growthStage: 0,
+          maxGrowthStage: 4,
+          growthTime,
+          watered: false,
+          wateredAt: null,
+        };
+        
+        const newFarms = state.farming.farms.map(f => {
+          if (f.id === farmId) {
+            const newSlots = [...f.slots];
+            newSlots[slotIndex] = newCrop;
+            return { ...f, slots: newSlots };
+          }
+          return f;
+        });
+        
+        set({
+          farming: { ...state.farming, farms: newFarms },
+          inventory: { ...state.inventory, items: newInventoryItems },
+          storage: { ...state.storage, items: newStorageItems },
+        });
+        
+        return true;
+      },
+      
+      waterCrop: (farmId, slotIndex) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm || !farm.unlocked) return false;
+        if (slotIndex < 0 || slotIndex >= farm.slots.length) return false;
+        
+        const crop = farm.slots[slotIndex];
+        if (!crop) return false;
+        if (crop.watered) return false;
+        
+        if (state.farming.wateringCanUses <= 0) return false;
+        
+        const newFarms = state.farming.farms.map(f => {
+          if (f.id === farmId) {
+            const newSlots = [...f.slots];
+            newSlots[slotIndex] = {
+              ...crop,
+              watered: true,
+              wateredAt: Date.now(),
+            };
+            return { ...f, slots: newSlots };
+          }
+          return f;
+        });
+        
+        set({
+          farming: {
+            ...state.farming,
+            farms: newFarms,
+            wateringCanUses: state.farming.wateringCanUses - 1,
+          },
+        });
+        
+        return true;
+      },
+      
+      harvestCrop: (farmId, slotIndex) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm || !farm.unlocked) return false;
+        if (slotIndex < 0 || slotIndex >= farm.slots.length) return false;
+        
+        const crop = farm.slots[slotIndex];
+        if (!crop) return false;
+        if (crop.growthStage < crop.maxGrowthStage) return false;
+        
+        const cropItem = CROP_ITEMS.find(c => c.id === crop.cropId);
+        if (!cropItem) return false;
+        
+        const yieldAmount = Math.floor(1 + Math.random() * 3);
+        const xpGain = cropItem.stats?.xpGain || 10;
+        
+        const added = get().addItemToStorage(crop.cropId, yieldAmount);
+        if (!added) return false;
+        
+        get().addFarmingXp(xpGain);
+        
+        const newFarms = state.farming.farms.map(f => {
+          if (f.id === farmId) {
+            const newSlots = [...f.slots];
+            newSlots[slotIndex] = null;
+            return { ...f, slots: newSlots };
+          }
+          return f;
+        });
+        
+        set({
+          farming: { ...state.farming, farms: newFarms },
+        });
+        
+        return true;
+      },
+      
+      harvestAllCrops: (farmId) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm || !farm.unlocked) return 0;
+        
+        let harvestedCount = 0;
+        
+        for (let i = 0; i < farm.slots.length; i++) {
+          const crop = farm.slots[i];
+          if (crop && crop.growthStage >= crop.maxGrowthStage) {
+            if (get().harvestCrop(farmId, i)) {
+              harvestedCount++;
+            }
+          }
+        }
+        
+        return harvestedCount;
+      },
+      
+      upgradeFarm: (farmId) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm || !farm.unlocked) return false;
+        
+        const currentTier = farm.tier;
+        const upgrade = FARM_TIER_UPGRADES.find(u => u.tier === currentTier + 1);
+        if (!upgrade) return false;
+        
+        if (state.player.coins < upgrade.cost) return false;
+        
+        get().spendCoins(upgrade.cost);
+        
+        const newSlotCount = upgrade.slots;
+        const newSlots = [...farm.slots];
+        while (newSlots.length < newSlotCount) {
+          newSlots.push(null);
+        }
+        
+        const newFarms = state.farming.farms.map(f => {
+          if (f.id === farmId) {
+            return { ...f, tier: upgrade.tier, slots: newSlots };
+          }
+          return f;
+        });
+        
+        set({
+          farming: { ...state.farming, farms: newFarms },
+        });
+        
+        return true;
+      },
+      
+      unlockFarm: (farmId) => {
+        const state = get();
+        const farm = state.farming.farms.find(f => f.id === farmId);
+        if (!farm) return false;
+        if (farm.unlocked) return false;
+        
+        const unlockInfo = FARM_UNLOCK_COSTS.find(u => u.farmId === farmId);
+        const unlockCost = unlockInfo?.cost || 0;
+        
+        if (state.player.coins < unlockCost) return false;
+        
+        get().spendCoins(unlockCost);
+        
+        const newFarms = state.farming.farms.map(f => {
+          if (f.id === farmId) {
+            return { ...f, unlocked: true };
+          }
+          return f;
+        });
+        
+        set({
+          farming: { ...state.farming, farms: newFarms },
+        });
+        
+        return true;
+      },
+      
+      setSelectedFarm: (farmId) => {
+        set((state) => ({
+          farming: { ...state.farming, selectedFarmId: farmId },
+        }));
+      },
+      
+      tickFarming: () => {
+        const state = get();
+        const now = Date.now();
+        let hasChanges = false;
+        
+        const newFarms = state.farming.farms.map(farm => {
+          if (!farm.unlocked) return farm;
+          
+          const newSlots = farm.slots.map(crop => {
+            if (!crop) return null;
+            if (crop.growthStage >= crop.maxGrowthStage) return crop;
+            
+            const elapsedMs = now - crop.plantedAt;
+            const elapsedSeconds = elapsedMs / 1000;
+            const growthSpeedMultiplier = crop.watered ? 2.0 : 1.0;
+            const adjustedGrowthTime = crop.growthTime / growthSpeedMultiplier;
+            const stageTime = adjustedGrowthTime / crop.maxGrowthStage;
+            const newStage = Math.min(crop.maxGrowthStage, Math.floor(elapsedSeconds / stageTime));
+            
+            if (newStage !== crop.growthStage) {
+              hasChanges = true;
+              return { ...crop, growthStage: newStage };
+            }
+            
+            return crop;
+          });
+          
+          return { ...farm, slots: newSlots };
+        });
+        
+        if (hasChanges) {
+          set({
+            farming: { ...state.farming, farms: newFarms },
+          });
+        }
+      },
+      
+      getWateringCanUses: () => {
+        return get().farming.wateringCanUses;
+      },
+      
+      getBestWateringCan: () => {
+        const state = get();
+        const allItems = [...state.inventory.items, ...state.storage.items];
+        
+        let bestCan = null;
+        let bestCapacity = 0;
+        
+        for (const tier of WATERING_CAN_TIERS) {
+          if (allItems.some(i => i.itemId === tier.id)) {
+            if (tier.capacity > bestCapacity) {
+              bestCapacity = tier.capacity;
+              bestCan = tier;
+            }
+          }
+        }
+        
+        return bestCan;
+      },
+      
+      refillWateringCan: () => {
+        const state = get();
+        const bestCan = get().getBestWateringCan();
+        
+        if (!bestCan) return { success: false, reason: 'no_can' };
+        if (state.farming.wateringCanUses >= bestCan.capacity) return { success: false, reason: 'already_full' };
+        
+        if (state.player.coins < bestCan.refillCost) return { success: false, reason: 'no_coins' };
+        
+        get().spendCoins(bestCan.refillCost);
+        
+        set((prevState) => ({
+          farming: { 
+            ...prevState.farming, 
+            wateringCanUses: bestCan.capacity,
+            maxWaterCapacity: bestCan.capacity,
+          },
+        }));
+        
+        return { success: true, capacity: bestCan.capacity, cost: bestCan.refillCost };
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -1305,6 +1630,7 @@ export const useGameStore = create<GameStore>()(
         miningStats: state.miningStats,
         vendorStockPurchases: state.vendorStockPurchases,
         vendorStockSeed: state.vendorStockSeed,
+        farming: state.farming,
       }),
     }
   )

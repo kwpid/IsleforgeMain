@@ -6,13 +6,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { Newspaper, Wrench, Sparkles, Calendar, ChevronLeft } from 'lucide-react';
+import { Newspaper, Wrench, Sparkles, Calendar } from 'lucide-react';
 
 const STORAGE_KEY = 'isleforge-read-articles';
 
@@ -28,7 +27,7 @@ function getReadArticles(): string[] {
 function markArticlesAsRead(articleIds: string[]): void {
   try {
     const current = getReadArticles();
-    const updated = [...new Set([...current, ...articleIds])];
+    const updated = Array.from(new Set([...current, ...articleIds]));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch {
     console.error('Failed to save read articles');
@@ -77,6 +76,28 @@ function renderMarkdown(content: string): JSX.Element[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
+    const imageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch) {
+      flushList();
+      const altText = imageMatch[1];
+      const imageSrc = imageMatch[2];
+      elements.push(
+        <div key={`img-${i}`} className="my-4 pixel-border border-border overflow-hidden rounded-md">
+          <img 
+            src={imageSrc} 
+            alt={altText || 'News image'}
+            className="w-full h-auto object-cover"
+            style={{ imageRendering: 'pixelated' }}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+        </div>
+      );
+      continue;
+    }
 
     if (trimmed.startsWith('# ')) {
       flushList();

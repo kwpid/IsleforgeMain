@@ -1,6 +1,6 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
-export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe';
+export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
 export interface ItemDefinition {
@@ -20,6 +20,7 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  isCrop?: boolean;
   plantedIcon?: string;
   grownIcon?: string;
   growthTime?: number;
@@ -104,7 +105,7 @@ export interface PlayerInventory {
   maxSlots: number;
 }
 
-export type VendorType = 'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare';
+export type VendorType = 'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare' | 'seeds';
 
 export interface VendorItem {
   itemId: string;
@@ -183,6 +184,76 @@ export interface VendorStockPurchases {
   };
 }
 
+export interface PlantedCrop {
+  seedId: string;
+  cropId: string;
+  plantedAt: number;
+  growthStage: number;
+  maxGrowthStage: number;
+  growthTime: number;
+  watered: boolean;
+  wateredAt: number | null;
+}
+
+export interface Farm {
+  id: string;
+  name: string;
+  tier: number;
+  slots: (PlantedCrop | null)[];
+  unlocked: boolean;
+}
+
+export interface FarmingState {
+  farms: Farm[];
+  wateringCanUses: number;
+  maxWaterCapacity: number;
+  selectedFarmId: string;
+  totalCropsHarvested: number;
+  totalCropsPlanted: number;
+}
+
+export interface FarmTierUpgrade {
+  tier: number;
+  slots: number;
+  cost: number;
+  requiredLevel: number;
+}
+
+export const FARM_TIER_UPGRADES: FarmTierUpgrade[] = [
+  { tier: 1, slots: 4, cost: 0, requiredLevel: 1 },
+  { tier: 2, slots: 9, cost: 5000, requiredLevel: 5 },
+  { tier: 3, slots: 16, cost: 25000, requiredLevel: 10 },
+];
+
+export const FARM_UNLOCK_COSTS: { farmId: string; cost: number; requiredLevel: number }[] = [
+  { farmId: 'farm_1', cost: 0, requiredLevel: 1 },
+  { farmId: 'farm_2', cost: 15000, requiredLevel: 8 },
+  { farmId: 'farm_3', cost: 50000, requiredLevel: 15 },
+  { farmId: 'farm_4', cost: 150000, requiredLevel: 25 },
+];
+
+export const WATERING_CAN_TIERS = [
+  { id: 'watering_can', capacity: 10, refillCost: 50 },
+  { id: 'copper_watering_can', capacity: 25, refillCost: 100 },
+  { id: 'golden_watering_can', capacity: 50, refillCost: 200 },
+];
+
+export function createDefaultFarmingState(): FarmingState {
+  return {
+    farms: [
+      { id: 'farm_1', name: 'Farm 1', tier: 1, slots: Array(4).fill(null), unlocked: true },
+      { id: 'farm_2', name: 'Farm 2', tier: 1, slots: Array(4).fill(null), unlocked: false },
+      { id: 'farm_3', name: 'Farm 3', tier: 1, slots: Array(4).fill(null), unlocked: false },
+      { id: 'farm_4', name: 'Farm 4', tier: 1, slots: Array(4).fill(null), unlocked: false },
+    ],
+    wateringCanUses: 0,
+    maxWaterCapacity: 10,
+    selectedFarmId: 'farm_1',
+    totalCropsHarvested: 0,
+    totalCropsPlanted: 0,
+  };
+}
+
 export interface GameState {
   player: PlayerStats;
   storage: PlayerStorage;
@@ -202,6 +273,7 @@ export interface GameState {
   miningStats: MiningStats;
   vendorStockPurchases: VendorStockPurchases;
   vendorStockSeed: number;
+  farming: FarmingState;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -474,5 +546,6 @@ export function createDefaultGameState(): GameState {
     },
     vendorStockPurchases: {},
     vendorStockSeed: Math.floor(Date.now() / (1000 * 60 * 60 * 24)),
+    farming: createDefaultFarmingState(),
   };
 }

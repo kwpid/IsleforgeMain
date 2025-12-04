@@ -15,16 +15,16 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 38089
-externalPort = 8080
-
-[[ports]]
 localPort = 39489
 externalPort = 3001
 
 [[ports]]
 localPort = 39539
 externalPort = 6800
+
+[[ports]]
+localPort = 40103
+externalPort = 8081
 
 [[ports]]
 localPort = 42127
@@ -49,6 +49,10 @@ externalPort = 8000
 [[ports]]
 localPort = 44575
 externalPort = 5173
+
+[[ports]]
+localPort = 45345
+externalPort = 8080
 
 [[ports]]
 localPort = 45477
@@ -92,3 +96,8 @@ waitForPort = 5000
 [agent]
 integrations = ["javascript_mem_db:1.0.0"]
 expertMode = true
+
+[userenv]
+
+[userenv.development]
+VITE_GIT_BRANCH = "development"

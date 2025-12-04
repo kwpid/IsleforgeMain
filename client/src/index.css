@@ -354,6 +354,11 @@
            flex items-center justify-center transition-all duration-150;
   }
 
+  .item-slot-xl {
+    @apply relative w-16 h-16 aspect-square border-2 border-dashed border-border/60 bg-muted/20 
+           flex items-center justify-center transition-all duration-150;
+  }
+
   .item-slot-filled {
     @apply border-solid border-2 bg-card/80 shadow-sm;
   }
