@@ -130,6 +130,14 @@ export function StorageView() {
             data-testid={`${source}-item-${inv.itemId}`}
           >
             <PixelIcon icon={item.icon} size="lg" />
+            {item.isLimited && item.limitedEffect === 'blue_flame' && (
+              <>
+                <span className="blue-ember-particle" />
+                <span className="blue-ember-particle" />
+                <span className="blue-ember-particle" />
+                <span className="blue-ember-particle" />
+              </>
+            )}
             {inv.quantity > 1 && (
               <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
                 {formatNumber(inv.quantity)}

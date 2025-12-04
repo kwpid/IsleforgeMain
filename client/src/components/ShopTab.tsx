@@ -381,6 +381,14 @@ function LimitedShop() {
                     )}
                   >
                     <PixelIcon icon={item.icon} size="md" />
+                    {item.limitedEffect === 'blue_flame' && !purchased && (
+                      <>
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                      </>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
