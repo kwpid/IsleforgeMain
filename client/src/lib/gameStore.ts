@@ -30,6 +30,7 @@ import {
   PlantedCrop,
   FARM_TIER_UPGRADES,
   FARM_UNLOCK_COSTS,
+  WATERING_CAN_TIERS,
 } from './gameTypes';
 import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
@@ -139,7 +140,8 @@ interface GameStore extends GameState {
   setSelectedFarm: (farmId: string) => void;
   tickFarming: () => void;
   getWateringCanUses: () => number;
-  refillWateringCan: () => boolean;
+  getBestWateringCan: () => { id: string; capacity: number; refillCost: number } | null;
+  refillWateringCan: () => { success: boolean; reason?: string; capacity?: number; cost?: number };
 }
 
 export const useGameStore = create<GameStore>()(
@@ -1565,19 +1567,45 @@ export const useGameStore = create<GameStore>()(
         return get().farming.wateringCanUses;
       },
       
+      getBestWateringCan: () => {
+        const state = get();
+        const allItems = [...state.inventory.items, ...state.storage.items];
+        
+        let bestCan = null;
+        let bestCapacity = 0;
+        
+        for (const tier of WATERING_CAN_TIERS) {
+          if (allItems.some(i => i.itemId === tier.id)) {
+            if (tier.capacity > bestCapacity) {
+              bestCapacity = tier.capacity;
+              bestCan = tier;
+            }
+          }
+        }
+        
+        return bestCan;
+      },
+      
       refillWateringCan: () => {
         const state = get();
-        const hasWateringCan = state.inventory.items.some(i => i.itemId === 'watering_can') ||
-                               state.storage.items.some(i => i.itemId === 'watering_can');
+        const bestCan = get().getBestWateringCan();
         
-        if (!hasWateringCan) return false;
-        if (state.farming.wateringCanUses >= 10) return false;
+        if (!bestCan) return { success: false, reason: 'no_can' };
+        if (state.farming.wateringCanUses >= bestCan.capacity) return { success: false, reason: 'already_full' };
+        
+        if (state.player.coins < bestCan.refillCost) return { success: false, reason: 'no_coins' };
+        
+        get().spendCoins(bestCan.refillCost);
         
         set((prevState) => ({
-          farming: { ...prevState.farming, wateringCanUses: 10 },
+          farming: { 
+            ...prevState.farming, 
+            wateringCanUses: bestCan.capacity,
+            maxWaterCapacity: bestCan.capacity,
+          },
         }));
         
-        return true;
+        return { success: true, capacity: bestCan.capacity, cost: bestCan.refillCost };
       },
     }),
     {

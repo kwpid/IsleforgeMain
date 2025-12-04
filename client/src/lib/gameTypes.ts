@@ -206,6 +206,7 @@ export interface Farm {
 export interface FarmingState {
   farms: Farm[];
   wateringCanUses: number;
+  maxWaterCapacity: number;
   selectedFarmId: string;
   totalCropsHarvested: number;
   totalCropsPlanted: number;
@@ -231,6 +232,12 @@ export const FARM_UNLOCK_COSTS: { farmId: string; cost: number; requiredLevel: n
   { farmId: 'farm_4', cost: 150000, requiredLevel: 25 },
 ];
 
+export const WATERING_CAN_TIERS = [
+  { id: 'watering_can', capacity: 10, refillCost: 50 },
+  { id: 'copper_watering_can', capacity: 25, refillCost: 100 },
+  { id: 'golden_watering_can', capacity: 50, refillCost: 200 },
+];
+
 export function createDefaultFarmingState(): FarmingState {
   return {
     farms: [
@@ -239,7 +246,8 @@ export function createDefaultFarmingState(): FarmingState {
       { id: 'farm_3', name: 'Farm 3', tier: 1, slots: Array(4).fill(null), unlocked: false },
       { id: 'farm_4', name: 'Farm 4', tier: 1, slots: Array(4).fill(null), unlocked: false },
     ],
-    wateringCanUses: 10,
+    wateringCanUses: 0,
+    maxWaterCapacity: 10,
     selectedFarmId: 'farm_1',
     totalCropsHarvested: 0,
     totalCropsPlanted: 0,
