@@ -5,7 +5,7 @@ import { GeneratorCard } from './GeneratorCard';
 import { StorageView } from './StorageView';
 import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe } from '@/lib/crafting';
 import { getItemById, SEED_ITEMS } from '@/lib/items';
-import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS } from '@/lib/gameTypes';
+import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -403,6 +403,7 @@ function FarmingView() {
   const setSelectedFarm = useGameStore((s) => s.setSelectedFarm);
   const tickFarming = useGameStore((s) => s.tickFarming);
   const refillWateringCan = useGameStore((s) => s.refillWateringCan);
+  const getBestWateringCan = useGameStore((s) => s.getBestWateringCan);
   const coins = useGameStore((s) => s.player.coins);
   
   const { success, warning } = useGameNotifications();
@@ -429,6 +430,12 @@ function FarmingView() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (selectedSeed && !ownedSeeds.some(s => s.itemId === selectedSeed && s.quantity > 0)) {
+      setSelectedSeed(null);
+    }
+  }, [ownedSeeds, selectedSeed]);
 
   const selectedFarm = farming.farms.find(f => f.id === farming.selectedFarmId);
 
@@ -513,15 +520,22 @@ function FarmingView() {
   };
 
   const handleRefillWateringCan = () => {
-    const refilled = refillWateringCan();
-    if (refilled) {
-      success('Watering Can Refilled!', '10 uses available');
-    } else {
+    const result = refillWateringCan();
+    if (result.success) {
+      success('Watering Can Refilled!', `${result.capacity} uses available (cost: ${formatNumber(result.cost || 0)} coins)`);
+    } else if (result.reason === 'no_can') {
       warning('No Watering Can', 'Purchase a watering can from the marketplace');
+    } else if (result.reason === 'already_full') {
+      warning('Already Full', 'Your watering can is already full');
+    } else if (result.reason === 'no_coins') {
+      warning('Not Enough Coins', 'You need more coins to refill');
     }
   };
 
-  const hasWateringCan = allItems.some(i => i.itemId === 'watering_can');
+  const bestWateringCan = getBestWateringCan();
+  const hasWateringCan = bestWateringCan !== null;
+  const maxWaterCapacity = bestWateringCan?.capacity || 10;
+  const refillCost = bestWateringCan?.refillCost || 0;
   const readyCrops = selectedFarm?.slots.filter(s => s && s.growthStage >= s.maxGrowthStage).length || 0;
   
   const nextUpgrade = selectedFarm ? FARM_TIER_UPGRADES.find(u => u.tier === selectedFarm.tier + 1) : null;
@@ -602,7 +616,7 @@ function FarmingView() {
           {hasWateringCan ? (
             <Badge variant="outline" className="pixel-text-sm text-[8px] flex items-center gap-1">
               <Droplets className="w-3 h-3 text-blue-500" />
-              {farming.wateringCanUses}/10 Water
+              {farming.wateringCanUses}/{maxWaterCapacity} Water
             </Badge>
           ) : (
             <Badge variant="outline" className="pixel-text-sm text-[8px] flex items-center gap-1 text-muted-foreground">
@@ -610,9 +624,18 @@ function FarmingView() {
               No Watering Can
             </Badge>
           )}
-          {hasWateringCan && farming.wateringCanUses < 10 && (
-            <Button size="sm" variant="outline" onClick={handleRefillWateringCan} className="pixel-text-sm text-[8px]" data-testid="button-refill-watering-can">
+          {hasWateringCan && farming.wateringCanUses < maxWaterCapacity && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleRefillWateringCan} 
+              disabled={coins < refillCost}
+              className="pixel-text-sm text-[8px]" 
+              data-testid="button-refill-watering-can"
+            >
               Refill
+              <PixelIcon icon="coin" size="sm" className="ml-1" />
+              {formatNumber(refillCost)}
             </Button>
           )}
         </div>
@@ -696,7 +719,7 @@ function FarmingView() {
                 ))}
               </div>
             )}
-            {selectedSeed && (
+            {selectedSeed && ownedSeeds.some(s => s.itemId === selectedSeed && s.quantity > 0) && (
               <div className="mt-4 p-2 bg-primary/10 rounded-md">
                 <p className="pixel-text-sm text-[8px] text-center">
                   Selected: {SEED_ITEMS.find(s => s.id === selectedSeed)?.name}
