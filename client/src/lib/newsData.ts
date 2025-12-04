@@ -15,6 +15,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
     title: "Farming Update v1.0",
     date: "12/04/2025",
     tags: ["Update"],
+    images: ["client/public/news/farming-update-v1.png"],
     content: `
 # Farming Update v1.0
 
