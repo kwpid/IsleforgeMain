@@ -4,6 +4,7 @@ import { formatNumber, ArmorSlot } from '@/lib/gameTypes';
 import { getItemById } from '@/lib/items';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ export function InventoryPopup() {
   const equipment = useGameStore((s) => s.equipment);
   const equipItem = useGameStore((s) => s.equipItem);
   const unequipItem = useGameStore((s) => s.unequipItem);
+  const isEquipmentBroken = useGameStore((s) => s.isEquipmentBroken);
 
   const [draggedItem, setDraggedItem] = useState<{ itemId: string; source: 'inventory' | 'equipment'; slot?: string } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
@@ -162,20 +164,22 @@ export function InventoryPopup() {
                     const item = itemId ? getItemById(itemId) : null;
                     const label = hand === 'mainHand' ? 'M' : 'O';
                     const isDragOver = dragOverSlot === hand;
+                    const isBroken = isEquipmentBroken(hand);
 
                     return (
                       <Tooltip key={hand}>
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              'item-slot-compact transition-colors',
+                              'item-slot-compact transition-colors relative',
                               item && 'item-slot-filled',
                               item && `rarity-${item.rarity}`,
                               item?.isEnchanted && 'enchanted-item',
                               item?.isSpecial && 'special-item',
                               item?.isLimited && item?.limitedEffect === 'blue_flame' && 'blue-flame-item',
                               isDragOver && 'border-primary bg-primary/20',
-                              draggedItem?.source === 'equipment' && draggedItem.slot === hand && 'opacity-50'
+                              draggedItem?.source === 'equipment' && draggedItem.slot === hand && 'opacity-50',
+                              isBroken && 'opacity-60 grayscale'
                             )}
                             draggable={!!item}
                             onDragStart={() => item && handleDragStart(item.id, 'equipment', hand)}
@@ -193,12 +197,19 @@ export function InventoryPopup() {
                             {item ? (
                               <>
                                 <PixelIcon icon={item.icon} size="md" />
-                                {item.isLimited && item.limitedEffect === 'blue_flame' && (
+                                {item.isLimited && item.limitedEffect === 'blue_flame' && !isBroken && (
                                   <>
                                     <span className="blue-ember-particle" />
                                     <span className="blue-ember-particle" />
                                     <span className="blue-ember-particle" />
                                   </>
+                                )}
+                                {isBroken && (
+                                  <div className="absolute -top-1 -right-1 z-10">
+                                    <Badge variant="destructive" className="pixel-text-sm text-[5px] px-0.5 py-0 leading-tight">
+                                      X
+                                    </Badge>
+                                  </div>
                                 )}
                               </>
                             ) : (
@@ -210,7 +221,7 @@ export function InventoryPopup() {
                         </TooltipTrigger>
                         {item && (
                           <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                            <ItemTooltip item={item} />
+                            <ItemTooltip item={item} isBroken={isBroken} />
                           </TooltipContent>
                         )}
                       </Tooltip>

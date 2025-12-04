@@ -2043,9 +2043,16 @@ function MinesView() {
   const usePickaxeDurability = useGameStore((s) => s.usePickaxeDurability);
   const addMiningXp = useGameStore((s) => s.addMiningXp);
   const getEquippedPickaxe = useGameStore((s) => s.getEquippedPickaxe);
+  const isEquipmentBroken = useGameStore((s) => s.isEquipmentBroken);
   
   const { success, warning } = useGameNotifications();
   
+  // Get the actual equipped mainHand item (even if broken)
+  const mainHandItemId = equipment.mainHand;
+  const mainHandItem = mainHandItemId ? getItemById(mainHandItemId) : null;
+  const isPickaxeBroken = mainHandItem?.toolType === 'pickaxe' && isEquipmentBroken('mainHand');
+  
+  // getEquippedPickaxe returns null for broken pickaxes
   const equippedPickaxe = getEquippedPickaxe();
   const pickaxeItem = equippedPickaxe ? getItemById(equippedPickaxe) : null;
   const pickaxeTier = equippedPickaxe ? getPickaxeTier(equippedPickaxe) : 0;
@@ -2098,7 +2105,7 @@ function MinesView() {
         setCurrentBlock(newBlock);
         
         if (!stillHasDurability) {
-          warning('Pickaxe Broken!', 'Your pickaxe has broken! Buy or craft a new one.');
+          warning('Pickaxe Broken!', 'Your pickaxe has broken and needs repair! Equip a new pickaxe to continue mining.');
           setIsHolding(false);
           isHoldingRef.current = false;
           return;
@@ -2140,6 +2147,11 @@ function MinesView() {
   }, [usePickaxeDurability, addItemToStorage, addBlockMined, addMiningXp, warning]);
   
   const handleMiningStart = useCallback(() => {
+    if (isPickaxeBroken) {
+      warning('Pickaxe Broken', 'Your pickaxe is broken and needs to be repaired!');
+      return;
+    }
+    
     if (!equippedPickaxe) {
       warning('No Pickaxe', 'You need a pickaxe to mine! Buy one from the Marketplace.');
       return;
@@ -2153,7 +2165,7 @@ function MinesView() {
     setIsHolding(true);
     isHoldingRef.current = true;
     startMiningBlock(currentBlock, breakTime, canReceive);
-  }, [equippedPickaxe, storageFull, breakTime, canReceive, currentBlock, startMiningBlock, warning]);
+  }, [isPickaxeBroken, equippedPickaxe, storageFull, breakTime, canReceive, currentBlock, startMiningBlock, warning]);
   
   const handleMiningStop = useCallback(() => {
     isHoldingRef.current = false;
@@ -2252,7 +2264,7 @@ function MinesView() {
               className={cn(
                 "relative w-32 h-32 pixel-border border-border select-none transition-transform",
                 isMining && "scale-95",
-                !equippedPickaxe ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                (!equippedPickaxe || isPickaxeBroken) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               )}
               onMouseDown={handleMiningStart}
               onMouseUp={handleMiningStop}
@@ -2311,7 +2323,16 @@ function MinesView() {
               <Progress value={miningProgress} className="h-3" />
             </div>
             
-            {!equippedPickaxe && (
+            {isPickaxeBroken && (
+              <div className="pixel-border border-amber-500/50 bg-amber-500/10 p-4 text-center">
+                <p className="pixel-text-sm text-amber-600 dark:text-amber-400">Pickaxe is broken!</p>
+                <p className="font-sans text-[10px] text-muted-foreground mt-1">
+                  Your pickaxe has no durability left. Equip a new pickaxe or wait for the repair feature.
+                </p>
+              </div>
+            )}
+            
+            {!equippedPickaxe && !isPickaxeBroken && (
               <div className="pixel-border border-destructive/50 bg-destructive/10 p-4 text-center">
                 <p className="pixel-text-sm text-destructive">No pickaxe equipped!</p>
                 <p className="font-sans text-[10px] text-muted-foreground mt-1">
@@ -2329,14 +2350,34 @@ function MinesView() {
           <CardContent className="space-y-4">
             <div className="pixel-border border-border bg-muted/20 p-4">
               <p className="pixel-text-sm text-[9px] text-muted-foreground mb-2">Current Pickaxe</p>
-              {pickaxeItem ? (
+              {(pickaxeItem || (mainHandItem?.toolType === 'pickaxe' && isPickaxeBroken)) ? (
                 <div className="flex items-center gap-3">
-                  <PixelIcon icon={pickaxeItem.icon} size="lg" />
+                  <div className="relative">
+                    <PixelIcon icon={(pickaxeItem || mainHandItem)?.icon || ''} size="lg" />
+                    {isPickaxeBroken && (
+                      <div className="absolute -top-1 -right-1">
+                        <Badge variant="destructive" className="pixel-text-sm text-[6px] px-1 py-0">
+                          BROKEN
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                   <div>
-                    <p className="pixel-text-sm text-[10px]">{pickaxeItem.name}</p>
-                    <p className="pixel-text-sm text-[8px] text-muted-foreground">
-                      Tier {pickaxeTier} | Speed: {miningSpeed}
+                    <p className={cn(
+                      "pixel-text-sm text-[10px]",
+                      isPickaxeBroken && "text-muted-foreground line-through"
+                    )}>
+                      {(pickaxeItem || mainHandItem)?.name}
                     </p>
+                    {isPickaxeBroken ? (
+                      <p className="pixel-text-sm text-[8px] text-amber-600 dark:text-amber-400">
+                        Needs repair
+                      </p>
+                    ) : (
+                      <p className="pixel-text-sm text-[8px] text-muted-foreground">
+                        Tier {pickaxeTier} | Speed: {miningSpeed}
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -2344,17 +2385,22 @@ function MinesView() {
               )}
             </div>
             
-            {pickaxeItem && currentDurability !== null && (
+            {(pickaxeItem || (mainHandItem?.toolType === 'pickaxe' && isPickaxeBroken)) && (
               <div className="pixel-border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="pixel-text-sm text-[9px] text-muted-foreground">Durability</p>
-                  <p className="pixel-text-sm text-[9px]">{currentDurability} / {maxDurability}</p>
+                  <p className={cn(
+                    "pixel-text-sm text-[9px]",
+                    isPickaxeBroken && "text-destructive"
+                  )}>
+                    {currentDurability ?? 0} / {mainHandItem?.stats?.durability || maxDurability}
+                  </p>
                 </div>
                 <Progress 
-                  value={(currentDurability / maxDurability) * 100} 
+                  value={((currentDurability ?? 0) / (mainHandItem?.stats?.durability || maxDurability || 1)) * 100} 
                   className={cn(
                     "h-2",
-                    currentDurability / maxDurability < 0.2 && "[&>div]:bg-destructive"
+                    (currentDurability ?? 0) / (mainHandItem?.stats?.durability || maxDurability || 1) < 0.2 && "[&>div]:bg-destructive"
                   )} 
                 />
               </div>

@@ -124,6 +124,7 @@ interface GameStore extends GameState {
   getEquipmentDurability: (slot: 'mainHand' | 'offHand') => number | null;
   setEquipmentDurability: (slot: 'mainHand' | 'offHand', durability: number | null) => void;
   usePickaxeDurability: () => boolean;
+  isEquipmentBroken: (slot: 'mainHand' | 'offHand') => boolean;
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
   craftItem: (recipeId: string, quantity?: number) => boolean;
@@ -1106,6 +1107,11 @@ export const useGameStore = create<GameStore>()(
         
         const item = getItemById(mainHandItem);
         if (item && item.toolType === 'pickaxe') {
+          // Check if pickaxe is broken (durability = 0)
+          const durability = state.equipmentDurability.mainHand;
+          if (item.stats?.durability && durability !== null && durability <= 0) {
+            return null; // Broken pickaxe can't be used for mining
+          }
           return mainHandItem;
         }
         return null;
@@ -1126,11 +1132,12 @@ export const useGameStore = create<GameStore>()(
 
       usePickaxeDurability: () => {
         const state = get();
-        const pickaxeId = get().getEquippedPickaxe();
-        if (!pickaxeId) return false;
+        const mainHandItem = state.equipment.mainHand;
+        if (!mainHandItem) return false;
 
-        const pickaxe = getItemById(pickaxeId);
-        if (!pickaxe || !pickaxe.stats?.durability) return true;
+        const pickaxe = getItemById(mainHandItem);
+        if (!pickaxe || pickaxe.toolType !== 'pickaxe') return false;
+        if (!pickaxe.stats?.durability) return true;
 
         let currentDurability = state.equipmentDurability.mainHand;
         
@@ -1138,29 +1145,35 @@ export const useGameStore = create<GameStore>()(
           currentDurability = pickaxe.stats.durability;
         }
 
-        currentDurability -= 1;
-
+        // Item is already broken, can't use it
         if (currentDurability <= 0) {
-          set((state) => ({
-            equipment: {
-              ...state.equipment,
-              mainHand: null,
-            },
-            equipmentDurability: {
-              ...state.equipmentDurability,
-              mainHand: null,
-            },
-          }));
           return false;
         }
 
+        currentDurability -= 1;
+
+        // Set durability to 0, but keep item equipped (broken but not deleted)
         set((state) => ({
           equipmentDurability: {
             ...state.equipmentDurability,
-            mainHand: currentDurability,
+            mainHand: Math.max(0, currentDurability),
           },
         }));
-        return true;
+
+        // Return false if item just broke, true if still usable
+        return currentDurability > 0;
+      },
+
+      isEquipmentBroken: (slot: 'mainHand' | 'offHand') => {
+        const state = get();
+        const itemId = state.equipment[slot];
+        if (!itemId) return false;
+
+        const item = getItemById(itemId);
+        if (!item || !item.stats?.durability) return false;
+
+        const durability = state.equipmentDurability[slot];
+        return durability !== null && durability <= 0;
       },
 
       sellSelectedItems: (items) => {

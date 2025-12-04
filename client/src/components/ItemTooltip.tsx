@@ -7,9 +7,10 @@ interface ItemTooltipProps {
   item: ItemDefinition;
   quantity?: number;
   className?: string;
+  isBroken?: boolean;
 }
 
-export function ItemTooltip({ item, quantity, className }: ItemTooltipProps) {
+export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltipProps) {
   const rarityLabels: Record<string, string> = {
     common: 'COMMON',
     uncommon: 'UNCOMMON',
@@ -108,6 +109,14 @@ export function ItemTooltip({ item, quantity, className }: ItemTooltipProps) {
             </span>
           </div>
         </div>
+
+        {isBroken && (
+          <div className="border-t border-destructive/50 pt-2 mt-2">
+            <div className="pixel-border border-destructive/50 bg-destructive/10 p-2 text-center">
+              <span className="pixel-text-sm text-[9px] text-destructive">BROKEN - Needs Repair</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

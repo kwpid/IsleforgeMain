@@ -187,6 +187,11 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Cursor Pickaxe**: Your equipped pickaxe follows your cursor while mining
 - **Pickaxe Tiers**: Higher tier pickaxes mine faster and unlock rarer blocks
 - **Block Index**: View all mineable blocks and their requirements
+- **Durability System**: Pickaxes have durability and break after extended use
+  - Broken pickaxes remain equipped but are unusable
+  - Visual indicators show "BROKEN" badge and grayed-out appearance
+  - Mining is blocked with warning message when pickaxe is broken
+  - Repair feature planned for future update
 
 ### News & Updates System
 - Auto-shows on first launch with unread articles
