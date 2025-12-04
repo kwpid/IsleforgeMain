@@ -184,12 +184,14 @@ export interface VendorStockPurchases {
 }
 
 export interface PlantedCrop {
-  slotIndex: number;
   seedId: string;
+  cropId: string;
   plantedAt: number;
-  lastWatered: number;
-  waterBonus: number;
-  growthProgress: number;
+  growthStage: number;
+  maxGrowthStage: number;
+  growthTime: number;
+  watered: boolean;
+  wateredAt: number | null;
 }
 
 export interface Farm {
@@ -200,14 +202,9 @@ export interface Farm {
   unlocked: boolean;
 }
 
-export interface WateringCanState {
-  currentWater: number;
-  maxWater: number;
-}
-
 export interface FarmingState {
   farms: Farm[];
-  wateringCan: WateringCanState;
+  wateringCanUses: number;
   selectedFarmId: string;
   totalCropsHarvested: number;
   totalCropsPlanted: number;
@@ -241,7 +238,7 @@ export function createDefaultFarmingState(): FarmingState {
       { id: 'farm_3', name: 'Farm 3', tier: 1, slots: Array(4).fill(null), unlocked: false },
       { id: 'farm_4', name: 'Farm 4', tier: 1, slots: Array(4).fill(null), unlocked: false },
     ],
-    wateringCan: { currentWater: 10, maxWater: 10 },
+    wateringCanUses: 10,
     selectedFarmId: 'farm_1',
     totalCropsHarvested: 0,
     totalCropsPlanted: 0,
