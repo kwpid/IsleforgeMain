@@ -36,7 +36,7 @@ export function ShopTab() {
 
 function LimitedShop() {
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center gap-3 mb-6">
         <Sparkles className="w-6 h-6 text-rarity-legendary" />
         <h2 className="pixel-text text-lg text-foreground">
@@ -163,8 +163,8 @@ function DailyShop() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="w-full space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-3">
           <ShoppingCart className="w-6 h-6 text-primary" />
           <h2 className="pixel-text text-lg text-foreground">
@@ -177,7 +177,7 @@ function DailyShop() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {dailyItems.map(({ item, upPrice, originalPrice, isDiscounted }) => (
           <Card 
             key={item.id} 
@@ -424,8 +424,8 @@ function CoinsShop() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="w-full space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-3">
           <PixelIcon icon="coin" size="md" />
           <h2 className="pixel-text text-lg text-foreground">
@@ -455,7 +455,7 @@ function CoinsShop() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {coinPackages.map((pkg) => (
           <Card 
             key={pkg.id}

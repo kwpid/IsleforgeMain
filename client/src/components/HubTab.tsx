@@ -67,11 +67,34 @@ import {
   Gem,
   Sparkles,
   Minus,
-  Plus
+  Plus,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { BANK_UPGRADES, VAULT_UPGRADES, formatNumber as fmt } from '@/lib/gameTypes';
 
 type MarketplaceCategory = 'all' | 'blocks' | 'tools' | 'armor' | 'potions' | 'food' | 'materials' | 'ores';
+type SortOption = 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'rarity_asc' | 'rarity_desc';
+
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+
+const SORT_LABELS: Record<SortOption, string> = {
+  price_asc: 'Price: Low to High',
+  price_desc: 'Price: High to Low',
+  name_asc: 'Name: A to Z',
+  name_desc: 'Name: Z to A',
+  rarity_asc: 'Rarity: Common First',
+  rarity_desc: 'Rarity: Rare First',
+};
 
 const CATEGORY_ICONS: Record<MarketplaceCategory, typeof Store> = {
   all: Store,
@@ -318,6 +341,8 @@ function MarketplaceView() {
   const [confirmPurchase, setConfirmPurchase] = useState<{ item: VendorItem; quantity: number; price: number; isSpecialVendor?: boolean; baseVendorModifier?: number; isSpecialItem?: boolean; vendorId?: string } | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [marketplaceView, setMarketplaceView] = useState<'main' | 'special'>('main');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('price_asc');
   
   const coins = useGameStore((s) => s.player.coins);
   const spendCoins = useGameStore((s) => s.spendCoins);
@@ -341,6 +366,47 @@ function MarketplaceView() {
   const { success, warning } = useGameNotifications();
   
   const permanentItems = useMemo(() => getPermanentVendorItems(selectedCategory), [selectedCategory]);
+
+  const filteredAndSortedItems = useMemo(() => {
+    let items = permanentItems
+      .map((vendorItem) => {
+        const item = getItemById(vendorItem.itemId);
+        if (!item) return null;
+        const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier);
+        return { vendorItem, item, price };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(({ item }) => 
+        item.name.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.rarity.toLowerCase().includes(query)
+      );
+    }
+
+    items.sort((a, b) => {
+      switch (sortOption) {
+        case 'price_asc':
+          return a.price - b.price;
+        case 'price_desc':
+          return b.price - a.price;
+        case 'name_asc':
+          return a.item.name.localeCompare(b.item.name);
+        case 'name_desc':
+          return b.item.name.localeCompare(a.item.name);
+        case 'rarity_asc':
+          return RARITY_ORDER.indexOf(a.item.rarity) - RARITY_ORDER.indexOf(b.item.rarity);
+        case 'rarity_desc':
+          return RARITY_ORDER.indexOf(b.item.rarity) - RARITY_ORDER.indexOf(a.item.rarity);
+        default:
+          return 0;
+      }
+    });
+
+    return items;
+  }, [permanentItems, searchQuery, sortOption]);
 
   const handleBuyClick = (vendorItem: VendorItem, isSpecialVendor = false, vendorPriceModifier = 1.0, vendorId?: string) => {
     const item = getItemById(vendorItem.itemId);
@@ -475,59 +541,100 @@ function MarketplaceView() {
           </Tabs>
 
           <div className="marketplace-section">
-            <div className="vendor-category-header">
-              <CategoryIcon className="w-5 h-5 text-primary" />
-              <h3 className="pixel-text-sm text-[11px] text-foreground">{CATEGORY_LABELS[selectedCategory]}</h3>
-              <Badge variant="secondary" className="pixel-text-sm text-[7px]">Unlimited Stock</Badge>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+              <div className="flex items-center gap-2">
+                <CategoryIcon className="w-5 h-5 text-primary" />
+                <h3 className="pixel-text-sm text-[11px] text-foreground">{CATEGORY_LABELS[selectedCategory]}</h3>
+                <Badge variant="secondary" className="pixel-text-sm text-[7px]">Unlimited Stock</Badge>
+                <Badge variant="outline" className="pixel-text-sm text-[7px]">{filteredAndSortedItems.length} items</Badge>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search items by name, description, or rarity..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pixel-text-sm text-[10px]"
+                  data-testid="input-marketplace-search"
+                />
+              </div>
+              <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+                <SelectTrigger className="w-full sm:w-[200px] pixel-text-sm text-[9px]" data-testid="select-marketplace-sort">
+                  <ArrowUpDown className="w-3.5 h-3.5 mr-2" />
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                    <SelectItem key={option} value={option} className="pixel-text-sm text-[9px]">
+                      {SORT_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {permanentItems.map((vendorItem) => {
-                const item = getItemById(vendorItem.itemId);
-                if (!item) return null;
-                
-                const price = Math.floor(item.sellPrice * vendorItem.priceMultiplier);
-                const canAfford = coins >= price;
-                
-                return (
-                  <HoverCard key={vendorItem.itemId} openDelay={0} closeDelay={0}>
-                    <HoverCardTrigger asChild>
-                      <div 
-                        className={cn(
-                          "pixel-border border-card-border bg-card p-2 cursor-pointer hover-elevate active-elevate-2 overflow-visible",
-                          item.isEnchanted && "enchanted-item",
-                          item.isSpecial && "special-item"
-                        )}
-                        onClick={() => handleBuyClick(vendorItem)}
-                        data-testid={`item-${vendorItem.itemId}`}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <div className={cn(
-                            'pixel-border p-1 bg-muted/30',
-                            `rarity-${item.rarity}`
-                          )}>
-                            <PixelIcon icon={item.icon} size="md" />
-                          </div>
-                          <p className="pixel-text-sm text-[6px] truncate w-full text-center">{item.name}</p>
-                          <div className="flex items-center gap-0.5">
-                            <PixelIcon icon="coin" size="sm" />
-                            <span className={cn(
-                              "pixel-text-sm text-[7px]",
-                              canAfford ? "text-game-coin" : "text-destructive"
+            {filteredAndSortedItems.length === 0 ? (
+              <div className="text-center py-8">
+                <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="pixel-text-sm text-muted-foreground">No items found matching "{searchQuery}"</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setSearchQuery('')}
+                  className="mt-2 pixel-text-sm text-[8px]"
+                >
+                  Clear Search
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                {filteredAndSortedItems.map(({ vendorItem, item, price }) => {
+                  const canAfford = coins >= price;
+                  
+                  return (
+                    <HoverCard key={vendorItem.itemId} openDelay={0} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div 
+                          className={cn(
+                            "pixel-border border-card-border bg-card p-2 cursor-pointer hover-elevate active-elevate-2 overflow-visible",
+                            item.isEnchanted && "enchanted-item",
+                            item.isSpecial && "special-item"
+                          )}
+                          onClick={() => handleBuyClick(vendorItem)}
+                          data-testid={`item-${vendorItem.itemId}`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={cn(
+                              'pixel-border p-1 bg-muted/30',
+                              `rarity-${item.rarity}`
                             )}>
-                              {formatNumber(price)}
-                            </span>
+                              <PixelIcon icon={item.icon} size="md" />
+                            </div>
+                            <p className="pixel-text-sm text-[6px] truncate w-full text-center">{item.name}</p>
+                            <div className="flex items-center gap-0.5">
+                              <PixelIcon icon="coin" size="sm" />
+                              <span className={cn(
+                                "pixel-text-sm text-[7px]",
+                                canAfford ? "text-game-coin" : "text-destructive"
+                              )}>
+                                {formatNumber(price)}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                      <ItemTooltip item={item} />
-                    </HoverCardContent>
-                  </HoverCard>
-                );
-              })}
-            </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                        <ItemTooltip item={item} />
+                      </HoverCardContent>
+                    </HoverCard>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       ) : (
@@ -2084,7 +2191,7 @@ function MinesView() {
                       </Badge>
                     </div>
                     <p className="pixel-text-sm text-[8px] text-muted-foreground mt-1">
-                      XP: {block.xpReward} | Time: {(block.breakTime / 1000).toFixed(1)}s
+                      XP: {block.xpReward} | Time: {parseFloat((block.breakTime / 1000).toFixed(2))}s
                     </p>
                   </div>
                 </div>

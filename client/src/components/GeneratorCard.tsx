@@ -117,7 +117,7 @@ export function GeneratorCard({ generator, owned, onUnlock, onUpgrade }: Generat
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="pixel-text-sm text-[8px] text-muted-foreground">Interval</span>
-                  <span className="pixel-text-sm text-[9px]">{(generator.baseInterval / 1000).toFixed(1)}s</span>
+                  <span className="pixel-text-sm text-[9px]">{parseFloat((generator.baseInterval / 1000).toFixed(2))}s</span>
                 </div>
               </div>
               
@@ -236,7 +236,7 @@ export function GeneratorCard({ generator, owned, onUnlock, onUpgrade }: Generat
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <span className="pixel-text-sm text-[9px] text-muted-foreground">Interval</span>
                 </div>
-                <span className="pixel-text-sm tabular-nums">{(interval / 1000).toFixed(1)}s</span>
+                <span className="pixel-text-sm tabular-nums">{parseFloat((interval / 1000).toFixed(2))}s</span>
               </div>
               
               <div className="flex items-center justify-between">
@@ -245,7 +245,7 @@ export function GeneratorCard({ generator, owned, onUnlock, onUpgrade }: Generat
                   <span className="pixel-text-sm text-[9px] text-muted-foreground">Rate</span>
                 </div>
                 <span className="pixel-text-sm text-accent tabular-nums">
-                  {((output / (interval / 1000)) * 60).toFixed(1)}/min
+                  {parseFloat(((output / (interval / 1000)) * 60).toFixed(2))}/min
                 </span>
               </div>
             </div>
