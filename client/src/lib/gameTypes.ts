@@ -1,5 +1,5 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
-export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion';
+export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
 export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
@@ -20,6 +20,11 @@ export interface ItemDefinition {
   animatedImage?: string;
   isSpecial?: boolean;
   isEnchanted?: boolean;
+  plantedIcon?: string;
+  grownIcon?: string;
+  growthTime?: number;
+  harvestYield?: { min: number; max: number };
+  cropItemId?: string;
 }
 
 export interface InventoryItem {
@@ -54,6 +59,12 @@ export interface OwnedGenerator {
   isActive: boolean;
 }
 
+export interface SkillStats {
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+}
+
 export interface PlayerStats {
   level: number;
   xp: number;
@@ -62,6 +73,9 @@ export interface PlayerStats {
   universalPoints: number;
   totalCoinsEarned: number;
   totalItemsSold: number;
+  miningSkill: SkillStats;
+  farmingSkill: SkillStats;
+  dungeonSkill: SkillStats;
 }
 
 export interface StorageUpgrade {
@@ -202,9 +216,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export type MainTab = 'island' | 'hub' | 'shop' | 'settings';
-export type IslandSubTab = 'generators' | 'storage' | 'crafting';
+export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type ShopSubTab = 'limited' | 'daily' | 'coins';
+export type MarketplaceViewTab = 'main' | 'sell' | 'special';
 export type SettingsSubTab = 'general' | 'audio' | 'controls' | 'notifications' | 'info';
 
 export interface MiningStats {
@@ -360,6 +375,18 @@ export function getXpForLevel(level: number): number {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 }
 
+export function getSkillXpForLevel(level: number): number {
+  return Math.floor(50 * Math.pow(1.4, level - 1));
+}
+
+export function createDefaultSkillStats(): SkillStats {
+  return {
+    level: 1,
+    xp: 0,
+    xpToNextLevel: getSkillXpForLevel(1),
+  };
+}
+
 export function getRarityColor(rarity: Rarity): string {
   const colors: Record<Rarity, string> = {
     common: 'text-rarity-common',
@@ -394,6 +421,9 @@ export function createDefaultGameState(): GameState {
       universalPoints: 0,
       totalCoinsEarned: 0,
       totalItemsSold: 0,
+      miningSkill: createDefaultSkillStats(),
+      farmingSkill: createDefaultSkillStats(),
+      dungeonSkill: createDefaultSkillStats(),
     },
     storage: {
       capacity: 500,

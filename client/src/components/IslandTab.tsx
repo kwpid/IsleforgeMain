@@ -4,7 +4,7 @@ import { GENERATORS } from '@/lib/generators';
 import { GeneratorCard } from './GeneratorCard';
 import { StorageView } from './StorageView';
 import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe } from '@/lib/crafting';
-import { getItemById } from '@/lib/items';
+import { getItemById, SEED_ITEMS } from '@/lib/items';
 import { formatNumber } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
-import { Hammer, Search, Package, Coins, Check, X, ArrowRight, Sparkles, Wand2, Boxes, Shield, UtensilsCrossed, FlaskConical, Plus, Minus } from 'lucide-react';
+import { Hammer, Search, Package, Coins, Check, X, ArrowRight, Sparkles, Wand2, Boxes, Shield, UtensilsCrossed, FlaskConical, Plus, Minus, Sprout, Clock, Leaf } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
 
 export function IslandTab() {
@@ -28,6 +28,7 @@ export function IslandTab() {
       {islandSubTab === 'generators' && <GeneratorsView />}
       {islandSubTab === 'storage' && <StorageView />}
       {islandSubTab === 'crafting' && <CraftingView />}
+      {islandSubTab === 'farming' && <FarmingView />}
     </div>
   );
 }
@@ -374,6 +375,159 @@ function CraftingView() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function FarmingView() {
+  const inventory = useGameStore((s) => s.inventory);
+  
+  const ownedSeeds = useMemo(() => {
+    return inventory.items
+      .filter(inv => SEED_ITEMS.some(s => s.id === inv.itemId))
+      .map(inv => {
+        const seed = SEED_ITEMS.find(s => s.id === inv.itemId);
+        return { ...inv, seed };
+      })
+      .filter(item => item.seed);
+  }, [inventory.items]);
+
+  const formatTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  };
+
+  return (
+    <div className="animate-content-fade">
+      <div className="mb-6">
+        <h2 className="pixel-text text-lg text-foreground mb-2 flex items-center gap-2">
+          <Sprout className="w-5 h-5 text-green-500" />
+          Farming
+        </h2>
+        <p className="font-sans text-muted-foreground text-sm">
+          Plant seeds to grow crops! Purchase seeds from the Marketplace and harvest for profit.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="pixel-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="pixel-text text-sm flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Your Seeds
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ownedSeeds.length === 0 ? (
+              <div className="text-center py-8">
+                <Leaf className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="pixel-text-sm text-muted-foreground text-[9px]">
+                  No seeds in inventory
+                </p>
+                <p className="font-sans text-xs text-muted-foreground mt-2">
+                  Visit the Marketplace to purchase seeds
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {ownedSeeds.map(({ itemId, quantity, seed }) => (
+                  <HoverCard key={itemId} openDelay={0} closeDelay={0}>
+                    <HoverCardTrigger asChild>
+                      <div 
+                        className={cn(
+                          "item-slot-lg item-slot-filled cursor-pointer hover-elevate active-elevate-2",
+                          `rarity-${seed?.rarity}`
+                        )}
+                        data-testid={`seed-item-${itemId}`}
+                      >
+                        <PixelIcon icon={seed?.icon || itemId} size="lg" />
+                        {quantity > 1 && (
+                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                            {formatNumber(quantity)}
+                          </span>
+                        )}
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-56 p-0 border-0 bg-transparent">
+                      {seed && <ItemTooltip item={seed} quantity={quantity} />}
+                    </HoverCardContent>
+                  </HoverCard>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="pixel-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="pixel-text text-sm flex items-center gap-2">
+              <Sprout className="w-4 h-4 text-green-500" />
+              Available Seeds
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {SEED_ITEMS.map((seed) => {
+                const cropItem = getItemById(seed.cropItemId || '');
+                return (
+                  <div 
+                    key={seed.id}
+                    className="pixel-border border-border bg-muted/20 p-3 flex items-center gap-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <PixelIcon icon={seed.icon} size="md" />
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                      <PixelIcon icon={seed.grownIcon || seed.icon} size="md" />
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                      <PixelIcon icon={cropItem?.icon || 'wheat'} size="md" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="pixel-text-sm text-[9px] truncate">{seed.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className={cn("pixel-text-sm text-[6px]", `rarity-${seed.rarity}`)}>
+                          {seed.rarity}
+                        </Badge>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          <span className="pixel-text-sm text-[7px]">{formatTime(seed.growthTime || 0)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Package className="w-3 h-3" />
+                          <span className="pixel-text-sm text-[7px]">
+                            {seed.harvestYield?.min}-{seed.harvestYield?.max}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="font-sans text-xs text-muted-foreground mt-4 text-center">
+              Purchase seeds from the Marketplace to start farming
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="pixel-border mt-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="pixel-text text-sm flex items-center gap-2">
+            <Leaf className="w-4 h-4 text-green-500" />
+            Farm Plots
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Sprout className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="pixel-text text-foreground mb-2">Coming Soon</p>
+            <p className="font-sans text-sm text-muted-foreground">
+              Farm plot planting and harvesting will be available in a future update.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

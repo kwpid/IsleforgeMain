@@ -14,6 +14,7 @@ import {
   DEFAULT_KEYBINDS,
   createDefaultGameState,
   getXpForLevel,
+  getSkillXpForLevel,
   STORAGE_UPGRADES,
   BANK_UPGRADES,
   VAULT_UPGRADES,
@@ -24,6 +25,8 @@ import {
   MiningStats,
   EquipmentDurability,
   VendorStockPurchases,
+  SkillStats,
+  createDefaultSkillStats,
 } from './gameTypes';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
@@ -58,6 +61,9 @@ interface GameStore extends GameState {
   addXp: (amount: number) => void;
   addUniversalPoints: (amount: number) => void;
   setUniversalPoints: (amount: number) => void;
+  addMiningXp: (amount: number) => void;
+  addFarmingXp: (amount: number) => void;
+  addDungeonXp: (amount: number) => void;
 
   addItemToStorage: (itemId: string, quantity: number) => boolean;
   removeItemFromStorage: (itemId: string, quantity: number) => boolean;
@@ -258,6 +264,99 @@ export const useGameStore = create<GameStore>()(
           universalPoints: Math.max(0, amount),
         },
       })),
+
+      addMiningXp: (amount) => {
+        const state = get();
+        const skill = state.player.miningSkill || createDefaultSkillStats();
+        let newXp = skill.xp + amount;
+        let newLevel = skill.level;
+        let newXpToNextLevel = skill.xpToNextLevel;
+        let levelsGained = 0;
+
+        while (newXp >= newXpToNextLevel) {
+          newXp -= newXpToNextLevel;
+          newLevel++;
+          newXpToNextLevel = getSkillXpForLevel(newLevel);
+          levelsGained++;
+        }
+
+        set({
+          player: {
+            ...state.player,
+            miningSkill: {
+              level: newLevel,
+              xp: newXp,
+              xpToNextLevel: newXpToNextLevel,
+            },
+          },
+        });
+
+        if (levelsGained > 0) {
+          get().addXp(levelsGained * 25);
+        }
+      },
+
+      addFarmingXp: (amount) => {
+        const state = get();
+        const skill = state.player.farmingSkill || createDefaultSkillStats();
+        let newXp = skill.xp + amount;
+        let newLevel = skill.level;
+        let newXpToNextLevel = skill.xpToNextLevel;
+        let levelsGained = 0;
+
+        while (newXp >= newXpToNextLevel) {
+          newXp -= newXpToNextLevel;
+          newLevel++;
+          newXpToNextLevel = getSkillXpForLevel(newLevel);
+          levelsGained++;
+        }
+
+        set({
+          player: {
+            ...state.player,
+            farmingSkill: {
+              level: newLevel,
+              xp: newXp,
+              xpToNextLevel: newXpToNextLevel,
+            },
+          },
+        });
+
+        if (levelsGained > 0) {
+          get().addXp(levelsGained * 25);
+        }
+      },
+
+      addDungeonXp: (amount) => {
+        const state = get();
+        const skill = state.player.dungeonSkill || createDefaultSkillStats();
+        let newXp = skill.xp + amount;
+        let newLevel = skill.level;
+        let newXpToNextLevel = skill.xpToNextLevel;
+        let levelsGained = 0;
+
+        while (newXp >= newXpToNextLevel) {
+          newXp -= newXpToNextLevel;
+          newLevel++;
+          newXpToNextLevel = getSkillXpForLevel(newLevel);
+          levelsGained++;
+        }
+
+        set({
+          player: {
+            ...state.player,
+            dungeonSkill: {
+              level: newLevel,
+              xp: newXp,
+              xpToNextLevel: newXpToNextLevel,
+            },
+          },
+        });
+
+        if (levelsGained > 0) {
+          get().addXp(levelsGained * 25);
+        }
+      },
 
       addItemToStorage: (itemId, quantity) => {
         const state = get();
