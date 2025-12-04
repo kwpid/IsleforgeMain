@@ -213,37 +213,39 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 pixel-border border-border">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
-          <DialogTitle className="pixel-text text-lg flex items-center gap-2">
-            <Newspaper className="w-5 h-5" />
+      <DialogContent className="max-w-4xl w-[95vw] md:w-auto h-[85vh] md:h-[80vh] flex flex-col p-0 pixel-border border-border">
+        <DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4 border-b border-border flex-shrink-0">
+          <DialogTitle className="pixel-text text-sm md:text-lg flex items-center gap-2">
+            <Newspaper className="w-4 h-4 md:w-5 md:h-5" />
             News & Updates
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-1 min-h-0">
-          <div className="w-72 border-r border-border flex flex-col">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
+          <div className="md:w-72 border-b md:border-b-0 md:border-r border-border flex flex-col flex-shrink-0 max-h-[30vh] md:max-h-none">
             <Tabs
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as 'all' | ArticleTag)}
               className="flex flex-col h-full"
             >
-              <TabsList className="flex-shrink-0 m-2 h-auto flex-wrap gap-1">
-                <TabsTrigger value="all" className="pixel-text-sm text-[8px]">
-                  All
-                </TabsTrigger>
-                <TabsTrigger value="Update" className="pixel-text-sm text-[8px]">
-                  Updates
-                </TabsTrigger>
-                <TabsTrigger value="Fixes" className="pixel-text-sm text-[8px]">
-                  Fixes
-                </TabsTrigger>
-                <TabsTrigger value="News" className="pixel-text-sm text-[8px]">
-                  News
-                </TabsTrigger>
-              </TabsList>
+              <div className="touch-scroll-x flex-shrink-0 px-2 pt-2">
+                <TabsList className="h-auto flex gap-1 w-max min-w-full">
+                  <TabsTrigger value="all" className="pixel-text-sm text-[8px]">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="Update" className="pixel-text-sm text-[8px]">
+                    Updates
+                  </TabsTrigger>
+                  <TabsTrigger value="Fixes" className="pixel-text-sm text-[8px]">
+                    Fixes
+                  </TabsTrigger>
+                  <TabsTrigger value="News" className="pixel-text-sm text-[8px]">
+                    News
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              <ScrollArea className="flex-1 px-2 pb-2">
+              <ScrollArea className="flex-1 px-2 py-2">
                 <div className="space-y-2">
                   {filteredArticles.map((article) => (
                     <ArticleCard
@@ -263,10 +265,10 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
             </Tabs>
           </div>
 
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0">
             {selectedArticle ? (
               <>
-                <div className="px-6 py-4 border-b border-border flex-shrink-0">
+                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-border flex-shrink-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     {selectedArticle.tags.map((tag) => {
                       const config = TAG_CONFIG[tag];
@@ -288,7 +290,7 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
                     </span>
                   </div>
                 </div>
-                <ScrollArea className="flex-1 px-6 py-4">
+                <ScrollArea className="flex-1 px-4 md:px-6 py-3 md:py-4">
                   <article className="prose prose-sm dark:prose-invert max-w-none">
                     {renderMarkdown(selectedArticle.content)}
                   </article>
@@ -302,7 +304,7 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-4 md:px-6 py-3 md:py-4 border-t border-border flex justify-end flex-shrink-0">
           <Button onClick={handleClose} className="pixel-text-sm" data-testid="button-close-news">
             Close
           </Button>

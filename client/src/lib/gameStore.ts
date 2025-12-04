@@ -13,6 +13,7 @@ import {
   KeybindAction,
   DEFAULT_KEYBINDS,
   createDefaultGameState,
+  createDefaultStorageSystem,
   getXpForLevel,
   getSkillXpForLevel,
   STORAGE_UPGRADES,
@@ -31,6 +32,10 @@ import {
   FARM_TIER_UPGRADES,
   FARM_UNLOCK_COSTS,
   WATERING_CAN_TIERS,
+  StorageUnit,
+  STORAGE_UNIT_MAX_SLOTS,
+  STORAGE_UNIT_PURCHASE_COST,
+  MAX_STORAGE_UNITS,
 } from './gameTypes';
 import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
@@ -83,6 +88,19 @@ interface GameStore extends GameState {
   getStorageUsed: () => number;
   getInventoryUsed: () => number;
   upgradeStorage: () => boolean;
+
+  purchaseStorageUnit: () => boolean;
+  renameStorageUnit: (unitId: string, newName: string) => boolean;
+  selectStorageUnit: (unitId: string) => void;
+  addItemToStorageUnit: (unitId: string, itemId: string, quantity: number) => boolean;
+  removeItemFromStorageUnit: (unitId: string, itemId: string, quantity: number) => boolean;
+  moveItemBetweenStorageUnits: (fromUnitId: string, toUnitId: string, itemId: string, quantity: number) => boolean;
+  moveFromStorageUnitToInventory: (unitId: string, itemId: string, quantity: number) => boolean;
+  moveFromInventoryToStorageUnit: (unitId: string, itemId: string, quantity: number) => boolean;
+  getStorageUnitUsed: (unitId: string) => number;
+  getCurrentStorageUnit: () => StorageUnit | undefined;
+  sellItemFromStorageUnit: (unitId: string, itemId: string, quantity: number) => boolean;
+  sellAllItemsFromStorageUnit: (unitId: string) => number;
 
   unlockGenerator: (generatorId: string) => boolean;
   unlockGeneratorFree: (generatorId: string) => void;
@@ -381,64 +399,18 @@ export const useGameStore = create<GameStore>()(
 
       addItemToStorage: (itemId, quantity) => {
         const state = get();
-        const item = getItemById(itemId);
-        if (!item) return false;
-
-        const currentUsed = get().getStorageUsed();
-        if (currentUsed + quantity > state.storage.capacity) {
-          // Try to add as much as possible? Or just fail?
-          // Let's fail if it doesn't fit completely for now, or fill up?
-          // Implementation in original file seemed to try to fill up.
-          const canAdd = state.storage.capacity - currentUsed;
-          if (canAdd <= 0) return false;
-          // If we want to only add what fits:
-          // quantity = canAdd; 
-          // But usually games either reject or fill. Let's reject if full, or maybe fill?
-          // The previous code had logic to cap quantity.
-          if (quantity > canAdd) quantity = canAdd;
-        }
-
-        const existingIndex = state.storage.items.findIndex(i => i.itemId === itemId);
-
-        if (existingIndex >= 0) {
-          const newItems = [...state.storage.items];
-          newItems[existingIndex] = {
-            ...newItems[existingIndex],
-            quantity: newItems[existingIndex].quantity + quantity,
-          };
-          set({ storage: { ...state.storage, items: newItems } });
-        } else {
-          set({
-            storage: {
-              ...state.storage,
-              items: [...state.storage.items, { itemId, quantity }],
-            },
-          });
-        }
-        return true;
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return false;
+        
+        return get().addItemToStorageUnit(firstUnit.id, itemId, quantity);
       },
 
       removeItemFromStorage: (itemId, quantity) => {
         const state = get();
-        const existingIndex = state.storage.items.findIndex(i => i.itemId === itemId);
-
-        if (existingIndex < 0) return false;
-
-        const currentQuantity = state.storage.items[existingIndex].quantity;
-        if (currentQuantity < quantity) return false;
-
-        const newItems = [...state.storage.items];
-        if (currentQuantity === quantity) {
-          newItems.splice(existingIndex, 1);
-        } else {
-          newItems[existingIndex] = {
-            ...newItems[existingIndex],
-            quantity: currentQuantity - quantity,
-          };
-        }
-
-        set({ storage: { ...state.storage, items: newItems } });
-        return true;
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return false;
+        
+        return get().removeItemFromStorageUnit(firstUnit.id, itemId, quantity);
       },
 
       addItemToInventory: (itemId, quantity) => {
@@ -488,42 +460,25 @@ export const useGameStore = create<GameStore>()(
 
       moveToInventory: (itemId, quantity) => {
         const state = get();
-        const storageItem = state.storage.items.find(i => i.itemId === itemId);
-        if (!storageItem) return false;
-
-        const actualQuantity = Math.min(quantity, storageItem.quantity);
-        if (actualQuantity <= 0) return false;
-
-        // Check inventory space
-        const existingInInventory = state.inventory.items.find(i => i.itemId === itemId);
-        if (!existingInInventory && state.inventory.items.length >= state.inventory.maxSlots) {
-          return false;
-        }
-
-        get().removeItemFromStorage(itemId, actualQuantity);
-        get().addItemToInventory(itemId, actualQuantity);
-        return true;
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return false;
+        
+        return get().moveFromStorageUnitToInventory(firstUnit.id, itemId, quantity);
       },
 
       moveToStorage: (itemId, quantity) => {
         const state = get();
-        const inventoryItem = state.inventory.items.find(i => i.itemId === itemId);
-        if (!inventoryItem) return false;
-
-        const usedSpace = get().getStorageUsed();
-        const availableSpace = state.storage.capacity - usedSpace;
-        const actualQuantity = Math.min(quantity, inventoryItem.quantity, availableSpace);
-
-        if (actualQuantity <= 0) return false;
-
-        get().removeItemFromInventory(itemId, actualQuantity);
-        get().addItemToStorage(itemId, actualQuantity);
-        return true;
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return false;
+        
+        return get().moveFromInventoryToStorageUnit(firstUnit.id, itemId, quantity);
       },
 
       getStorageUsed: () => {
         const state = get();
-        return state.storage.items.reduce((sum, item) => sum + item.quantity, 0);
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return 0;
+        return firstUnit.items.length;
       },
 
       getInventoryUsed: () => {
@@ -557,27 +512,24 @@ export const useGameStore = create<GameStore>()(
         let totalEarnings = 0;
         let totalItems = 0;
 
-        // We need to iterate a copy because we'll be modifying the array
-        const itemsToSell = [...state.storage.items];
-
-        for (const invItem of itemsToSell) {
-          const item = getItemById(invItem.itemId);
-          if (item) {
-            const earnings = item.sellPrice * invItem.quantity;
-            totalEarnings += earnings;
-            totalItems += invItem.quantity;
-            // Remove item directly to avoid multiple state updates if possible, 
-            // but reusing removeItemFromStorage is safer for consistency.
-            // However, calling set in a loop is bad.
-            // Better to calculate everything and do one set.
+        // Sell from all storage units
+        const updatedUnits = state.storageSystem.units.map(unit => {
+          for (const invItem of unit.items) {
+            const item = getItemById(invItem.itemId);
+            if (item) {
+              const earnings = item.sellPrice * invItem.quantity;
+              totalEarnings += earnings;
+              totalItems += invItem.quantity;
+            }
           }
-        }
+          return { ...unit, items: [] };
+        });
 
         if (totalItems > 0) {
           set({
-            storage: {
-              ...state.storage,
-              items: [], // Clear storage
+            storageSystem: {
+              ...state.storageSystem,
+              units: updatedUnits,
             },
             player: {
               ...state.player,
@@ -597,36 +549,41 @@ export const useGameStore = create<GameStore>()(
         let totalEarnings = 0;
         let totalItemsSold = 0;
         
-        const newStorageItems = [...state.storage.items];
-        
-        for (const sellItem of items) {
-          const item = getItemById(sellItem.itemId);
-          if (!item) continue;
+        // Update all storage units
+        const updatedUnits = state.storageSystem.units.map(unit => {
+          const newUnitItems = [...unit.items];
           
-          const storageIndex = newStorageItems.findIndex(i => i.itemId === sellItem.itemId);
-          if (storageIndex < 0) continue;
-          
-          const actualQuantity = Math.min(sellItem.quantity, newStorageItems[storageIndex].quantity);
-          if (actualQuantity <= 0) continue;
-          
-          totalEarnings += item.sellPrice * actualQuantity;
-          totalItemsSold += actualQuantity;
-          
-          if (newStorageItems[storageIndex].quantity === actualQuantity) {
-            newStorageItems.splice(storageIndex, 1);
-          } else {
-            newStorageItems[storageIndex] = {
-              ...newStorageItems[storageIndex],
-              quantity: newStorageItems[storageIndex].quantity - actualQuantity,
-            };
+          for (const sellItem of items) {
+            const item = getItemById(sellItem.itemId);
+            if (!item) continue;
+            
+            const storageIndex = newUnitItems.findIndex(i => i.itemId === sellItem.itemId);
+            if (storageIndex < 0) continue;
+            
+            const actualQuantity = Math.min(sellItem.quantity, newUnitItems[storageIndex].quantity);
+            if (actualQuantity <= 0) continue;
+            
+            totalEarnings += item.sellPrice * actualQuantity;
+            totalItemsSold += actualQuantity;
+            
+            if (newUnitItems[storageIndex].quantity === actualQuantity) {
+              newUnitItems.splice(storageIndex, 1);
+            } else {
+              newUnitItems[storageIndex] = {
+                ...newUnitItems[storageIndex],
+                quantity: newUnitItems[storageIndex].quantity - actualQuantity,
+              };
+            }
           }
-        }
+          
+          return { ...unit, items: newUnitItems };
+        });
         
         if (totalItemsSold > 0) {
           set({
-            storage: {
-              ...state.storage,
-              items: newStorageItems,
+            storageSystem: {
+              ...state.storageSystem,
+              units: updatedUnits,
             },
             player: {
               ...state.player,
@@ -658,6 +615,268 @@ export const useGameStore = create<GameStore>()(
           },
         });
         return true;
+      },
+
+      purchaseStorageUnit: () => {
+        const state = get();
+        if (state.storageSystem.units.length >= MAX_STORAGE_UNITS) return false;
+        if (state.player.coins < STORAGE_UNIT_PURCHASE_COST) return false;
+
+        get().spendCoins(STORAGE_UNIT_PURCHASE_COST);
+        const newUnitId = `storage_${state.storageSystem.units.length + 1}`;
+        const newUnit: StorageUnit = {
+          id: newUnitId,
+          name: `Storage ${state.storageSystem.units.length + 1}`,
+          maxSlots: STORAGE_UNIT_MAX_SLOTS,
+          items: [],
+        };
+
+        set({
+          storageSystem: {
+            ...state.storageSystem,
+            units: [...state.storageSystem.units, newUnit],
+          },
+        });
+        return true;
+      },
+
+      renameStorageUnit: (unitId, newName) => {
+        const state = get();
+        const unitIndex = state.storageSystem.units.findIndex(u => u.id === unitId);
+        if (unitIndex < 0) return false;
+
+        const newUnits = [...state.storageSystem.units];
+        newUnits[unitIndex] = { ...newUnits[unitIndex], name: newName.trim() || newUnits[unitIndex].name };
+
+        set({
+          storageSystem: {
+            ...state.storageSystem,
+            units: newUnits,
+          },
+        });
+        return true;
+      },
+
+      selectStorageUnit: (unitId) => {
+        const state = get();
+        const unit = state.storageSystem.units.find(u => u.id === unitId);
+        if (!unit) return;
+
+        set({
+          storageSystem: {
+            ...state.storageSystem,
+            selectedUnitId: unitId,
+          },
+        });
+      },
+
+      addItemToStorageUnit: (unitId, itemId, quantity) => {
+        const state = get();
+        const item = getItemById(itemId);
+        if (!item) return false;
+
+        const unitIndex = state.storageSystem.units.findIndex(u => u.id === unitId);
+        if (unitIndex < 0) return false;
+
+        const unit = state.storageSystem.units[unitIndex];
+        const currentUsed = unit.items.reduce((sum, i) => sum + i.quantity, 0);
+        
+        if (currentUsed + quantity > unit.maxSlots) {
+          const canAdd = unit.maxSlots - currentUsed;
+          if (canAdd <= 0) return false;
+          quantity = canAdd;
+        }
+
+        const existingIndex = unit.items.findIndex(i => i.itemId === itemId);
+        const newUnits = [...state.storageSystem.units];
+
+        if (existingIndex >= 0) {
+          const newItems = [...unit.items];
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            quantity: newItems[existingIndex].quantity + quantity,
+          };
+          newUnits[unitIndex] = { ...unit, items: newItems };
+        } else {
+          newUnits[unitIndex] = { ...unit, items: [...unit.items, { itemId, quantity }] };
+        }
+
+        set({
+          storageSystem: {
+            ...state.storageSystem,
+            units: newUnits,
+          },
+        });
+        return true;
+      },
+
+      removeItemFromStorageUnit: (unitId, itemId, quantity) => {
+        const state = get();
+        const unitIndex = state.storageSystem.units.findIndex(u => u.id === unitId);
+        if (unitIndex < 0) return false;
+
+        const unit = state.storageSystem.units[unitIndex];
+        const existingIndex = unit.items.findIndex(i => i.itemId === itemId);
+        if (existingIndex < 0) return false;
+
+        const currentQuantity = unit.items[existingIndex].quantity;
+        if (currentQuantity < quantity) return false;
+
+        const newItems = [...unit.items];
+        if (currentQuantity === quantity) {
+          newItems.splice(existingIndex, 1);
+        } else {
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            quantity: currentQuantity - quantity,
+          };
+        }
+
+        const newUnits = [...state.storageSystem.units];
+        newUnits[unitIndex] = { ...unit, items: newItems };
+
+        set({
+          storageSystem: {
+            ...state.storageSystem,
+            units: newUnits,
+          },
+        });
+        return true;
+      },
+
+      moveItemBetweenStorageUnits: (fromUnitId, toUnitId, itemId, quantity) => {
+        const state = get();
+        const fromUnit = state.storageSystem.units.find(u => u.id === fromUnitId);
+        const toUnit = state.storageSystem.units.find(u => u.id === toUnitId);
+        if (!fromUnit || !toUnit) return false;
+
+        const fromItem = fromUnit.items.find(i => i.itemId === itemId);
+        if (!fromItem) return false;
+
+        const actualQuantity = Math.min(quantity, fromItem.quantity);
+        if (actualQuantity <= 0) return false;
+
+        const toUsed = toUnit.items.reduce((sum, i) => sum + i.quantity, 0);
+        const toAvailable = toUnit.maxSlots - toUsed;
+        const moveQuantity = Math.min(actualQuantity, toAvailable);
+        if (moveQuantity <= 0) return false;
+
+        get().removeItemFromStorageUnit(fromUnitId, itemId, moveQuantity);
+        get().addItemToStorageUnit(toUnitId, itemId, moveQuantity);
+        return true;
+      },
+
+      moveFromStorageUnitToInventory: (unitId, itemId, quantity) => {
+        const state = get();
+        const unit = state.storageSystem.units.find(u => u.id === unitId);
+        if (!unit) return false;
+
+        const storageItem = unit.items.find(i => i.itemId === itemId);
+        if (!storageItem) return false;
+
+        const actualQuantity = Math.min(quantity, storageItem.quantity);
+        if (actualQuantity <= 0) return false;
+
+        const existingInInventory = state.inventory.items.find(i => i.itemId === itemId);
+        if (!existingInInventory && state.inventory.items.length >= state.inventory.maxSlots) {
+          return false;
+        }
+
+        get().removeItemFromStorageUnit(unitId, itemId, actualQuantity);
+        get().addItemToInventory(itemId, actualQuantity);
+        return true;
+      },
+
+      moveFromInventoryToStorageUnit: (unitId, itemId, quantity) => {
+        const state = get();
+        const inventoryItem = state.inventory.items.find(i => i.itemId === itemId);
+        if (!inventoryItem) return false;
+
+        const unit = state.storageSystem.units.find(u => u.id === unitId);
+        if (!unit) return false;
+
+        const usedSpace = unit.items.reduce((sum, i) => sum + i.quantity, 0);
+        const availableSpace = unit.maxSlots - usedSpace;
+        const actualQuantity = Math.min(quantity, inventoryItem.quantity, availableSpace);
+
+        if (actualQuantity <= 0) return false;
+
+        get().removeItemFromInventory(itemId, actualQuantity);
+        get().addItemToStorageUnit(unitId, itemId, actualQuantity);
+        return true;
+      },
+
+      getStorageUnitUsed: (unitId) => {
+        const state = get();
+        const unit = state.storageSystem.units.find(u => u.id === unitId);
+        if (!unit) return 0;
+        return unit.items.reduce((sum, item) => sum + item.quantity, 0);
+      },
+
+      getCurrentStorageUnit: () => {
+        const state = get();
+        return state.storageSystem.units.find(u => u.id === state.storageSystem.selectedUnitId);
+      },
+
+      sellItemFromStorageUnit: (unitId, itemId, quantity) => {
+        const state = get();
+        const item = getItemById(itemId);
+        if (!item) return false;
+
+        const success = get().removeItemFromStorageUnit(unitId, itemId, quantity);
+        if (success) {
+          const earnings = item.sellPrice * quantity;
+          get().addCoins(earnings);
+          set((state) => ({
+            player: {
+              ...state.player,
+              totalItemsSold: state.player.totalItemsSold + quantity,
+            }
+          }));
+          get().addTransaction('sell', earnings, `Sold ${quantity}x ${item.name}`);
+          return true;
+        }
+        return false;
+      },
+
+      sellAllItemsFromStorageUnit: (unitId) => {
+        const state = get();
+        const unitIndex = state.storageSystem.units.findIndex(u => u.id === unitId);
+        if (unitIndex < 0) return 0;
+
+        const unit = state.storageSystem.units[unitIndex];
+        let totalEarnings = 0;
+        let totalItems = 0;
+
+        for (const invItem of unit.items) {
+          const item = getItemById(invItem.itemId);
+          if (item) {
+            const earnings = item.sellPrice * invItem.quantity;
+            totalEarnings += earnings;
+            totalItems += invItem.quantity;
+          }
+        }
+
+        if (totalItems > 0) {
+          const newUnits = [...state.storageSystem.units];
+          newUnits[unitIndex] = { ...unit, items: [] };
+
+          set({
+            storageSystem: {
+              ...state.storageSystem,
+              units: newUnits,
+            },
+            player: {
+              ...state.player,
+              coins: state.player.coins + totalEarnings,
+              totalCoinsEarned: state.player.totalCoinsEarned + totalEarnings,
+              totalItemsSold: state.player.totalItemsSold + totalItems,
+            }
+          });
+          get().addTransaction('sell', totalEarnings, `Sold All (${totalItems} items)`);
+        }
+
+        return totalEarnings;
       },
 
       unlockGenerator: (generatorId) => {
@@ -724,8 +943,7 @@ export const useGameStore = create<GameStore>()(
         let totalXpGained = 0;
         const newGenerators: OwnedGenerator[] = [];
         
-        const storageUsed = get().getStorageUsed();
-        const storageFull = storageUsed >= state.storage.capacity;
+        const storageFull = get().isStorageFull();
 
         for (const owned of state.generators) {
           if (!owned.isActive) {
@@ -756,12 +974,8 @@ export const useGameStore = create<GameStore>()(
             const output = getGeneratorOutput(generator, owned.tier);
             const totalOutput = output * ticks;
             
-            const currentUsed = get().getStorageUsed();
-            const availableSpace = state.storage.capacity - currentUsed;
-            const actualOutput = Math.min(totalOutput, availableSpace);
-            
-            if (actualOutput > 0) {
-              get().addItemToStorage(generator.outputItemId, actualOutput);
+            if (totalOutput > 0) {
+              get().addItemToStorage(generator.outputItemId, totalOutput);
               const xpPerTick = owned.tier;
               totalXpGained += xpPerTick * ticks;
             }
@@ -1081,7 +1295,9 @@ export const useGameStore = create<GameStore>()(
 
       isStorageFull: () => {
         const state = get();
-        return get().getStorageUsed() >= state.storage.capacity;
+        const firstUnit = state.storageSystem.units[0];
+        if (!firstUnit) return true;
+        return firstUnit.items.length >= firstUnit.maxSlots;
       },
 
       addBlockMined: (itemId) => {

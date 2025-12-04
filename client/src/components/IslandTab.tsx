@@ -33,7 +33,7 @@ export function IslandTab() {
   const islandSubTab = useGameStore((s) => s.islandSubTab);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-pixel p-6">
+    <div className="h-full overflow-y-auto scrollbar-pixel p-4 md:p-6">
       {islandSubTab === 'generators' && <div key="generators" className="animate-subtab-content"><GeneratorsView /></div>}
       {islandSubTab === 'storage' && <div key="storage" className="animate-subtab-content"><StorageView /></div>}
       {islandSubTab === 'crafting' && <div key="crafting" className="animate-subtab-content"><CraftingView /></div>}
