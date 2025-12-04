@@ -26,9 +26,9 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   
-  const addCoins = useGameStore((s) => s.addCoins);
+  const setCoins = useGameStore((s) => s.setCoins);
   const addXp = useGameStore((s) => s.addXp);
-  const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
+  const setUniversalPoints = useGameStore((s) => s.setUniversalPoints);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const addItemToStorage = useGameStore((s) => s.addItemToStorage);
   const player = useGameStore((s) => s.player);
@@ -68,9 +68,9 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         addMessage('output', 'Available commands:');
         addMessage('output', '  spawn <item_id> [amount] - Add items to inventory');
         addMessage('output', '  give <item_id> [amount] - Add items to storage');
-        addMessage('output', '  cash <amount> - Add coins');
+        addMessage('output', '  cash <amount> - Set coins to amount');
         addMessage('output', '  xp <amount> - Add experience points');
-        addMessage('output', '  up <amount> - Add Universal Points');
+        addMessage('output', '  up <amount> - Set Universal Points to amount');
         addMessage('output', '  items - List all item IDs');
         addMessage('output', '  status - Show player status');
         addMessage('output', '  clear - Clear console');
@@ -123,13 +123,13 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         }
         
         const amount = parseInt(args[0]);
-        if (isNaN(amount) || amount <= 0 || amount > 999999999) {
-          addMessage('error', 'Amount must be between 1 and 999,999,999');
+        if (isNaN(amount) || amount < 0 || amount > 999999999) {
+          addMessage('error', 'Amount must be between 0 and 999,999,999');
           break;
         }
         
-        addCoins(amount);
-        addMessage('success', `Added ${amount.toLocaleString()} coins`);
+        setCoins(amount);
+        addMessage('success', `Set coins to ${amount.toLocaleString()}`);
         break;
       }
       
@@ -161,13 +161,13 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         }
         
         const amount = parseFloat(args[0]);
-        if (isNaN(amount) || amount <= 0 || amount > 999999999) {
-          addMessage('error', 'Amount must be between 1 and 999,999,999');
+        if (isNaN(amount) || amount < 0 || amount > 999999999) {
+          addMessage('error', 'Amount must be between 0 and 999,999,999');
           break;
         }
         
-        addUniversalPoints(amount);
-        addMessage('success', `Added ${amount.toLocaleString()} Universal Points`);
+        setUniversalPoints(amount);
+        addMessage('success', `Set Universal Points to ${amount.toLocaleString()}`);
         break;
       }
       
@@ -216,7 +216,7 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
     }
     
     setInput('');
-  }, [addMessage, addCoins, addXp, addUniversalPoints, addItemToInventory, addItemToStorage, player, inventory, storage]);
+  }, [addMessage, setCoins, addXp, setUniversalPoints, addItemToInventory, addItemToStorage, player, inventory, storage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

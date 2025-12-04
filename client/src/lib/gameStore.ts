@@ -53,9 +53,11 @@ interface GameStore extends GameState {
   navigateSubTab: (direction: 'prev' | 'next') => void;
 
   addCoins: (amount: number) => void;
+  setCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
   addXp: (amount: number) => void;
   addUniversalPoints: (amount: number) => void;
+  setUniversalPoints: (amount: number) => void;
 
   addItemToStorage: (itemId: string, quantity: number) => boolean;
   removeItemFromStorage: (itemId: string, quantity: number) => boolean;
@@ -198,6 +200,13 @@ export const useGameStore = create<GameStore>()(
         },
       })),
 
+      setCoins: (amount) => set((state) => ({
+        player: {
+          ...state.player,
+          coins: Math.max(0, amount),
+        },
+      })),
+
       spendCoins: (amount) => {
         const state = get();
         if (state.player.coins >= amount) {
@@ -240,6 +249,13 @@ export const useGameStore = create<GameStore>()(
         player: {
           ...state.player,
           universalPoints: state.player.universalPoints + amount,
+        },
+      })),
+
+      setUniversalPoints: (amount) => set((state) => ({
+        player: {
+          ...state.player,
+          universalPoints: Math.max(0, amount),
         },
       })),
 
