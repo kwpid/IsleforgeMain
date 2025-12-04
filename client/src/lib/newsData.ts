@@ -6,7 +6,6 @@ export interface NewsArticle {
   date: string;
   tags: ArticleTag[];
   content: string;
-  images?: string[];
 }
 
 export const NEWS_ARTICLES: NewsArticle[] = [
@@ -15,11 +14,12 @@ export const NEWS_ARTICLES: NewsArticle[] = [
     title: "Farming Update v1.0",
     date: "12/04/2025",
     tags: ["Update"],
-    images: ["/news/farming-preview.png"],
     content: `
 # Farming Update v1.0
 
 The farming system is now live! Grow your own crops and expand your farming empire.
+
+![Farming Preview](/news/farming-preview.png)
 
 ## New Features
 
