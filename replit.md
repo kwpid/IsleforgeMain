@@ -75,6 +75,15 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - UP (Universal Points displayed with U$ prefix, e.g. U$5)
 - Tab-specific stats below divider
 
+### Skill System
+- **Mining Skill**: Levels up from mining blocks in the Mines
+- **Farming Skill**: Levels up from farming activities (future)
+- **Dungeon Skill**: Levels up from dungeon combat (future)
+- Each skill has independent XP tracking with progress bars
+- **Main XP Bonus**: Leveling any skill grants 25 Main XP to player level
+- Skills always visible on right sidebar with level and XP progress
+- XP curve: Level 1 requires 50 XP, scales with formula floor(50 * 1.5^(level-1))
+
 ### Shop System (Shop Tab)
 - **Limited Shop**: Coming soon - exclusive limited-time items
 - **Daily Deals**: 4 rotating items (tools, armor, materials) priced in U$
