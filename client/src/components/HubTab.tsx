@@ -349,11 +349,11 @@ export function HubTab() {
 
   return (
     <div className="h-full overflow-y-auto scrollbar-pixel p-6">
-      {hubSubTab === 'marketplace' && <MarketplaceView />}
-      {hubSubTab === 'blueprints' && <BlueprintsView />}
-      {hubSubTab === 'bank' && <BankView />}
-      {hubSubTab === 'mines' && <MinesView />}
-      {hubSubTab === 'dungeons' && <DungeonsView />}
+      {hubSubTab === 'marketplace' && <div key="marketplace" className="animate-subtab-content"><MarketplaceView /></div>}
+      {hubSubTab === 'blueprints' && <div key="blueprints" className="animate-subtab-content"><BlueprintsView /></div>}
+      {hubSubTab === 'bank' && <div key="bank" className="animate-subtab-content"><BankView /></div>}
+      {hubSubTab === 'mines' && <div key="mines" className="animate-subtab-content"><MinesView /></div>}
+      {hubSubTab === 'dungeons' && <div key="dungeons" className="animate-subtab-content"><DungeonsView /></div>}
     </div>
   );
 }

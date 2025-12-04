@@ -25,11 +25,11 @@ export function SettingsTab() {
 
   return (
     <div className="h-full overflow-y-auto scrollbar-pixel p-6">
-      {settingsSubTab === 'general' && <GeneralSettings />}
-      {settingsSubTab === 'audio' && <AudioSettings />}
-      {settingsSubTab === 'controls' && <ControlsSettings />}
-      {settingsSubTab === 'notifications' && <NotificationsSettings />}
-      {settingsSubTab === 'info' && <InfoSettings />}
+      {settingsSubTab === 'general' && <div key="general" className="animate-subtab-content"><GeneralSettings /></div>}
+      {settingsSubTab === 'audio' && <div key="audio" className="animate-subtab-content"><AudioSettings /></div>}
+      {settingsSubTab === 'controls' && <div key="controls" className="animate-subtab-content"><ControlsSettings /></div>}
+      {settingsSubTab === 'notifications' && <div key="notifications" className="animate-subtab-content"><NotificationsSettings /></div>}
+      {settingsSubTab === 'info' && <div key="info" className="animate-subtab-content"><InfoSettings /></div>}
     </div>
   );
 }

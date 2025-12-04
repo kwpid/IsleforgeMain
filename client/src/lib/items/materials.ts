@@ -11,6 +11,12 @@ export const MATERIAL_ITEMS: ItemDefinition[] = [
     stackable: true,
     maxStack: 64,
     icon: 'stick',
+    recipe: {
+      resultQuantity: 4,
+      ingredients: [{ itemId: 'oak_planks', quantity: 2 }],
+      craftTime: 1000,
+      category: 'materials',
+    },
   },
   {
     id: 'blaze_powder',
@@ -22,6 +28,12 @@ export const MATERIAL_ITEMS: ItemDefinition[] = [
     stackable: true,
     maxStack: 64,
     icon: 'blaze_rod',
+    recipe: {
+      resultQuantity: 2,
+      ingredients: [{ itemId: 'blaze_rod', quantity: 1 }],
+      craftTime: 2000,
+      category: 'materials',
+    },
   },
   {
     id: 'flint',

@@ -27,9 +27,9 @@ export function ShopTab() {
 
   return (
     <div className="h-full overflow-y-auto scrollbar-pixel p-6">
-      {shopSubTab === 'limited' && <LimitedShop />}
-      {shopSubTab === 'daily' && <DailyShop />}
-      {shopSubTab === 'coins' && <CoinsShop />}
+      {shopSubTab === 'limited' && <div key="limited" className="animate-subtab-content"><LimitedShop /></div>}
+      {shopSubTab === 'daily' && <div key="daily" className="animate-subtab-content"><DailyShop /></div>}
+      {shopSubTab === 'coins' && <div key="coins" className="animate-subtab-content"><CoinsShop /></div>}
     </div>
   );
 }

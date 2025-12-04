@@ -13,6 +13,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "wooden_pick.png",
     toolType: "pickaxe",
     stats: { mining_speed: 2, durability: 59 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "oak_planks", quantity: 3 },
+        { itemId: "stick", quantity: 2 },
+      ],
+      craftTime: 3000,
+      category: "tools",
+    },
   },
   {
     id: "stone_pickaxe",
@@ -26,6 +35,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "stone_pick.png",
     toolType: "pickaxe",
     stats: { mining_speed: 4, durability: 131 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "cobblestone", quantity: 3 },
+        { itemId: "stick", quantity: 2 },
+      ],
+      craftTime: 4000,
+      category: "tools",
+    },
   },
   {
     id: "iron_pickaxe",
@@ -39,6 +57,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "iron_pick.png",
     toolType: "pickaxe",
     stats: { mining_speed: 6, durability: 250 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 3 },
+        { itemId: "stick", quantity: 2 },
+      ],
+      craftTime: 5000,
+      category: "tools",
+    },
   },
   {
     id: "diamond_pickaxe",
@@ -52,6 +79,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "diamond_pick.png",
     toolType: "pickaxe",
     stats: { mining_speed: 8, durability: 1561 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "diamond", quantity: 3 },
+        { itemId: "stick", quantity: 2 },
+      ],
+      craftTime: 8000,
+      category: "tools",
+    },
   },
   {
     id: "netherite_pickaxe",
@@ -65,6 +101,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "netherite_pick.png",
     toolType: "pickaxe",
     stats: { mining_speed: 9, durability: 2031 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "netherite_ingot", quantity: 1 },
+        { itemId: "diamond_pickaxe", quantity: 1 },
+      ],
+      craftTime: 12000,
+      category: "tools",
+    },
   },
   {
     id: "wooden_sword",
@@ -78,6 +123,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "wooden_sword.png",
     toolType: "sword",
     stats: { attack_damage: 3, attack_speed: 2, durability: 105 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "oak_planks", quantity: 2 },
+        { itemId: "stick", quantity: 1 },
+      ],
+      craftTime: 2000,
+      category: "tools",
+    },
   },
   {
     id: "stone_sword",
@@ -91,6 +145,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "stone_sword.png",
     toolType: "sword",
     stats: { attack_damage: 5, attack_speed: 1.8, durability: 145 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "cobblestone", quantity: 2 },
+        { itemId: "stick", quantity: 1 },
+      ],
+      craftTime: 3000,
+      category: "tools",
+    },
   },
   {
     id: "iron_sword",
@@ -104,6 +167,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "iron_sword.png",
     toolType: "sword",
     stats: { attack_damage: 6, attack_speed: 1.6, durability: 250 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 2 },
+        { itemId: "stick", quantity: 1 },
+      ],
+      craftTime: 4000,
+      category: "tools",
+    },
   },
   {
     id: "diamond_sword",
@@ -117,6 +189,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "diamond_sword.png",
     toolType: "sword",
     stats: { attack_damage: 7, attack_speed: 1.6, durability: 1561 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "diamond", quantity: 2 },
+        { itemId: "stick", quantity: 1 },
+      ],
+      craftTime: 7000,
+      category: "tools",
+    },
   },
   {
     id: "iron_axe",
@@ -130,6 +211,15 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "iron_axe",
     toolType: "axe",
     stats: { chopping_speed: 6, attack_damage: 9, durability: 250 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 3 },
+        { itemId: "stick", quantity: 2 },
+      ],
+      craftTime: 5000,
+      category: "tools",
+    },
   },
   {
     id: "watering_can",
@@ -143,6 +233,14 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "watering_can",
     toolType: "watering_can",
     stats: { water_capacity: 10, refill_cost: 50, durability: 500 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 3 },
+      ],
+      craftTime: 4000,
+      category: "tools",
+    },
   },
   {
     id: "copper_watering_can",
@@ -156,6 +254,14 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "copper_watering_can",
     toolType: "watering_can",
     stats: { water_capacity: 25, refill_cost: 100, durability: 1000 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 6 },
+      ],
+      craftTime: 6000,
+      category: "tools",
+    },
   },
   {
     id: "golden_watering_can",
@@ -169,5 +275,13 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     icon: "golden_watering_can",
     toolType: "watering_can",
     stats: { water_capacity: 50, refill_cost: 200, durability: 2000 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: "iron_ingot", quantity: 10 },
+      ],
+      craftTime: 8000,
+      category: "tools",
+    },
   },
 ];

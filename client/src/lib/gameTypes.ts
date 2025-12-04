@@ -3,6 +3,18 @@ export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'arm
 export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
+export interface CraftingIngredient {
+  itemId: string;
+  quantity: number;
+}
+
+export interface ItemRecipe {
+  resultQuantity: number;
+  ingredients: CraftingIngredient[];
+  craftTime: number;
+  category: 'tools' | 'armor' | 'materials' | 'blocks' | 'food' | 'potions';
+}
+
 export interface ItemDefinition {
   id: string;
   name: string;
@@ -26,6 +38,7 @@ export interface ItemDefinition {
   growthTime?: number;
   harvestYield?: { min: number; max: number };
   cropItemId?: string;
+  recipe?: ItemRecipe;
 }
 
 export interface InventoryItem {

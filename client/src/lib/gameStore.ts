@@ -1337,7 +1337,7 @@ export const useGameStore = create<GameStore>()(
         }
         
         const cropId = seedId.replace('_seeds', '');
-        const growthTime = seed.stats?.growTime || 60;
+        const growthTime = seed.growthTime || 300;
         
         const newCrop: PlantedCrop = {
           seedId,

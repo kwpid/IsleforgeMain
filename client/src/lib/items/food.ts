@@ -24,6 +24,12 @@ export const FOOD_ITEMS: ItemDefinition[] = [
     maxStack: 64,
     icon: 'bread',
     stats: { hunger: 5, saturation: 6 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'wheat', quantity: 3 }],
+      craftTime: 3000,
+      category: 'food',
+    },
   },
   {
     id: 'cooked_beef',
@@ -48,6 +54,15 @@ export const FOOD_ITEMS: ItemDefinition[] = [
     maxStack: 64,
     icon: 'golden_apple',
     stats: { hunger: 4, saturation: 9.6, absorption: 2 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: 'apple', quantity: 1 },
+        { itemId: 'gold_ingot', quantity: 8 },
+      ],
+      craftTime: 10000,
+      category: 'food',
+    },
   },
   {
     id: 'enchanted_golden_apple',

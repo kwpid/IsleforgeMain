@@ -13,6 +13,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'leather_helmet',
     armorSlot: 'helmet',
     stats: { armor: 1, durability: 55 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'leather', quantity: 5 }],
+      craftTime: 4000,
+      category: 'armor',
+    },
   },
   {
     id: 'leather_chestplate',
@@ -26,6 +32,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'leather_chestplate',
     armorSlot: 'chestplate',
     stats: { armor: 3, durability: 80 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'leather', quantity: 8 }],
+      craftTime: 5000,
+      category: 'armor',
+    },
   },
   {
     id: 'iron_helmet',
@@ -39,6 +51,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'iron_helmet',
     armorSlot: 'helmet',
     stats: { armor: 2, durability: 165 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'iron_ingot', quantity: 5 }],
+      craftTime: 6000,
+      category: 'armor',
+    },
   },
   {
     id: 'iron_chestplate',
@@ -52,6 +70,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'iron_chestplate',
     armorSlot: 'chestplate',
     stats: { armor: 6, durability: 240 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'iron_ingot', quantity: 8 }],
+      craftTime: 7000,
+      category: 'armor',
+    },
   },
   {
     id: 'diamond_helmet',
@@ -65,6 +89,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'diamond_helmet',
     armorSlot: 'helmet',
     stats: { armor: 3, toughness: 2, durability: 363 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'diamond', quantity: 5 }],
+      craftTime: 10000,
+      category: 'armor',
+    },
   },
   {
     id: 'diamond_chestplate',
@@ -78,6 +108,12 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'diamond_chestplate',
     armorSlot: 'chestplate',
     stats: { armor: 8, toughness: 2, durability: 528 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [{ itemId: 'diamond', quantity: 8 }],
+      craftTime: 12000,
+      category: 'armor',
+    },
   },
   {
     id: 'netherite_chestplate',
@@ -91,5 +127,14 @@ export const ARMOR_ITEMS: ItemDefinition[] = [
     icon: 'netherite_chestplate',
     armorSlot: 'chestplate',
     stats: { armor: 8, toughness: 3, knockback_resistance: 1, durability: 592 },
+    recipe: {
+      resultQuantity: 1,
+      ingredients: [
+        { itemId: 'netherite_ingot', quantity: 1 },
+        { itemId: 'diamond_chestplate', quantity: 1 },
+      ],
+      craftTime: 15000,
+      category: 'armor',
+    },
   },
 ];
