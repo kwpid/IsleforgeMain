@@ -198,8 +198,10 @@ function DailyShop() {
             <CardContent className="p-5">
               <div className="flex items-start gap-4 mb-4">
                 <div className={cn(
-                  "w-16 h-16 flex items-center justify-center pixel-border rounded-sm",
-                  `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`
+                  "w-16 h-16 flex items-center justify-center pixel-border rounded-sm overflow-visible",
+                  `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`,
+                  item.isEnchanted && "enchanted-item",
+                  item.isSpecial && "special-item"
                 )}>
                   <PixelIcon icon={item.icon} size="lg" />
                 </div>
@@ -210,9 +212,23 @@ function DailyShop() {
                   )}>
                     {item.name}
                   </p>
-                  <Badge variant="outline" className="pixel-text-sm text-[8px] mb-2">
-                    {item.rarity.toUpperCase()}
-                  </Badge>
+                  <div className="flex items-center gap-1 flex-wrap mb-2">
+                    <Badge variant="outline" className="pixel-text-sm text-[8px]">
+                      {item.rarity.toUpperCase()}
+                    </Badge>
+                    {item.isEnchanted && (
+                      <Badge className="bg-purple-500/80 text-white pixel-text-sm text-[8px] gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Enchanted
+                      </Badge>
+                    )}
+                    {item.isSpecial && !item.isEnchanted && (
+                      <Badge className="bg-amber-500/80 text-black pixel-text-sm text-[8px] gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Special
+                      </Badge>
+                    )}
+                  </div>
                   <p className="font-sans text-xs text-muted-foreground line-clamp-2">
                     {item.description}
                   </p>
