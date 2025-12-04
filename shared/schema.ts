@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const raritySchema = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']);
+export const raritySchema = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary', 'limited', 'mythic']);
 export type Rarity = z.infer<typeof raritySchema>;
 
 export const itemTypeSchema = z.enum(['block', 'mineral', 'material', 'food', 'tool', 'armor', 'potion']);

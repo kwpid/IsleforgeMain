@@ -87,6 +87,7 @@ export default {
           rare: "hsl(var(--rarity-rare) / <alpha-value>)",
           epic: "hsl(var(--rarity-epic) / <alpha-value>)",
           legendary: "hsl(var(--rarity-legendary) / <alpha-value>)",
+          limited: "hsl(var(--rarity-limited) / <alpha-value>)",
           mythic: "hsl(var(--rarity-mythic) / <alpha-value>)",
         },
         game: {

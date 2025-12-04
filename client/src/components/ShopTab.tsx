@@ -493,7 +493,8 @@ function DailyShop() {
     
     const expensiveItems = ALL_ITEMS.filter(item => 
       item.sellPrice >= 500 && 
-      (item.type === 'tool' || item.type === 'armor' || item.type === 'material')
+      (item.type === 'tool' || item.type === 'armor' || item.type === 'material') &&
+      !item.isLimited
     );
 
     const seededRandom = (n: number) => {

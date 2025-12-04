@@ -28,7 +28,7 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     description:
       "A legendary blade forged in the depths of infernal flames. Burns with an eternal blue fire.",
     type: "tool",
-    rarity: "legendary",
+    rarity: "limited",
     sellPrice: 15000,
     stackable: false,
     maxStack: 1,
@@ -51,7 +51,7 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     description:
       "A powerful pickaxe infused with infernal energy. Its blue flames melt through stone like butter.",
     type: "tool",
-    rarity: "legendary",
+    rarity: "limited",
     sellPrice: 10000,
     stackable: false,
     maxStack: 1,
