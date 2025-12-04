@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { ScrollIndicatorTabs } from './NewsModal';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS, GameItem } from '@/lib/gameTypes';
 import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS } from '@/lib/items';
@@ -527,31 +528,31 @@ function MarketplaceView() {
             Browse items by category. Unlimited stock on main vendors!
           </p>
         </div>
-        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-md pixel-border border-border">
+        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-md pixel-border border-border overflow-x-auto scrollbar-none touch-scroll-x max-w-full">
           <Button
             variant={marketplaceView === 'main' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMarketplaceView('main')}
             className={cn(
-              "pixel-text-sm text-[9px] font-bold",
+              "pixel-text-sm text-[8px] md:text-[9px] font-bold flex-shrink-0 px-2 md:px-3",
               marketplaceView === 'main' && "bg-primary text-primary-foreground shadow-md"
             )}
             data-testid="button-main-marketplace"
           >
-            <Store className="w-4 h-4 mr-1" />
-            Main Shop
+            <Store className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+            <span className="hidden xs:inline">Main </span>Shop
           </Button>
           <Button
             variant={marketplaceView === 'sell' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMarketplaceView('sell')}
             className={cn(
-              "pixel-text-sm text-[9px] font-bold",
+              "pixel-text-sm text-[8px] md:text-[9px] font-bold flex-shrink-0 px-2 md:px-3",
               marketplaceView === 'sell' && "bg-green-600 text-white shadow-md"
             )}
             data-testid="button-sell-marketplace"
           >
-            <Coins className="w-4 h-4 mr-1" />
+            <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1" />
             Sell
           </Button>
           <Button
@@ -559,13 +560,13 @@ function MarketplaceView() {
             size="sm"
             onClick={() => setMarketplaceView('special')}
             className={cn(
-              "pixel-text-sm text-[9px] font-bold",
+              "pixel-text-sm text-[8px] md:text-[9px] font-bold flex-shrink-0 px-2 md:px-3",
               marketplaceView === 'special' && "bg-purple-600 text-white shadow-md"
             )}
             data-testid="button-special-vendors"
           >
-            <Sparkles className="w-4 h-4 mr-1" />
-            Special Vendors
+            <Sparkles className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+            <span className="hidden xs:inline">Special </span>Vendors
           </Button>
         </div>
       </div>
@@ -573,7 +574,7 @@ function MarketplaceView() {
       {marketplaceView === 'main' && (
         <>
           <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as MarketplaceCategory)} className="w-full">
-            <div className="touch-scroll-x bg-muted/30 p-1">
+            <ScrollIndicatorTabs className="bg-muted/30 p-1 rounded-md">
               <TabsList className="flex gap-1 h-auto w-max min-w-full bg-transparent">
                 {(Object.keys(CATEGORY_LABELS) as MarketplaceCategory[]).map((cat) => {
                   const Icon = CATEGORY_ICONS[cat];
@@ -581,16 +582,17 @@ function MarketplaceView() {
                     <TabsTrigger
                       key={cat}
                       value={cat}
-                      className="pixel-text-sm text-[7px] whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className="pixel-text-sm text-[7px] whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0"
                       data-testid={`tab-category-${cat}`}
                     >
                       <Icon className="w-3 h-3 mr-1" />
-                      {CATEGORY_LABELS[cat]}
+                      <span className="hidden sm:inline">{CATEGORY_LABELS[cat]}</span>
+                      <span className="sm:hidden">{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1, 5)}</span>
                     </TabsTrigger>
                   );
                 })}
               </TabsList>
-            </div>
+            </ScrollIndicatorTabs>
           </Tabs>
 
           <div className="marketplace-section">

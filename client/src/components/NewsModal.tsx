@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { NEWS_ARTICLES, NewsArticle, ArticleTag, getUnreadArticles } from '@/lib/newsData';
 import {
   Dialog,
@@ -6,12 +6,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Newspaper, Wrench, Sparkles, Calendar } from 'lucide-react';
+import { Newspaper, Wrench, Sparkles, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const STORAGE_KEY = 'isleforge-read-articles';
 
@@ -144,6 +144,111 @@ function renderMarkdown(content: string): JSX.Element[] {
   return elements;
 }
 
+interface ScrollIndicatorTabsProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function ScrollIndicatorTabs({ children, className }: ScrollIndicatorTabsProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    
+    setShowLeftArrow(el.scrollLeft > 10);
+    setShowRightArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    
+    checkScroll();
+    el.addEventListener('scroll', checkScroll);
+    window.addEventListener('resize', checkScroll);
+    
+    const observer = new MutationObserver(checkScroll);
+    observer.observe(el, { childList: true, subtree: true });
+    
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+      observer.disconnect();
+    };
+  }, [checkScroll]);
+
+  const scroll = (direction: 'left' | 'right') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'left' ? -100 : 100, behavior: 'smooth' });
+  };
+
+  return (
+    <div className={cn("relative", className)}>
+      {showLeftArrow && (
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-full bg-gradient-to-r from-background/90 to-transparent flex items-center justify-start pl-0.5"
+          aria-label="Scroll left"
+          data-testid="button-scroll-left"
+        >
+          <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+        </button>
+      )}
+      <div 
+        ref={scrollRef} 
+        className="overflow-x-auto scrollbar-none touch-scroll-x"
+      >
+        {children}
+      </div>
+      {showRightArrow && (
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-full bg-gradient-to-l from-background/90 to-transparent flex items-center justify-end pr-0.5"
+          aria-label="Scroll right"
+          data-testid="button-scroll-right"
+        >
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MobileArticleTab({
+  article,
+  isSelected,
+  onClick,
+}: {
+  article: NewsArticle;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const primaryTag = article.tags[0];
+  const config = TAG_CONFIG[primaryTag];
+  const Icon = config.icon;
+  
+  return (
+    <button
+      className={cn(
+        "flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-md transition-colors",
+        "pixel-text-sm text-[8px] whitespace-nowrap",
+        isSelected 
+          ? "bg-primary text-primary-foreground" 
+          : "bg-muted/50 text-muted-foreground hover-elevate"
+      )}
+      onClick={onClick}
+      data-testid={`mobile-article-tab-${article.id}`}
+    >
+      <Icon className="w-3 h-3 flex-shrink-0" />
+      <span className="max-w-[100px] truncate">{article.title}</span>
+    </button>
+  );
+}
+
 function ArticleCard({
   article,
   isSelected,
@@ -192,6 +297,7 @@ function ArticleCard({
 export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | ArticleTag>('all');
+  const isMobile = useIsMobile();
 
   const filteredArticles = activeTab === 'all'
     ? NEWS_ARTICLES
@@ -211,6 +317,98 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
     onClose();
   }, [onClose, onArticlesRead]);
 
+  if (isMobile) {
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[90vh] flex flex-col p-0 pixel-border border-border rounded-t-lg rounded-b-none fixed bottom-0 left-0 right-0 top-auto translate-y-0 translate-x-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-border flex-shrink-0">
+            <DialogTitle className="pixel-text text-sm flex items-center gap-2">
+              <Newspaper className="w-4 h-4" />
+              News & Updates
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-2 py-2 border-b border-border flex-shrink-0">
+            <div className="flex gap-1 mb-2">
+              {(['all', 'Update', 'Fixes', 'News'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "px-2 py-1 rounded pixel-text-sm text-[7px]",
+                    activeTab === tab
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/50 text-muted-foreground"
+                  )}
+                  data-testid={`filter-tab-${tab}`}
+                >
+                  {tab === 'all' ? 'All' : tab}
+                </button>
+              ))}
+            </div>
+            
+            <ScrollIndicatorTabs>
+              <div className="flex gap-2 px-1 pb-1">
+                {filteredArticles.map((article) => (
+                  <MobileArticleTab
+                    key={article.id}
+                    article={article}
+                    isSelected={selectedArticle?.id === article.id}
+                    onClick={() => setSelectedArticle(article)}
+                  />
+                ))}
+              </div>
+            </ScrollIndicatorTabs>
+          </div>
+
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {selectedArticle ? (
+              <>
+                <div className="px-4 py-2 border-b border-border flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedArticle.tags.map((tag) => {
+                      const config = TAG_CONFIG[tag];
+                      const Icon = config.icon;
+                      return (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className={cn("pixel-text-sm text-[7px] gap-1", config.color)}
+                        >
+                          <Icon className="w-3 h-3" />
+                          {tag}
+                        </Badge>
+                      );
+                    })}
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground flex items-center gap-1 ml-auto">
+                      <Calendar className="w-3 h-3" />
+                      {selectedArticle.date}
+                    </span>
+                  </div>
+                </div>
+                <ScrollArea className="flex-1 px-4 py-3">
+                  <article className="prose prose-sm dark:prose-invert max-w-none">
+                    {renderMarkdown(selectedArticle.content)}
+                  </article>
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-muted-foreground pixel-text-sm">Select an article to read</p>
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 py-3 border-t border-border flex justify-end flex-shrink-0 safe-area-bottom">
+            <Button onClick={handleClose} className="pixel-text-sm" data-testid="button-close-news">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-4xl w-[95vw] md:w-auto h-[85vh] md:h-[80vh] flex flex-col p-0 pixel-border border-border">
@@ -223,27 +421,26 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
 
         <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
           <div className="md:w-72 border-b md:border-b-0 md:border-r border-border flex flex-col flex-shrink-0 max-h-[30vh] md:max-h-none">
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as 'all' | ArticleTag)}
-              className="flex flex-col h-full"
-            >
-              <div className="touch-scroll-x flex-shrink-0 px-2 pt-2">
-                <TabsList className="h-auto flex gap-1 w-max min-w-full">
-                  <TabsTrigger value="all" className="pixel-text-sm text-[8px]">
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger value="Update" className="pixel-text-sm text-[8px]">
-                    Updates
-                  </TabsTrigger>
-                  <TabsTrigger value="Fixes" className="pixel-text-sm text-[8px]">
-                    Fixes
-                  </TabsTrigger>
-                  <TabsTrigger value="News" className="pixel-text-sm text-[8px]">
-                    News
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <div className="flex flex-col h-full">
+              <ScrollIndicatorTabs className="flex-shrink-0 px-2 pt-2">
+                <div className="flex gap-1 w-max min-w-full bg-muted p-1 rounded-md">
+                  {(['all', 'Update', 'Fixes', 'News'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-sm pixel-text-sm text-[8px] whitespace-nowrap transition-colors",
+                        activeTab === tab
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground"
+                      )}
+                      data-testid={`filter-tab-${tab}`}
+                    >
+                      {tab === 'all' ? 'All' : tab === 'Update' ? 'Updates' : tab}
+                    </button>
+                  ))}
+                </div>
+              </ScrollIndicatorTabs>
 
               <ScrollArea className="flex-1 px-2 py-2">
                 <div className="space-y-2">
@@ -262,7 +459,7 @@ export function NewsModal({ isOpen, onClose, onArticlesRead }: NewsModalProps) {
                   )}
                 </div>
               </ScrollArea>
-            </Tabs>
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
