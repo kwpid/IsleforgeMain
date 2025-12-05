@@ -5,6 +5,8 @@ export type LimitedType = "stock" | "timer";
 export interface LimitedItem extends ItemDefinition {
   isLimited: true;
   limitedEffect: LimitedEffect;
+  releasedDate: Date;
+  offsaleDate?: Date;
 }
 
 export interface LimitedPackage {
@@ -44,6 +46,8 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     isEnchanted: true,
     isLimited: true,
     limitedEffect: "blue_flame",
+    releasedDate: new Date("2025-12-04T00:00:00Z"),
+    offsaleDate: new Date("2025-12-18T00:00:00Z"),
   },
   {
     id: "fiery_infernal_pickaxe",
@@ -62,6 +66,8 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     isEnchanted: true,
     isLimited: true,
     limitedEffect: "blue_flame",
+    releasedDate: new Date("2025-12-04T00:00:00Z"),
+    offsaleDate: new Date("2025-12-18T00:00:00Z"),
   },
   {
     id: "fiery_infernal_scythe",
@@ -86,6 +92,8 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     isEnchanted: true,
     isLimited: true,
     limitedEffect: "blue_flame",
+    releasedDate: new Date("2025-12-04T00:00:00Z"),
+    offsaleDate: new Date("2025-12-18T00:00:00Z"),
   },
   {
     id: "voidstrike",
@@ -109,6 +117,8 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     isEnchanted: true,
     isLimited: true,
     limitedEffect: "shadow_pulse",
+    releasedDate: new Date("2025-12-04T00:00:00Z"),
+    offsaleDate: new Date("2025-12-31T00:00:00Z"),
   },
 ];
 
