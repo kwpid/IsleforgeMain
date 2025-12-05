@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X, Package, Flame, Timer } from 'lucide-react';
+import { Sparkles, Clock, Coins, Tag, Lock, ShoppingCart, Loader2, Check, X, Package, Flame, Timer, TrendingUp, Star, LineChart, Calendar } from 'lucide-react';
 import { useGameNotifications } from '@/hooks/useGameNotifications';
 import { useItemAcquisitionStore } from './ItemAcquisitionPopup';
 import {
@@ -283,11 +283,14 @@ function LimitedShop() {
           </h2>
         </div>
         {timeRemaining && (
-          <div className="flex items-center gap-2 text-blue-400">
-            <Timer className="w-4 h-4" />
-            <span className="pixel-text-sm">
-              {timeRemaining.days}d {timeRemaining.hours}h {timeRemaining.minutes}m
-            </span>
+          <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-2 border-blue-400/50 rounded-sm animate-pulse">
+            <Timer className="w-5 h-5 text-blue-400" />
+            <div className="flex flex-col">
+              <span className="pixel-text-sm text-[7px] text-muted-foreground uppercase">Ends In</span>
+              <span className="pixel-text text-blue-400">
+                {timeRemaining.days}d {timeRemaining.hours}h {timeRemaining.minutes}m {timeRemaining.seconds}s
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -303,10 +306,24 @@ function LimitedShop() {
           </div>
 
           <Card 
-            className="pixel-border border-blue-500/50 bg-gradient-to-br from-blue-500/10 to-blue-900/20 blue-flame-card cursor-pointer transition-transform hover:scale-[1.01]"
+            className={cn(
+              "pixel-border border-blue-500/50 bg-gradient-to-br from-blue-500/10 to-blue-900/20 blue-flame-card cursor-pointer transition-transform hover:scale-[1.01] relative overflow-hidden",
+              getPackageItems(mainShowcase).every(item => isItemPurchased(item.id)) && "opacity-75"
+            )}
             onClick={() => handleOpenPackage(mainShowcase)}
             data-testid="card-main-showcase"
           >
+            {getPackageItems(mainShowcase).every(item => isItemPurchased(item.id)) && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-400 flex items-center justify-center">
+                    <Check className="w-10 h-10 text-green-400" />
+                  </div>
+                  <span className="pixel-text text-lg text-green-400">OWNED</span>
+                  <span className="pixel-text-sm text-muted-foreground">All items collected</span>
+                </div>
+              </div>
+            )}
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="flex items-center gap-4">
@@ -317,13 +334,12 @@ function LimitedShop() {
                           className={cn(
                             "w-20 h-20 flex items-center justify-center pixel-border rounded-sm cursor-pointer relative",
                             `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
-                            "blue-flame-item",
-                            isItemPurchased(item.id) && "opacity-50"
+                            "blue-flame-item"
                           )}
                         >
                           <PixelIcon icon={item.icon} size="lg" />
                           {isItemPurchased(item.id) && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-sm">
                               <Check className="w-8 h-8 text-green-400" />
                             </div>
                           )}
@@ -728,14 +744,19 @@ function LimitedShop() {
 
 interface DailyItem {
   item: ItemDefinition;
-  upPrice: number;
-  originalPrice: number;
+  upPrice?: number;
+  coinPrice?: number;
+  originalUpPrice?: number;
+  originalCoinPrice?: number;
   isDiscounted: boolean;
+  isFeatured: boolean;
+  currencyType: 'up' | 'coin';
 }
 
 function DailyShop() {
   const player = useGameStore((s) => s.player);
   const addUniversalPoints = useGameStore((s) => s.addUniversalPoints);
+  const addCoins = useGameStore((s) => s.addCoins);
   const addItemToInventory = useGameStore((s) => s.addItemToInventory);
   const { notify, error: showError } = useGameNotifications();
   const addItems = useItemAcquisitionStore((s) => s.addItems);
@@ -746,44 +767,88 @@ function DailyShop() {
   });
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  const dailyItems = useMemo(() => {
+  const { featuredItems, regularItems } = useMemo(() => {
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     
-    const expensiveItems = ALL_ITEMS.filter(item => 
-      item.sellPrice >= 500 && 
-      (item.type === 'tool' || item.type === 'armor' || item.type === 'material') &&
-      !item.isLimited
-    );
-
     const seededRandom = (n: number) => {
       const x = Math.sin(seed + n) * 10000;
       return x - Math.floor(x);
     };
 
-    const indexedItems = expensiveItems.map((item, idx) => ({
-      item,
-      sortKey: seededRandom(idx)
-    }));
+    const premiumItems = ALL_ITEMS.filter(item => 
+      item.sellPrice >= 2000 && 
+      (item.type === 'tool' || item.type === 'armor') &&
+      !item.isLimited &&
+      (item.rarity === 'epic' || item.rarity === 'legendary')
+    );
+
+    const midTierItems = ALL_ITEMS.filter(item => 
+      item.sellPrice >= 200 && item.sellPrice < 2000 && 
+      (item.type === 'tool' || item.type === 'armor' || item.type === 'material') &&
+      !item.isLimited
+    );
+
+    const shuffledPremium = premiumItems
+      .map((item, idx) => ({ item, sortKey: seededRandom(idx) }))
+      .sort((a, b) => a.sortKey - b.sortKey);
     
-    indexedItems.sort((a, b) => a.sortKey - b.sortKey);
-    const selected = indexedItems.slice(0, 4).map(i => i.item);
+    const shuffledMidTier = midTierItems
+      .map((item, idx) => ({ item, sortKey: seededRandom(idx + 1000) }))
+      .sort((a, b) => a.sortKey - b.sortKey);
 
-    const hasSale = seededRandom(42) < 0.5;
-    const discountIndex = hasSale ? Math.floor(seededRandom(99) * 4) : -1;
+    const upFeatured = shuffledPremium[0]?.item;
+    const coinFeatured = shuffledPremium[1]?.item || shuffledMidTier[0]?.item;
+    const regularSelection = shuffledMidTier.slice(0, 6).map(i => i.item);
 
-    return selected.map((item, index) => {
-      const baseUpPrice = Math.ceil(item.sellPrice / 10000) + 1;
-      const isDiscounted = index === discountIndex;
-      const upPrice = isDiscounted ? Math.ceil(baseUpPrice * 0.7) : baseUpPrice;
-      
-      return {
-        item,
-        upPrice,
-        originalPrice: baseUpPrice,
-        isDiscounted,
-      };
+    const featured: DailyItem[] = [];
+    
+    if (upFeatured) {
+      const baseUpPrice = Math.ceil(upFeatured.sellPrice / 8000) + 2;
+      featured.push({
+        item: upFeatured,
+        upPrice: Math.ceil(baseUpPrice * 0.7),
+        originalUpPrice: baseUpPrice,
+        isDiscounted: true,
+        isFeatured: true,
+        currencyType: 'up',
+      });
+    }
+    
+    if (coinFeatured) {
+      const baseCoinPrice = coinFeatured.sellPrice * 2;
+      featured.push({
+        item: coinFeatured,
+        coinPrice: Math.ceil(baseCoinPrice * 0.75),
+        originalCoinPrice: baseCoinPrice,
+        isDiscounted: true,
+        isFeatured: true,
+        currencyType: 'coin',
+      });
+    }
+
+    const regular: DailyItem[] = regularSelection.map((item, idx) => {
+      const useCoin = idx % 2 === 0;
+      if (useCoin) {
+        return {
+          item,
+          coinPrice: Math.ceil(item.sellPrice * 1.5),
+          isDiscounted: false,
+          isFeatured: false,
+          currencyType: 'coin' as const,
+        };
+      } else {
+        return {
+          item,
+          upPrice: Math.ceil(item.sellPrice / 10000) + 1,
+          isDiscounted: false,
+          isFeatured: false,
+          currencyType: 'up' as const,
+        };
+      }
     });
+
+    return { featuredItems: featured, regularItems: regular };
   }, []);
 
   const handlePurchaseClick = (dailyItem: DailyItem) => {
@@ -793,12 +858,21 @@ function DailyShop() {
   const handleConfirmPurchase = async () => {
     if (!confirmDialog.item) return;
     
-    const { item, upPrice } = confirmDialog.item;
+    const dailyItem = confirmDialog.item;
+    const { item, currencyType, upPrice, coinPrice } = dailyItem;
     
-    if (player.universalPoints < upPrice) {
-      showError('Not Enough UP', `You need U$${upPrice} to purchase this item.`);
-      setConfirmDialog({ open: false, item: null });
-      return;
+    if (currencyType === 'up' && upPrice) {
+      if (player.universalPoints < upPrice) {
+        showError('Not Enough UP', `You need U$${upPrice} to purchase this item.`);
+        setConfirmDialog({ open: false, item: null });
+        return;
+      }
+    } else if (currencyType === 'coin' && coinPrice) {
+      if (player.coins < coinPrice) {
+        showError('Not Enough Coins', `You need ${formatNumber(coinPrice)} coins to purchase this item.`);
+        setConfirmDialog({ open: false, item: null });
+        return;
+      }
     }
 
     setIsPurchasing(true);
@@ -807,18 +881,25 @@ function DailyShop() {
 
     const success = addItemToInventory(item.id, 1);
     if (success) {
-      addUniversalPoints(-upPrice);
-      addItems([{
-        item,
-        quantity: 1,
-        source: 'purchase' as const,
-      }]);
-      notify({
-        type: 'item',
-        title: 'Item Purchased!',
-        message: `You bought ${item.name} for U$${upPrice}`,
-        icon: item.icon,
-      });
+      if (currencyType === 'up' && upPrice) {
+        addUniversalPoints(-upPrice);
+        addItems([{ item, quantity: 1, source: 'purchase' as const }]);
+        notify({
+          type: 'item',
+          title: 'Item Purchased!',
+          message: `You bought ${item.name} for U$${upPrice}`,
+          icon: item.icon,
+        });
+      } else if (currencyType === 'coin' && coinPrice) {
+        addCoins(-coinPrice);
+        addItems([{ item, quantity: 1, source: 'purchase' as const }]);
+        notify({
+          type: 'item',
+          title: 'Item Purchased!',
+          message: `You bought ${item.name} for ${formatNumber(coinPrice)} coins`,
+          icon: item.icon,
+        });
+      }
     } else {
       showError('Inventory Full', 'Make room in your inventory first.');
     }
@@ -842,113 +923,180 @@ function DailyShop() {
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-3">
-          <ShoppingCart className="w-6 h-6 text-primary" />
+          <Star className="w-6 h-6 text-game-coin" />
           <h2 className="pixel-text text-lg text-foreground">
             Daily Deals
           </h2>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span className="pixel-text-sm">Resets in {getTimeUntilReset()}</span>
+        <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-primary/10 to-game-coin/10 border border-border rounded-sm">
+          <Clock className="w-4 h-4 text-primary" />
+          <span className="pixel-text-sm text-foreground">Resets in {getTimeUntilReset()}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {dailyItems.map(({ item, upPrice, originalPrice, isDiscounted }) => (
-          <Card 
-            key={item.id} 
-            className={cn(
-              'pixel-border relative overflow-visible group transition-all duration-200',
-              isDiscounted 
-                ? 'border-primary bg-gradient-to-br from-primary/10 to-primary/5' 
-                : 'border-card-border bg-gradient-to-br from-card to-muted/20'
-            )}
-            data-testid={`shop-item-${item.id}`}
-          >
-            {isDiscounted && (
-              <div className="absolute -top-3 -right-3 z-10">
-                <Badge className="bg-primary text-primary-foreground pixel-text-sm text-[10px] gap-1 px-2 py-1">
-                  <Tag className="w-3 h-3" />
-                  30% OFF
-                </Badge>
-              </div>
-            )}
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4 mb-4">
-                <HoverCard openDelay={0} closeDelay={0}>
-                  <HoverCardTrigger asChild>
-                    <div className={cn(
-                      "w-16 h-16 flex items-center justify-center pixel-border rounded-sm overflow-visible cursor-pointer",
-                      `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`,
-                      item.isEnchanted && "enchanted-item",
-                      item.isSpecial && "special-item"
-                    )}>
-                      <PixelIcon icon={item.icon} size="lg" />
-                    </div>
-                  </HoverCardTrigger>
-                  <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                    <ItemTooltip item={item} />
-                  </HoverCardContent>
-                </HoverCard>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    'pixel-text text-sm mb-1',
-                    `text-rarity-${item.rarity}`
-                  )}>
-                    {item.name}
-                  </p>
-                  <div className="flex items-center gap-1 flex-wrap mb-2">
-                    <Badge variant="outline" className="pixel-text-sm text-[8px]">
-                      {item.rarity.toUpperCase()}
-                    </Badge>
-                    {item.isEnchanted && (
-                      <Badge className="bg-purple-500/80 text-white pixel-text-sm text-[8px] gap-0.5">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        Enchanted
-                      </Badge>
-                    )}
-                    {item.isSpecial && !item.isEnchanted && (
-                      <Badge className="bg-amber-500/80 text-black pixel-text-sm text-[8px] gap-0.5">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        Special
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="font-sans text-xs text-muted-foreground line-clamp-2">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                <div className="flex items-center gap-2">
-                  <PixelIcon icon="universal_point" size="sm" />
-                  <span className={cn(
-                    'pixel-text text-sm font-bold',
-                    isDiscounted ? 'text-primary' : 'text-game-up'
-                  )}>
-                    U${upPrice}
-                  </span>
-                  {isDiscounted && (
-                    <span className="pixel-text-sm text-[10px] text-muted-foreground line-through">
-                      U${originalPrice}
-                    </span>
+      {featuredItems.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h3 className="pixel-text text-sm text-foreground">Featured Deals</h3>
+            <Badge className="bg-primary text-primary-foreground pixel-text-sm text-[8px]">HOT</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {featuredItems.map((dailyItem) => {
+              const { item, currencyType, upPrice, coinPrice, originalUpPrice, originalCoinPrice } = dailyItem;
+              const canAfford = currencyType === 'up' 
+                ? player.universalPoints >= (upPrice || 0)
+                : player.coins >= (coinPrice || 0);
+              
+              return (
+                <Card 
+                  key={item.id} 
+                  className={cn(
+                    'pixel-border relative overflow-visible transition-all duration-200',
+                    currencyType === 'up'
+                      ? 'border-game-up/50 bg-gradient-to-br from-game-up/10 to-purple-500/5'
+                      : 'border-game-coin/50 bg-gradient-to-br from-game-coin/10 to-amber-500/5'
                   )}
-                </div>
-                <Button
-                  onClick={() => handlePurchaseClick({ item, upPrice, originalPrice, isDiscounted })}
-                  disabled={player.universalPoints < upPrice}
-                  className="pixel-text-sm"
-                  data-testid={`button-buy-${item.id}`}
+                  data-testid={`featured-item-${item.id}`}
                 >
-                  <ShoppingCart className="w-4 h-4 mr-1" />
-                  Buy
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  <div className="absolute -top-3 -right-3 z-10">
+                    <Badge className={cn(
+                      "pixel-text-sm text-[10px] gap-1 px-2 py-1",
+                      currencyType === 'up' ? "bg-game-up text-white" : "bg-game-coin text-black"
+                    )}>
+                      <Tag className="w-3 h-3" />
+                      {currencyType === 'up' ? '30%' : '25%'} OFF
+                    </Badge>
+                  </div>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4 mb-4">
+                      <HoverCard openDelay={0} closeDelay={0}>
+                        <HoverCardTrigger asChild>
+                          <div className={cn(
+                            "w-20 h-20 flex items-center justify-center pixel-border rounded-sm cursor-pointer",
+                            `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
+                            item.isEnchanted && "enchanted-item",
+                            item.isSpecial && "special-item"
+                          )}>
+                            <PixelIcon icon={item.icon} size="lg" />
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                          <ItemTooltip item={item} />
+                        </HoverCardContent>
+                      </HoverCard>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('pixel-text text-sm mb-1', `text-rarity-${item.rarity}`)}>
+                          {item.name}
+                        </p>
+                        <div className="flex items-center gap-1 flex-wrap mb-2">
+                          <Badge variant="outline" className="pixel-text-sm text-[8px]">
+                            {item.rarity.toUpperCase()}
+                          </Badge>
+                          {item.isEnchanted && (
+                            <Badge className="bg-purple-500/80 text-white pixel-text-sm text-[8px] gap-0.5">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              Enchanted
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="font-sans text-xs text-muted-foreground line-clamp-2">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                      <div className="flex items-center gap-2">
+                        <PixelIcon icon={currencyType === 'up' ? 'universal_point' : 'coin'} size="sm" />
+                        <span className={cn('pixel-text text-sm font-bold', currencyType === 'up' ? 'text-game-up' : 'text-game-coin')}>
+                          {currencyType === 'up' ? `U$${upPrice}` : formatNumber(coinPrice || 0)}
+                        </span>
+                        <span className="pixel-text-sm text-[10px] text-muted-foreground line-through">
+                          {currencyType === 'up' ? `U$${originalUpPrice}` : formatNumber(originalCoinPrice || 0)}
+                        </span>
+                      </div>
+                      <Button
+                        onClick={() => handlePurchaseClick(dailyItem)}
+                        disabled={!canAfford}
+                        className={cn("pixel-text-sm", currencyType === 'coin' && "bg-game-coin text-black hover:bg-game-coin/90")}
+                        data-testid={`button-buy-featured-${item.id}`}
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        Buy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {regularItems.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="pixel-text text-sm text-muted-foreground">More Items</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {regularItems.map((dailyItem) => {
+              const { item, currencyType, upPrice, coinPrice } = dailyItem;
+              const canAfford = currencyType === 'up' 
+                ? player.universalPoints >= (upPrice || 0)
+                : player.coins >= (coinPrice || 0);
+              
+              return (
+                <Card 
+                  key={item.id} 
+                  className="pixel-border border-card-border bg-card"
+                  data-testid={`shop-item-${item.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <HoverCard openDelay={0} closeDelay={0}>
+                        <HoverCardTrigger asChild>
+                          <div className={cn(
+                            "w-12 h-12 flex items-center justify-center pixel-border rounded-sm cursor-pointer",
+                            `bg-rarity-${item.rarity}/10 border-rarity-${item.rarity}/30`
+                          )}>
+                            <PixelIcon icon={item.icon} size="md" />
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                          <ItemTooltip item={item} />
+                        </HoverCardContent>
+                      </HoverCard>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('pixel-text-sm truncate', `text-rarity-${item.rarity}`)}>
+                          {item.name}
+                        </p>
+                        <Badge variant="outline" className="pixel-text-sm text-[7px] mt-1">
+                          {item.rarity.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                      <div className="flex items-center gap-1">
+                        <PixelIcon icon={currencyType === 'up' ? 'universal_point' : 'coin'} size="sm" />
+                        <span className={cn('pixel-text-sm', currencyType === 'up' ? 'text-game-up' : 'text-game-coin')}>
+                          {currencyType === 'up' ? `U$${upPrice}` : formatNumber(coinPrice || 0)}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handlePurchaseClick(dailyItem)}
+                        disabled={!canAfford}
+                        className={cn("pixel-text-sm text-[8px]", currencyType === 'coin' && "bg-game-coin text-black hover:bg-game-coin/90")}
+                        data-testid={`button-buy-${item.id}`}
+                      >
+                        Buy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !isPurchasing && setConfirmDialog({ open, item: open ? confirmDialog.item : null })}>
         <AlertDialogContent className="pixel-border bg-card">
@@ -966,8 +1114,12 @@ function DailyShop() {
                       {confirmDialog.item.item.name}
                     </p>
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <PixelIcon icon="universal_point" size="sm" />
-                      <span className="text-game-up font-bold">U${confirmDialog.item.upPrice}</span>
+                      <PixelIcon icon={confirmDialog.item.currencyType === 'up' ? 'universal_point' : 'coin'} size="sm" />
+                      <span className={cn("font-bold", confirmDialog.item.currencyType === 'up' ? 'text-game-up' : 'text-game-coin')}>
+                        {confirmDialog.item.currencyType === 'up' 
+                          ? `U$${confirmDialog.item.upPrice}` 
+                          : formatNumber(confirmDialog.item.coinPrice || 0)}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -979,7 +1131,11 @@ function DailyShop() {
               <X className="w-4 h-4 mr-1" />
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmPurchase} disabled={isPurchasing} className="pixel-text-sm">
+            <AlertDialogAction 
+              onClick={handleConfirmPurchase} 
+              disabled={isPurchasing} 
+              className={cn("pixel-text-sm", confirmDialog.item?.currencyType === 'coin' && "bg-game-coin text-black hover:bg-game-coin/90")}
+            >
               {isPurchasing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
