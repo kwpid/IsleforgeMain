@@ -14,32 +14,36 @@ interface ItemTooltipProps {
   className?: string;
   isBroken?: boolean;
   onUseBooster?: () => void;
+  showUseButton?: boolean;
 }
 
-export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster }: ItemTooltipProps) {
+export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster, showUseButton = true }: ItemTooltipProps) {
   const booster = isBoosterItem(item.id) ? getBoosterById(item.id) : null;
   const useBooster = useGameStore((s) => s.useBooster);
   const { success, warning } = useGameNotifications();
   const [isUsing, setIsUsing] = React.useState(false);
+  const useClickedRef = React.useRef(false);
   
   const handleUseBooster = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!booster || isUsing) return;
+    if (!booster || isUsing || useClickedRef.current) return;
     
+    useClickedRef.current = true;
     setIsUsing(true);
-    try {
-      const used = useBooster(item.id);
-      if (used) {
-        success('Booster Activated!', `${booster.name} is now active for ${formatBoosterDuration(booster.duration)}`);
-        onUseBooster?.();
-      } else {
-        warning('Cannot Use', 'Unable to activate booster');
-      }
-    } finally {
-      // Reset after a short delay to prevent rapid clicking
-      setTimeout(() => setIsUsing(false), 500);
+    
+    const used = useBooster(item.id);
+    if (used) {
+      success('Booster Activated!', `${booster.name} is now active for ${formatBoosterDuration(booster.duration)}`);
+      onUseBooster?.();
+    } else {
+      warning('Cannot Use', 'Unable to activate booster');
     }
+    
+    setTimeout(() => {
+      setIsUsing(false);
+      useClickedRef.current = false;
+    }, 1000);
   }, [booster, isUsing, useBooster, item.id, success, warning, onUseBooster]);
   const rarityLabels: Record<string, string> = {
     common: 'COMMON',
@@ -195,7 +199,7 @@ export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster 
           </div>
         )}
 
-        {booster && (
+        {booster && showUseButton && (
           <div className="border-t border-yellow-500/50 pt-2 mt-2">
             <Button
               onClick={handleUseBooster}
