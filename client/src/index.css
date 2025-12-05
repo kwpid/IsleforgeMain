@@ -742,6 +742,60 @@
     animation-delay: 1.2s;
   }
 
+  .shadow-pulse-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(192, 132, 252, 1) 0%, rgba(139, 92, 246, 0.8) 50%, transparent 100%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: shadow-pulse-particle-spawn 2s ease-out infinite;
+    z-index: 4;
+  }
+
+  .shadow-pulse-particle:nth-child(1) {
+    left: 20%;
+    top: 30%;
+    animation-delay: 0s;
+  }
+
+  .shadow-pulse-particle:nth-child(2) {
+    left: 60%;
+    top: 50%;
+    animation-delay: 0.5s;
+  }
+
+  .shadow-pulse-particle:nth-child(3) {
+    left: 40%;
+    top: 70%;
+    animation-delay: 1s;
+  }
+
+  .shadow-pulse-particle:nth-child(4) {
+    left: 75%;
+    top: 25%;
+    animation-delay: 1.5s;
+  }
+
+  @keyframes shadow-pulse-particle-spawn {
+    0% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    15% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+    40% {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+  }
+
   .shadow-pulse-item {
     position: relative;
     overflow: visible !important;
