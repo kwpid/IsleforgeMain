@@ -679,15 +679,14 @@ export const useGameStore = create<GameStore>()(
         if (unitIndex < 0) return false;
 
         const unit = state.storageSystem.units[unitIndex];
-        const currentUsed = unit.items.reduce((sum, i) => sum + i.quantity, 0);
+        const existingIndex = unit.items.findIndex(i => i.itemId === itemId);
         
-        if (currentUsed + quantity > unit.maxSlots) {
-          const canAdd = unit.maxSlots - currentUsed;
-          if (canAdd <= 0) return false;
-          quantity = canAdd;
+        // Check if we need a new slot (unique item) - storage counts unique items, not total quantity
+        if (existingIndex < 0 && unit.items.length >= unit.maxSlots) {
+          // No room for a new unique item
+          return false;
         }
 
-        const existingIndex = unit.items.findIndex(i => i.itemId === itemId);
         const newUnits = [...state.storageSystem.units];
 
         if (existingIndex >= 0) {
@@ -756,13 +755,14 @@ export const useGameStore = create<GameStore>()(
         const actualQuantity = Math.min(quantity, fromItem.quantity);
         if (actualQuantity <= 0) return false;
 
-        const toUsed = toUnit.items.reduce((sum, i) => sum + i.quantity, 0);
-        const toAvailable = toUnit.maxSlots - toUsed;
-        const moveQuantity = Math.min(actualQuantity, toAvailable);
-        if (moveQuantity <= 0) return false;
+        // Check if destination has the item already or has room for a new unique item
+        const existsInTarget = toUnit.items.some(i => i.itemId === itemId);
+        if (!existsInTarget && toUnit.items.length >= toUnit.maxSlots) {
+          return false; // No room for new unique item
+        }
 
-        get().removeItemFromStorageUnit(fromUnitId, itemId, moveQuantity);
-        get().addItemToStorageUnit(toUnitId, itemId, moveQuantity);
+        get().removeItemFromStorageUnit(fromUnitId, itemId, actualQuantity);
+        get().addItemToStorageUnit(toUnitId, itemId, actualQuantity);
         return true;
       },
 
@@ -795,10 +795,13 @@ export const useGameStore = create<GameStore>()(
         const unit = state.storageSystem.units.find(u => u.id === unitId);
         if (!unit) return false;
 
-        const usedSpace = unit.items.reduce((sum, i) => sum + i.quantity, 0);
-        const availableSpace = unit.maxSlots - usedSpace;
-        const actualQuantity = Math.min(quantity, inventoryItem.quantity, availableSpace);
+        // Check if item already exists in storage or if there's room for a new unique item
+        const existsInStorage = unit.items.some(i => i.itemId === itemId);
+        if (!existsInStorage && unit.items.length >= unit.maxSlots) {
+          return false; // No room for new unique item
+        }
 
+        const actualQuantity = Math.min(quantity, inventoryItem.quantity);
         if (actualQuantity <= 0) return false;
 
         get().removeItemFromInventory(itemId, actualQuantity);
@@ -810,7 +813,8 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const unit = state.storageSystem.units.find(u => u.id === unitId);
         if (!unit) return 0;
-        return unit.items.reduce((sum, item) => sum + item.quantity, 0);
+        // Return count of unique items, not total quantity
+        return unit.items.length;
       },
 
       getCurrentStorageUnit: () => {

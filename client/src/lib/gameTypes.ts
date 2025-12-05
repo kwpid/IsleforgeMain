@@ -1,6 +1,6 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'limited' | 'mythic';
 export type ItemType = 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion' | 'seed' | 'crop';
-export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can';
+export type ToolType = 'pickaxe' | 'axe' | 'sword' | 'shovel' | 'hoe' | 'watering_can' | 'scythe';
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
 export interface CraftingIngredient {

@@ -63,6 +63,53 @@ export const LIMITED_ITEMS: LimitedItem[] = [
     isLimited: true,
     limitedEffect: "blue_flame",
   },
+  {
+    id: "fiery_infernal_scythe",
+    name: "Fiery Infernal Scythe",
+    description:
+      "A devastating scythe wreathed in infernal blue flames. Reaps through enemies with supernatural efficiency.",
+    type: "tool",
+    rarity: "limited",
+    sellPrice: 30000,
+    stackable: false,
+    maxStack: 1,
+    icon: "fiery_infernal_sycthe.png",
+    toolType: "scythe",
+    stats: {
+      attack_damage: 280,
+      attack_speed: 0.5,
+      durability: 350000,
+      fire_damage: 12,
+      sweep_damage: 150,
+    },
+    isSpecial: true,
+    isEnchanted: true,
+    isLimited: true,
+    limitedEffect: "blue_flame",
+  },
+  {
+    id: "voidstrike",
+    name: "Voidstrike",
+    description:
+      "A mysterious scythe forged from the essence of the void. Strikes silently and leaves no trace.",
+    type: "tool",
+    rarity: "limited",
+    sellPrice: 8000,
+    stackable: false,
+    maxStack: 1,
+    icon: "voidstrike.png",
+    toolType: "sword",
+    stats: {
+      attack_damage: 175,
+      attack_speed: 1.2,
+      durability: 250000,
+      fire_damage: 3,
+    },
+    isSpecial: true,
+    isEnchanted: true,
+    isLimited: true,
+    limitedEffect: "shadow_pulse",
+  },
 ];
 
 export const LIMITED_PACKAGES: LimitedPackage[] = [
@@ -71,13 +118,30 @@ export const LIMITED_PACKAGES: LimitedPackage[] = [
     name: "Fiery Infernal Pack",
     description:
       "Harness the power of blue infernal flames with this exclusive weapon set. Limited time offer!",
-    itemIds: ["fiery_infernal_blade", "fiery_infernal_pickaxe"],
+    itemIds: [
+      "fiery_infernal_blade",
+      "fiery_infernal_pickaxe",
+      "fiery_infernal_scythe",
+    ],
     limitType: "timer",
     startDate: new Date("2025-12-04T00:00:00Z"),
     endDate: new Date("2025-12-18T00:00:00Z"),
     discountPercent: 10,
     isMainShowcase: true,
     effect: "blue_flame",
+  },
+  {
+    id: "voidstrike_pack",
+    name: "Voidstrike",
+    description:
+      "Wield the power of the void with this mysterious scythe. Available for a limited time only.",
+    itemIds: ["voidstrike"],
+    limitType: "timer",
+    startDate: new Date("2025-12-04T00:00:00Z"),
+    endDate: new Date("2025-12-31T00:00:00Z"),
+    discountPercent: 0,
+    isMainShowcase: false,
+    effect: "shadow_pulse",
   },
 ];
 

@@ -142,7 +142,7 @@ export function PixelIcon({ icon, size = 'md', className, customImage, animatedI
   const [imageError, setImageError] = useState(false);
 
   const isPotion = iconKey.startsWith('potion_');
-  const isTool = ['pickaxe', 'sword', 'axe'].some(t => iconKey.includes(t));
+  const isTool = ['pickaxe', 'sword', 'axe', 'scythe'].some(t => iconKey.includes(t));
   const isArmor = ['helmet', 'chestplate', 'leggings', 'boots'].some(a => iconKey.includes(a));
   const isIngot = iconKey.includes('ingot');
   const isGem = ['diamond', 'emerald', 'nether_star'].includes(iconKey);
