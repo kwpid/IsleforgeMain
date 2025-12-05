@@ -34,6 +34,11 @@ const allowlist = [
 ];
 
 function getGitCommit(): string {
+  // Check for Render's environment variable first
+  if (process.env.RENDER_GIT_COMMIT) {
+    return process.env.RENDER_GIT_COMMIT;
+  }
+  
   try {
     const commit = execSync("git rev-parse HEAD", { encoding: "utf-8" }).trim();
     return commit;
