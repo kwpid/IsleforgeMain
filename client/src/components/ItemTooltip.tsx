@@ -75,7 +75,8 @@ export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster 
   return (
     <div 
       className={cn(
-        'pixel-border border-border bg-popover p-3 min-w-48 max-w-64 z-50',
+        'pixel-border border-border bg-popover p-3 min-w-48 z-50',
+        booster ? 'max-w-80' : 'max-w-64',
         item.isEnchanted && 'enchanted-item',
         className
       )}
@@ -135,19 +136,21 @@ export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster 
         </div>
 
         {booster && (
-          <div className="border-t border-border pt-2 mt-2 space-y-1">
-            <div className="mb-2">
-              <p className="text-muted-foreground font-sans text-xs mb-1">Duration:</p>
-              <p className="pixel-text-sm text-primary">{formatBoosterDuration(booster.duration)}</p>
+          <div className="border-t border-border pt-2 mt-2 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground font-sans text-xs">Duration:</span>
+              <span className="pixel-text-sm text-primary">{formatBoosterDuration(booster.duration)}</span>
             </div>
             <div>
-              <p className="text-muted-foreground font-sans text-xs mb-1">Effects:</p>
-              {getBoosterDisplayStats(booster).map((stat, idx) => (
-                <div key={idx} className="flex items-center gap-1 mb-0.5">
-                  <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />
-                  <span className="pixel-text-sm text-[10px] text-primary">{stat}</span>
-                </div>
-              ))}
+              <p className="text-muted-foreground font-sans text-xs mb-1.5">Effects:</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                {getBoosterDisplayStats(booster).map((stat, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />
+                    <span className="pixel-text-sm text-[9px] text-primary leading-tight">{stat}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
