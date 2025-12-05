@@ -180,6 +180,13 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Items with `isEnchanted: true` have an enchantment glow animation
 - Special items available in Special Vendors or via dev console
 
+### Game Icon
+- **Location**: `client/public/favicon.png`
+- **To Change**: Simply replace `client/public/favicon.png` with your own PNG image
+- **Recommended Size**: 128x128 or 256x256 pixels (square)
+- **Format**: PNG (supports transparency)
+- The icon is used for browser tab favicon and PWA icon
+
 ### Custom Item Images
 - Custom images folder: `client/public/item_images/`
 - Usage: Set `icon: "filename.png"` in item definition (auto-detected by file extension)
