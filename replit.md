@@ -123,6 +123,22 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Skills always visible on right sidebar with level and XP progress
 - XP curve: Level 1 requires 50 XP, scales with formula floor(50 * 1.5^(level-1))
 
+### Booster System
+- **Booster Items**: Consumable items that provide temporary stat multipliers
+  - Booster Cookie: +25% mining power, +10% XP gain (5 minutes)
+  - Booster Carrot: +20% farming speed, +15% profit (5 minutes)
+  - Booster Potato: +15% mining, +10% farming, +5% XP (7 minutes)
+- **Stacking Mechanics**:
+  - Same booster type: Extends duration (minutes stack)
+  - Different booster types: Stats stack additively
+- **Activation**: Double-click or right-click → "Use Booster" in inventory
+- **Display**: Active boosters shown in PlayerStats sidebar with:
+  - Combined stat multipliers
+  - Remaining time countdown
+  - Enchanted visual styling
+- **Acquisition**: Purchase from Mystic Merchant (special vendor) in Marketplace
+- **Extensibility**: Add new boosters in `client/src/lib/items/boosters.ts`
+
 ### Shop System (Shop Tab)
 - **Limited Shop**: Exclusive limited-time items and packages
   - Fiery Infernal Pack: Blue flame blade and pickaxe set (available until Dec 18, 2025)

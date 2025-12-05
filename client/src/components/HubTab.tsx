@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ScrollIndicatorTabs } from './NewsModal';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS, GameItem } from '@/lib/gameTypes';
-import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS, BOOSTER_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -239,6 +239,21 @@ const DEFAULT_VENDORS: Vendor[] = [
       { itemId: 'cooked_beef', stock: 20, priceMultiplier: 2.0 },
       { itemId: 'golden_apple', stock: 2, priceMultiplier: 5.0, isRotating: true },
     ],
+  },
+  {
+    id: 'enchanter',
+    name: 'Enchanter Elara',
+    description: 'Sells magical booster items with temporary power-ups',
+    type: 'potions',
+    icon: 'vendor_potions',
+    priceModifier: 1.0,
+    isSpecialBoosterVendor: true,
+    items: BOOSTER_ITEMS.map(booster => ({
+      itemId: booster.id,
+      stock: 5,
+      priceMultiplier: 3.0,
+      isBooster: true,
+    })),
   },
 ];
 

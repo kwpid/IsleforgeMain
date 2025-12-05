@@ -199,6 +199,8 @@ export interface VendorItem {
   priceMultiplier: number;
   isRotating?: boolean;
   unlimitedStock?: boolean;
+  isBooster?: boolean;
+  isSpecialItem?: boolean;
 }
 
 export interface Vendor {
@@ -210,6 +212,7 @@ export interface Vendor {
   priceModifier: number;
   items: VendorItem[];
   isTravelling?: boolean;
+  isSpecialBoosterVendor?: boolean;
 }
 
 export interface BlueprintRequirement {

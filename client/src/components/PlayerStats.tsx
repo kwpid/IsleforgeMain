@@ -1,11 +1,11 @@
 import { useGameStore } from '@/lib/gameStore';
-import { formatNumber, createDefaultSkillStats } from '@/lib/gameTypes';
+import { formatNumber, createDefaultSkillStats, BoosterStatType } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { Pickaxe, Leaf, Skull, Sparkles, Clock } from 'lucide-react';
-import { getBoosterById } from '@/lib/items';
-import { useEffect, useState } from 'react';
+import { Pickaxe, Leaf, Skull, Sparkles, Clock, TrendingUp } from 'lucide-react';
+import { getBoosterById, BOOSTER_ITEMS } from '@/lib/items';
+import { useEffect, useState, useMemo } from 'react';
 
 export function PlayerStats() {
   const player = useGameStore((s) => s.player);
@@ -16,6 +16,7 @@ export function PlayerStats() {
   const generators = useGameStore((s) => s.generators);
   const getActiveBoosters = useGameStore((s) => s.getActiveBoosters);
   const tickBoosters = useGameStore((s) => s.tickBoosters);
+  const getActiveBoosterMultiplier = useGameStore((s) => s.getActiveBoosterMultiplier);
   
   const [, setTick] = useState(0);
   
@@ -28,6 +29,40 @@ export function PlayerStats() {
   }, [tickBoosters]);
   
   const activeBoosters = getActiveBoosters();
+  
+  const combinedBoosterStats = useMemo(() => {
+    const statLabels: Record<BoosterStatType, string> = {
+      'mining_speed': 'Mining Speed',
+      'mining_xp': 'Mining XP',
+      'mining_luck': 'Mining Luck',
+      'farming_speed': 'Farming Speed',
+      'farming_xp': 'Farming XP',
+      'crop_speed_all': 'All Crop Growth',
+      'crop_speed_carrot': 'Carrot Growth',
+      'crop_speed_potato': 'Potato Growth',
+      'sale_profit': 'Sale Profit',
+      'farm_sale_profit': 'Farm Sale Profit',
+      'potato_sale_profit': 'Potato Sale Profit',
+    };
+    
+    const allStats: BoosterStatType[] = [
+      'mining_speed', 'mining_xp', 'mining_luck',
+      'farming_speed', 'farming_xp',
+      'crop_speed_all', 'crop_speed_carrot', 'crop_speed_potato',
+      'sale_profit', 'farm_sale_profit', 'potato_sale_profit'
+    ];
+    
+    const stats: Array<{ stat: BoosterStatType; label: string; multiplier: number }> = [];
+    
+    for (const stat of allStats) {
+      const mult = getActiveBoosterMultiplier(stat);
+      if (mult > 0) {
+        stats.push({ stat, label: statLabels[stat], multiplier: mult });
+      }
+    }
+    
+    return stats;
+  }, [activeBoosters, getActiveBoosterMultiplier]);
 
   const xpProgress = (player.xp / player.xpToNextLevel) * 100;
   const storageUsed = getStorageUsed();
@@ -116,6 +151,26 @@ export function PlayerStats() {
             <Sparkles className="w-4 h-4 text-yellow-400" />
             ACTIVE BOOSTERS
           </h3>
+          
+          {combinedBoosterStats.length > 0 && (
+            <div className="pixel-border border-green-500/30 bg-green-950/20 p-3 mb-3" data-testid="combined-booster-stats">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-3 h-3 text-green-400" />
+                <span className="pixel-text-sm text-[8px] text-green-300">TOTAL BONUSES</span>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {combinedBoosterStats.map(({ stat, label, multiplier }) => (
+                  <div key={stat} className="flex items-center justify-between gap-2">
+                    <span className="pixel-text-sm text-[7px] text-muted-foreground truncate">{label}</span>
+                    <span className="pixel-text-sm text-[8px] text-green-400 tabular-nums flex-shrink-0">
+                      +{Math.round(multiplier * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-3">
             {activeBoosters.map((active) => {
               const booster = getBoosterById(active.boosterId);
@@ -135,17 +190,27 @@ export function PlayerStats() {
                   <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/5 to-transparent animate-pulse" />
                   <div className="relative z-10">
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="pixel-text-sm text-yellow-300">{booster.name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="pixel-border p-1 bg-card/50 enchanted-item">
+                          <PixelIcon icon={booster.icon} size="sm" />
+                        </div>
+                        <span className="pixel-text-sm text-yellow-300">{booster.name}</span>
+                      </div>
                       <span className="pixel-text text-xs text-yellow-400 flex items-center gap-1 tabular-nums">
                         <Clock className="w-3 h-3" />
                         {minutes}:{seconds.toString().padStart(2, '0')}
                       </span>
                     </div>
+                    {active.stackedMinutes > booster.duration / 60 && (
+                      <div className="pixel-text-sm text-[7px] text-yellow-500 mb-1">
+                        Stacked: {Math.round(active.stackedMinutes)}m total
+                      </div>
+                    )}
                     <div className="space-y-1">
                       {booster.effects.map((effect, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <span className="pixel-text-sm text-green-400">+{Math.round(effect.multiplier * 100)}%</span>
-                          <span className="pixel-text-sm text-muted-foreground capitalize">{effect.stat.replace('_', ' ')}</span>
+                          <span className="pixel-text-sm text-muted-foreground capitalize text-[7px]">{effect.stat.replace(/_/g, ' ')}</span>
                         </div>
                       ))}
                     </div>

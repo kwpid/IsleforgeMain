@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ArmorSlot } from '@/lib/gameTypes';
-import { getItemById, isBoosterItem } from '@/lib/items';
+import { getItemById, isBoosterItem, getBoosterById } from '@/lib/items';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +17,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Sparkles, Zap } from 'lucide-react';
+import { useGameNotifications } from '@/hooks/useGameNotifications';
 
 export function InventoryPopup() {
   const inventoryOpen = useGameStore((s) => s.inventoryOpen);
@@ -27,9 +36,24 @@ export function InventoryPopup() {
   const equipItem = useGameStore((s) => s.equipItem);
   const unequipItem = useGameStore((s) => s.unequipItem);
   const isEquipmentBroken = useGameStore((s) => s.isEquipmentBroken);
+  const useBooster = useGameStore((s) => s.useBooster);
 
   const [draggedItem, setDraggedItem] = useState<{ itemId: string; source: 'inventory' | 'equipment'; slot?: string } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
+  
+  const { success, warning } = useGameNotifications();
+  
+  const handleUseBooster = (boosterId: string) => {
+    const booster = getBoosterById(boosterId);
+    if (!booster) return;
+    
+    const used = useBooster(boosterId);
+    if (used) {
+      success('Booster Activated!', `${booster.name} is now active for ${Math.floor(booster.duration / 60)} minutes`);
+    } else {
+      warning('Cannot Use', 'Unable to activate booster');
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -262,39 +286,69 @@ export function InventoryPopup() {
               {inventory.items.map((inv) => {
                 const item = getItemById(inv.itemId);
                 if (!item) return null;
+                
+                const isBooster = isBoosterItem(inv.itemId);
+
+                const itemSlot = (
+                  <div
+                    className={cn(
+                      'item-slot-uniform item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
+                      `rarity-${item.rarity}`,
+                      item.isEnchanted && 'enchanted-item',
+                      item.isSpecial && 'special-item',
+                      item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item',
+                      draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
+                    )}
+                    draggable
+                    onDragStart={() => handleDragStart(inv.itemId, 'inventory')}
+                    onDragEnd={handleDragEnd}
+                    onDoubleClick={() => isBooster && handleUseBooster(inv.itemId)}
+                    data-testid={`inventory-item-${inv.itemId}`}
+                  >
+                    <PixelIcon icon={item.icon} size="lg" />
+                    {item.isLimited && item.limitedEffect === 'blue_flame' && (
+                      <>
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                        <span className="blue-ember-particle" />
+                      </>
+                    )}
+                    {isBooster && (
+                      <div className="absolute -top-1 -right-1 z-10">
+                        <Sparkles className="w-3 h-3 text-yellow-400" />
+                      </div>
+                    )}
+                    {inv.quantity > 1 && (
+                      <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                        {formatNumber(inv.quantity)}
+                      </span>
+                    )}
+                  </div>
+                );
 
                 return (
                   <Tooltip key={inv.itemId}>
                     <TooltipTrigger asChild>
-                      <div
-                        className={cn(
-                          'item-slot-uniform item-slot-filled hover-elevate cursor-grab active:cursor-grabbing',
-                          `rarity-${item.rarity}`,
-                          item.isEnchanted && 'enchanted-item',
-                          item.isSpecial && 'special-item',
-                          item.isLimited && item.limitedEffect === 'blue_flame' && 'blue-flame-item',
-                          draggedItem?.itemId === inv.itemId && draggedItem?.source === 'inventory' && 'opacity-50'
-                        )}
-                        draggable
-                        onDragStart={() => handleDragStart(inv.itemId, 'inventory')}
-                        onDragEnd={handleDragEnd}
-                        data-testid={`inventory-item-${inv.itemId}`}
-                      >
-                        <PixelIcon icon={item.icon} size="lg" />
-                        {item.isLimited && item.limitedEffect === 'blue_flame' && (
-                          <>
-                            <span className="blue-ember-particle" />
-                            <span className="blue-ember-particle" />
-                            <span className="blue-ember-particle" />
-                            <span className="blue-ember-particle" />
-                          </>
-                        )}
-                        {inv.quantity > 1 && (
-                          <span className="absolute bottom-0 right-0.5 pixel-text-sm text-[7px] text-foreground tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
-                            {formatNumber(inv.quantity)}
-                          </span>
-                        )}
-                      </div>
+                      {isBooster ? (
+                        <ContextMenu>
+                          <ContextMenuTrigger asChild>
+                            {itemSlot}
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="pixel-border">
+                            <ContextMenuItem 
+                              onClick={() => handleUseBooster(inv.itemId)}
+                              className="pixel-text-sm gap-2"
+                              data-testid={`use-booster-${inv.itemId}`}
+                            >
+                              <Zap className="w-4 h-4 text-yellow-400" />
+                              Use Booster
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ) : (
+                        itemSlot
+                      )}
                     </TooltipTrigger>
                     <TooltipContent side="top" className="p-0 border-0 bg-transparent">
                       <ItemTooltip item={item} quantity={inv.quantity} />
