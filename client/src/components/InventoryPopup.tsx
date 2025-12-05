@@ -330,28 +330,18 @@ export function InventoryPopup() {
                 return (
                   <Tooltip key={inv.itemId}>
                     <TooltipTrigger asChild>
-                      {isBooster ? (
-                        <ContextMenu>
-                          <ContextMenuTrigger asChild>
-                            {itemSlot}
-                          </ContextMenuTrigger>
-                          <ContextMenuContent className="pixel-border">
-                            <ContextMenuItem 
-                              onClick={() => handleUseBooster(inv.itemId)}
-                              className="pixel-text-sm gap-2"
-                              data-testid={`use-booster-${inv.itemId}`}
-                            >
-                              <Zap className="w-4 h-4 text-yellow-400" />
-                              Use Booster
-                            </ContextMenuItem>
-                          </ContextMenuContent>
-                        </ContextMenu>
-                      ) : (
-                        itemSlot
-                      )}
+                      {itemSlot}
                     </TooltipTrigger>
                     <TooltipContent side="top" className="p-0 border-0 bg-transparent">
-                      <ItemTooltip item={item} quantity={inv.quantity} />
+                      <ItemTooltip 
+                        item={item} 
+                        quantity={inv.quantity}
+                        onUseBooster={() => {
+                          if (isBooster) {
+                            handleUseBooster(inv.itemId);
+                          }
+                        }}
+                      />
                     </TooltipContent>
                   </Tooltip>
                 );

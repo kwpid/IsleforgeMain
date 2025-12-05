@@ -101,6 +101,7 @@ export interface ActiveBooster {
   boosterId: string;
   expiresAt: number;
   stackedMinutes: number;
+  stackCount: number;
 }
 
 export interface GeneratorTier {

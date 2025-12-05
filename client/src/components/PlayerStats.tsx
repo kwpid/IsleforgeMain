@@ -201,9 +201,9 @@ export function PlayerStats() {
                         {minutes}:{seconds.toString().padStart(2, '0')}
                       </span>
                     </div>
-                    {active.stackedMinutes > booster.duration / 60 && (
+                    {active.stackCount > 1 && (
                       <div className="pixel-text-sm text-[7px] text-yellow-500 mb-1">
-                        Stacked: {Math.round(active.stackedMinutes)}m total
+                        Stacked: {active.stackCount}x ({Math.round(active.stackedMinutes)}m total)
                       </div>
                     )}
                     <div className="space-y-1">

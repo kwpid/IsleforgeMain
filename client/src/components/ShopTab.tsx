@@ -521,8 +521,8 @@ function LimitedShop() {
       )}
 
       <Dialog open={!!selectedPackage} onOpenChange={(open) => !open && setSelectedPackage(null)}>
-        <DialogContent className="pixel-border bg-card max-w-lg p-0 gap-0">
-          <DialogHeader className="p-4 border-b-2 border-border bg-gradient-to-r from-blue-500/10 to-transparent">
+        <DialogContent className="pixel-border bg-card max-w-lg max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="p-4 border-b-2 border-border bg-gradient-to-r from-blue-500/10 to-transparent flex-shrink-0">
             <DialogTitle className="pixel-text text-sm flex items-center gap-2">
               <Flame className="w-4 h-4 text-blue-400" />
               {selectedPackage?.name}
@@ -532,7 +532,7 @@ function LimitedShop() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
             {selectedPackage && getPackageItems(selectedPackage).map((item) => {
               const itemPrice = Math.ceil(item.sellPrice / 10);
               const purchased = isItemPurchased(item.id);
@@ -542,7 +542,7 @@ function LimitedShop() {
                 <div 
                   key={item.id}
                   className={cn(
-                    "flex items-center gap-4 p-3 pixel-border rounded-sm transition-colors",
+                    "flex items-center gap-3 p-3 pixel-border rounded-sm transition-colors",
                     purchased 
                       ? "bg-muted/30 border-muted" 
                       : isSelected 
@@ -557,12 +557,12 @@ function LimitedShop() {
                     checked={isSelected}
                     disabled={purchased}
                     onCheckedChange={() => !purchased && toggleItemSelection(item.id)}
-                    className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                    className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 flex-shrink-0"
                   />
                   
                   <div 
                     className={cn(
-                      "w-14 h-14 flex items-center justify-center pixel-border rounded-sm relative",
+                      "w-12 h-12 flex items-center justify-center pixel-border rounded-sm relative flex-shrink-0",
                       `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
                       item.limitedEffect === 'blue_flame' && !purchased && "blue-flame-item"
                     )}
@@ -585,12 +585,12 @@ function LimitedShop() {
 
                   <div className="flex-1 min-w-0">
                     <p className={cn(
-                      'pixel-text-sm',
+                      'pixel-text-sm truncate',
                       purchased ? 'text-muted-foreground' : `text-rarity-${item.rarity}`
                     )}>
                       {item.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {item.rarity !== 'limited' && (
                         <Badge variant="outline" className="pixel-text-sm text-[7px]">
                           {item.rarity.toUpperCase()}
@@ -602,7 +602,7 @@ function LimitedShop() {
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     {purchased ? (
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <span className="pixel-text-sm text-[8px]">Owned</span>
@@ -619,21 +619,16 @@ function LimitedShop() {
             })}
           </div>
 
-          <DialogFooter className="p-4 border-t-2 border-border bg-muted/20 flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 flex-1">
+          <DialogFooter className="p-4 border-t-2 border-border bg-muted/20 flex-col sm:flex-row gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="font-sans text-sm text-muted-foreground">Total:</span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 min-w-0">
                 <PixelIcon icon="universal_point" size="sm" />
                 <span className="pixel-text text-blue-400">U${getSelectedPrice()}</span>
               </div>
-              {selectedPackage && selectedItems.size === getPackageItems(selectedPackage).length && (
-                <Badge className="bg-green-500/20 text-green-400 pixel-text-sm text-[8px]">
-                  {selectedPackage.discountPercent}% OFF
-                </Badge>
-              )}
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setSelectedPackage(null)}

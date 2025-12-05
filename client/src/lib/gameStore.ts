@@ -151,7 +151,7 @@ interface GameStore extends GameState {
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
   craftItem: (recipeId: string, quantity?: number) => boolean;
-  repairItem: (itemId: string, source: 'inventory' | 'storage') => boolean;
+  repairItem: (itemId: string, source: 'inventory' | 'storage' | 'equipment', materials?: { itemId: string; quantity: number }[]) => boolean;
   
   getVendorStockPurchased: (vendorId: string, itemId: string) => number;
   purchaseVendorItem: (vendorId: string, itemId: string, quantity: number) => void;
@@ -1275,9 +1275,18 @@ export const useGameStore = create<GameStore>()(
           get().addItemToInventory(currentEquippedId, 1);
         }
 
-        const newDurability = (slot === 'mainHand' || slot === 'offHand') && item.stats?.durability
-          ? item.stats.durability
-          : null;
+        // Use durability from inventory item if it exists, otherwise use max durability from item definition
+        let newDurability: number | null = null;
+        if ((slot === 'mainHand' || slot === 'offHand') && item.stats?.durability) {
+          const storageItem = inventoryItem as StorageItem;
+          if (storageItem.durability) {
+            // Use the saved durability from inventory
+            newDurability = storageItem.durability.current;
+          } else {
+            // No saved durability, use max from item definition
+            newDurability = item.stats.durability;
+          }
+        }
 
         set((state) => ({
           equipment: {
@@ -1297,9 +1306,60 @@ export const useGameStore = create<GameStore>()(
         const currentEquippedId = state.equipment[slot];
         if (!currentEquippedId) return false;
 
-        // Try to add to inventory
-        const success = get().addItemToInventory(currentEquippedId, 1);
-        if (!success) return false; // Inventory full
+        const item = getItemById(currentEquippedId);
+        if (!item) return false;
+
+        // Get current durability from equipment (only for mainHand/offHand)
+        const currentDurability = (slot === 'mainHand' || slot === 'offHand') 
+          ? state.equipmentDurability[slot]
+          : null;
+        const maxDurability = (slot === 'mainHand' || slot === 'offHand') && item.stats?.durability 
+          ? item.stats.durability 
+          : null;
+
+        // Try to add to inventory with durability preserved
+        const existingItem = state.inventory.items.find(i => i.itemId === currentEquippedId);
+        
+        if (existingItem) {
+          // If item exists, we need to preserve durability if it's a durability item
+          const newItems = state.inventory.items.map(invItem => {
+            if (invItem.itemId === currentEquippedId) {
+              // If item has durability and we have current durability info, preserve it
+              if (maxDurability !== null && currentDurability !== null && itemHasDurability(item)) {
+                return {
+                  ...invItem,
+                  quantity: invItem.quantity + 1,
+                  durability: {
+                    current: currentDurability,
+                    max: maxDurability
+                  }
+                } as StorageItem;
+              }
+              return { ...invItem, quantity: invItem.quantity + 1 };
+            }
+            return invItem;
+          });
+          set({ inventory: { ...state.inventory, items: newItems } });
+        } else {
+          if (state.inventory.items.length >= state.inventory.maxSlots) {
+            return false; // Inventory full
+          }
+          // Create new inventory item with durability if applicable
+          const newItem: StorageItem = maxDurability !== null && currentDurability !== null && itemHasDurability(item)
+            ? {
+                itemId: currentEquippedId,
+                quantity: 1,
+                durability: {
+                  current: currentDurability,
+                  max: maxDurability
+                }
+              }
+            : {
+                itemId: currentEquippedId,
+                quantity: 1
+              };
+          set({ inventory: { ...state.inventory, items: [...state.inventory.items, newItem] } });
+        }
 
         set((state) => ({
           equipment: {
@@ -1581,16 +1641,40 @@ export const useGameStore = create<GameStore>()(
         return true;
       },
       
-      repairItem: (itemId, source) => {
+      repairItem: (itemId, source, materials = []) => {
         const state = get();
         const itemData = getItemById(itemId);
         if (!itemHasDurability(itemData)) return false;
         
         let itemToRepair: StorageItem | null = null;
         let itemIndex = -1;
+        let repairSlot: 'mainHand' | 'offHand' | null = null;
         const maxDurability = itemData!.stats!.durability!;
         
-        if (source === 'inventory') {
+        if (source === 'equipment') {
+          // Check if item is equipped
+          if (state.equipment.mainHand === itemId) {
+            repairSlot = 'mainHand';
+            const currentDurability = state.equipmentDurability.mainHand;
+            if (currentDurability !== null && currentDurability < maxDurability) {
+              itemToRepair = {
+                itemId,
+                quantity: 1,
+                durability: { current: currentDurability, max: maxDurability }
+              };
+            }
+          } else if (state.equipment.offHand === itemId) {
+            repairSlot = 'offHand';
+            const currentDurability = state.equipmentDurability.offHand;
+            if (currentDurability !== null && currentDurability < maxDurability) {
+              itemToRepair = {
+                itemId,
+                quantity: 1,
+                durability: { current: currentDurability, max: maxDurability }
+              };
+            }
+          }
+        } else if (source === 'inventory') {
           itemIndex = state.inventory.items.findIndex(i => 
             i.itemId === itemId && i.durability && i.durability.current < i.durability.max
           );
@@ -1612,11 +1696,30 @@ export const useGameStore = create<GameStore>()(
         
         const baseCost = itemData!.sellPrice || 100;
         const damagePercent = 1 - (itemToRepair.durability.current / itemToRepair.durability.max);
-        const repairCost = Math.ceil(baseCost * damagePercent * 0.5);
+        const repairCost = Math.ceil(baseCost * damagePercent * 0.3);
         
         if (state.player.coins < repairCost) return false;
         
-        if (source === 'inventory') {
+        // Check and consume materials
+        for (const mat of materials) {
+          const allStorageItems = getAllStorageItems(state.storage, state.storageSystem);
+          const available = allStorageItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+          if (available < mat.quantity) return false;
+          
+          // Remove material from storage/inventory
+          get().removeItemFromStorage(mat.itemId, mat.quantity);
+        }
+        
+        if (source === 'equipment' && repairSlot) {
+          // Repair equipped item
+          set({
+            equipmentDurability: {
+              ...state.equipmentDurability,
+              [repairSlot]: maxDurability
+            },
+            player: { ...state.player, coins: state.player.coins - repairCost }
+          });
+        } else if (source === 'inventory') {
           const newItems = [...state.inventory.items];
           newItems[itemIndex] = {
             ...newItems[itemIndex],
@@ -2062,6 +2165,7 @@ export const useGameStore = create<GameStore>()(
             ...existing,
             expiresAt: now + (remainingSeconds + booster.duration) * 1000,
             stackedMinutes: existing.stackedMinutes + booster.duration / 60,
+            stackCount: existing.stackCount + 1,
           };
         } else {
           newActiveBoosters = [
@@ -2070,6 +2174,7 @@ export const useGameStore = create<GameStore>()(
               boosterId,
               expiresAt: now + booster.duration * 1000,
               stackedMinutes: booster.duration / 60,
+              stackCount: 1,
             },
           ];
         }

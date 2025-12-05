@@ -5,7 +5,7 @@ import { GeneratorCard } from './GeneratorCard';
 import { StorageView } from './StorageView';
 import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe, getAllStorageItems } from '@/lib/crafting';
 import { getItemById, SEED_ITEMS } from '@/lib/items';
-import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS, itemHasDurability, StorageItem } from '@/lib/gameTypes';
+import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS, itemHasDurability, StorageItem, ItemDefinition } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -919,9 +919,11 @@ function FarmingView() {
 }
 
 function ForgeView() {
-  const [selectedItem, setSelectedItem] = useState<{ itemId: string; source: 'inventory' | 'storage' } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ itemId: string; source: 'inventory' | 'storage' | 'equipment' } | null>(null);
   const [isForging, setIsForging] = useState(false);
   const [forgeProgress, setForgeProgress] = useState(0);
+  const [draggedRepairItem, setDraggedRepairItem] = useState<{ itemId: string; source: 'inventory' | 'storage' | 'equipment' } | null>(null);
+  const [isDragOverForge, setIsDragOverForge] = useState(false);
   
   const inventory = useGameStore((s) => s.inventory);
   const storage = useGameStore((s) => s.storage);
@@ -931,8 +933,11 @@ function ForgeView() {
   
   const { success, warning } = useGameNotifications();
   
+  const equipment = useGameStore((s) => s.equipment);
+  const equipmentDurability = useGameStore((s) => s.equipmentDurability);
+  
   const repairableItems = useMemo(() => {
-    const items: Array<{ itemId: string; source: 'inventory' | 'storage'; durability: { current: number; max: number } }> = [];
+    const items: Array<{ itemId: string; source: 'inventory' | 'storage' | 'equipment'; durability: { current: number; max: number } }> = [];
     
     const processItem = (item: StorageItem, source: 'inventory' | 'storage') => {
       const itemData = getItemById(item.itemId);
@@ -947,14 +952,33 @@ function ForgeView() {
             });
           }
         } else {
-          items.push({ 
-            itemId: item.itemId, 
-            source,
-            durability: { current: maxDurability, max: maxDurability }
-          });
+          // Item without durability tracking - assume full if not tracked
+          // Only add if it's been used (has durability property but is full)
         }
       }
     };
+    
+    // Check equipped items
+    (['mainHand', 'offHand'] as const).forEach(slot => {
+      const equippedId = equipment[slot];
+      if (equippedId) {
+        const itemData = getItemById(equippedId);
+        if (itemHasDurability(itemData)) {
+          const maxDurability = itemData!.stats!.durability!;
+          const currentDurability = equipmentDurability[slot];
+          if (currentDurability !== null && currentDurability < maxDurability) {
+            items.push({
+              itemId: equippedId,
+              source: 'equipment',
+              durability: {
+                current: currentDurability,
+                max: maxDurability
+              }
+            });
+          }
+        }
+      }
+    });
     
     inventory.items.forEach(item => processItem(item, 'inventory'));
     storage.items.forEach(item => processItem(item, 'storage'));
@@ -963,14 +987,78 @@ function ForgeView() {
     });
     
     return items.filter(item => item.durability.current < item.durability.max);
-  }, [inventory, storage, storageSystem]);
+  }, [inventory, storage, storageSystem, equipment, equipmentDurability]);
   
   const selectedItemData = selectedItem ? getItemById(selectedItem.itemId) : null;
   const selectedRepairInfo = selectedItem 
     ? repairableItems.find(r => r.itemId === selectedItem.itemId && r.source === selectedItem.source)
     : null;
   
-  const getRepairCost = (itemId: string, source: 'inventory' | 'storage') => {
+  const getRepairMaterials = (itemData: ItemDefinition): { itemId: string; baseQuantity: number }[] => {
+    const materials: { itemId: string; baseQuantity: number }[] = [];
+    
+    // Determine materials based on item type and name
+    if (itemData.type === 'tool' || itemData.type === 'armor') {
+      const itemId = itemData.id.toLowerCase();
+      const itemName = itemData.name.toLowerCase();
+      
+      // Wooden items
+      if (itemId.includes('wooden') || itemId.includes('leather')) {
+        materials.push({ itemId: 'oak_planks', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Stone items
+      else if (itemId.includes('stone')) {
+        materials.push({ itemId: 'cobblestone', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Iron items
+      else if (itemId.includes('iron')) {
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Gold items
+      else if (itemId.includes('gold')) {
+        materials.push({ itemId: 'gold_ingot', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Diamond items
+      else if (itemId.includes('diamond')) {
+        materials.push({ itemId: 'diamond', baseQuantity: 1 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Netherite items
+      else if (itemId.includes('netherite')) {
+        materials.push({ itemId: 'netherite_ingot', baseQuantity: 1 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Special/Limited items - use diamond as base
+      else if (itemData.isSpecial || itemData.isLimited) {
+        materials.push({ itemId: 'diamond', baseQuantity: 2 });
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 3 });
+      }
+      // Default fallback
+      else {
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 2 });
+      }
+    }
+    
+    return materials;
+  };
+  
+  const getRepairCost = (itemId: string, source: 'inventory' | 'storage' | 'equipment') => {
     const itemData = getItemById(itemId);
     if (!itemData) return { coins: 0, materials: [] };
     
@@ -980,9 +1068,16 @@ function ForgeView() {
       ? 1 - (repairInfo.durability.current / repairInfo.durability.max)
       : 0;
     
+    // Calculate material requirements based on damage
+    const baseMaterials = getRepairMaterials(itemData);
+    const materials = baseMaterials.map(mat => ({
+      itemId: mat.itemId,
+      quantity: Math.max(1, Math.ceil(mat.baseQuantity * (1 + damagePercent * 2))) // More damage = more materials needed
+    }));
+    
     return {
-      coins: Math.ceil(baseCost * damagePercent * 0.5),
-      materials: [] as { itemId: string; quantity: number }[]
+      coins: Math.ceil(baseCost * damagePercent * 0.3), // Reduced coin cost since materials are required
+      materials
     };
   };
   
@@ -995,6 +1090,23 @@ function ForgeView() {
     const repairCost = getRepairCost(selectedItem.itemId, selectedItem.source);
     if (coins < repairCost.coins) {
       warning('Not Enough Coins', `You need ${formatNumber(repairCost.coins)} coins`);
+      return;
+    }
+    
+    // Check if player has required materials
+    const allItems = getAllStorageItems(storage, storageSystem);
+    const missingMaterials: string[] = [];
+    
+    for (const mat of repairCost.materials) {
+      const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+      if (available < mat.quantity) {
+        const matItem = getItemById(mat.itemId);
+        missingMaterials.push(`${matItem?.name || mat.itemId} (need ${mat.quantity}, have ${available})`);
+      }
+    }
+    
+    if (missingMaterials.length > 0) {
+      warning('Missing Materials', `You need: ${missingMaterials.join(', ')}`);
       return;
     }
     
@@ -1012,7 +1124,7 @@ function ForgeView() {
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        const repaired = repairItem(selectedItem.itemId, selectedItem.source);
+        const repaired = repairItem(selectedItem.itemId, selectedItem.source, repairCost.materials);
         setIsForging(false);
         setForgeProgress(0);
         if (repaired) {
@@ -1028,34 +1140,50 @@ function ForgeView() {
   };
   
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="pixel-text text-lg text-foreground mb-2">
-          <Hammer className="w-5 h-5 inline-block mr-2" />
+    <div className="space-y-4">
+      <div className="mb-4">
+        <h2 className="pixel-text text-xl text-foreground mb-1 flex items-center gap-2">
+          <Hammer className="w-6 h-6 text-primary" />
           The Forge
         </h2>
-        <p className="font-sans text-muted-foreground text-sm mb-6">
-          Repair damaged equipment and forge powerful new items. The forge can restore durability to worn tools and weapons.
+        <p className="font-sans text-muted-foreground text-sm">
+          Repair damaged equipment and restore durability to worn tools and weapons.
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="pixel-border overflow-visible">
-          <CardHeader className="pb-2">
-            <CardTitle className="pixel-text text-sm flex items-center gap-2">
-              <Shield className="w-4 h-4" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="pixel-border overflow-visible bg-card/50">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="pixel-text text-base flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
               Repair Station
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-4">
             <div className="flex flex-col items-center justify-center">
               <div 
                 className={cn(
-                  "relative w-24 h-24 pixel-border bg-muted/30 flex items-center justify-center",
+                  "relative w-24 h-24 pixel-border bg-muted/30 flex items-center justify-center overflow-hidden",
                   isForging && "animate-pulse",
-                  selectedItem && "border-primary/50"
+                  selectedItem && "border-primary/50",
+                  isDragOverForge && "border-primary bg-primary/10"
                 )}
                 data-testid="forge-slot"
+                onDragOver={(e) => {
+                  if (draggedRepairItem) {
+                    e.preventDefault();
+                    setIsDragOverForge(true);
+                  }
+                }}
+                onDragLeave={() => setIsDragOverForge(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOverForge(false);
+                  if (draggedRepairItem && !isForging) {
+                    setSelectedItem(draggedRepairItem);
+                    setDraggedRepairItem(null);
+                  }
+                }}
               >
                 {selectedItem && selectedItemData ? (
                   <div className={cn(
@@ -1066,9 +1194,9 @@ function ForgeView() {
                     <PixelIcon icon={selectedItemData.icon} size="lg" />
                   </div>
                 ) : (
-                  <div className="text-center p-2">
-                    <Hammer className="w-8 h-8 mx-auto mb-1 text-muted-foreground opacity-50" />
-                    <span className="pixel-text-sm text-[7px] text-muted-foreground">
+                  <div className="text-center p-2 w-full h-full flex flex-col items-center justify-center">
+                    <Hammer className="w-6 h-6 mb-1 text-muted-foreground opacity-50 flex-shrink-0" />
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground leading-tight text-center px-1">
                       Drop item here
                     </span>
                   </div>
@@ -1104,9 +1232,9 @@ function ForgeView() {
                     className="h-2"
                   />
                   
-                  <div className="pt-2 border-t border-border mt-2">
-                    <p className="pixel-text-sm text-[8px] text-muted-foreground mb-2">Repair Cost:</p>
-                    <div className="flex items-center gap-2">
+                  <div className="pt-2 border-t border-border mt-2 space-y-2">
+                    <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Repair Cost:</p>
+                    <div className="flex items-center gap-2 mb-2">
                       <PixelIcon icon="coin" size="sm" />
                       <span className={cn(
                         "pixel-text-sm text-[8px]",
@@ -1117,6 +1245,49 @@ function ForgeView() {
                         {formatNumber(getRepairCost(selectedItem.itemId, selectedItem.source).coins)}
                       </span>
                     </div>
+                    {getRepairCost(selectedItem.itemId, selectedItem.source).materials.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="pixel-text-sm text-[8px] text-muted-foreground">Materials:</p>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {getRepairCost(selectedItem.itemId, selectedItem.source).materials.map((mat) => {
+                            const matItem = getItemById(mat.itemId);
+                            const allItems = getAllStorageItems(storage, storageSystem);
+                            const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+                            const hasEnough = available >= mat.quantity;
+                            
+                            return (
+                              <Tooltip key={mat.itemId} delayDuration={0}>
+                                <TooltipTrigger asChild>
+                                  <div 
+                                    className={cn(
+                                      "item-slot-compact pixel-border relative flex flex-col items-center justify-center",
+                                      hasEnough ? "item-slot-filled border-border" : "border-destructive/50 bg-destructive/10"
+                                    )}
+                                  >
+                                    <PixelIcon icon={matItem?.icon || ''} size="sm" />
+                                    <span className={cn(
+                                      "absolute bottom-0.5 left-0 right-0 text-center pixel-text-sm text-[7px] font-bold tabular-nums",
+                                      hasEnough ? "text-foreground" : "text-destructive"
+                                    )}>
+                                      {available}/{mat.quantity}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="pixel-text-sm text-[8px]">{matItem?.name || mat.itemId}</p>
+                                  <p className={cn(
+                                    "text-[7px]",
+                                    hasEnough ? "text-muted-foreground" : "text-destructive"
+                                  )}>
+                                    {hasEnough ? 'Sufficient materials' : `Need ${mat.quantity - available} more`}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1125,7 +1296,16 @@ function ForgeView() {
                 <div className="flex gap-2 mt-4">
                   <Button
                     onClick={handleRepair}
-                    disabled={isForging || coins < getRepairCost(selectedItem.itemId, selectedItem.source).coins}
+                    disabled={(() => {
+                      if (isForging) return true;
+                      const cost = getRepairCost(selectedItem.itemId, selectedItem.source);
+                      if (coins < cost.coins) return true;
+                      const allItems = getAllStorageItems(storage, storageSystem);
+                      return cost.materials.some(mat => {
+                        const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+                        return available < mat.quantity;
+                      });
+                    })()}
                     className="pixel-text-sm"
                     data-testid="button-repair"
                   >
@@ -1156,14 +1336,14 @@ function ForgeView() {
           </CardContent>
         </Card>
         
-        <Card className="pixel-border overflow-visible">
-          <CardHeader className="pb-2">
-            <CardTitle className="pixel-text text-sm flex items-center gap-2">
-              <Package className="w-4 h-4" />
+        <Card className="pixel-border overflow-visible bg-card/50">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="pixel-text text-base flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
               Items Needing Repair
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {repairableItems.length === 0 ? (
               <div className="text-center py-8">
                 <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -1183,13 +1363,26 @@ function ForgeView() {
                       ? (repairItem.durability.current / repairItem.durability.max) * 100
                       : 100;
                     
+                    const percentColor = durabilityPercent < 30 
+                      ? "text-destructive" 
+                      : durabilityPercent < 60 
+                        ? "text-yellow-500" 
+                        : "text-green-500";
+                    
                     return (
                       <Tooltip key={`${repairItem.itemId}-${repairItem.source}-${idx}`} delayDuration={0}>
                         <TooltipTrigger asChild>
                           <div
                             onClick={() => !isForging && setSelectedItem({ itemId: repairItem.itemId, source: repairItem.source })}
+                            draggable
+                            onDragStart={() => {
+                              setDraggedRepairItem({ itemId: repairItem.itemId, source: repairItem.source });
+                            }}
+                            onDragEnd={() => {
+                              setDraggedRepairItem(null);
+                            }}
                             className={cn(
-                              "relative pixel-border p-1.5 bg-muted/30 hover-elevate active-elevate-2 cursor-pointer",
+                              "relative pixel-border p-1.5 bg-muted/30 hover-elevate active-elevate-2 cursor-grab active:cursor-grabbing flex items-center justify-center aspect-square",
                               `rarity-${itemData.rarity}`,
                               itemData.isEnchanted && "enchanted-item",
                               selectedItem?.itemId === repairItem.itemId && selectedItem?.source === repairItem.source && "border-primary"
@@ -1206,21 +1399,29 @@ function ForgeView() {
                                 style={{ width: `${durabilityPercent}%` }}
                               />
                             </div>
-                            <Badge 
-                              variant="secondary" 
-                              className="absolute -top-1 -right-1 px-1 py-0 pixel-text-sm text-[6px]"
-                            >
-                              {repairItem.source === 'inventory' ? 'I' : 'S'}
-                            </Badge>
+                            {repairItem.source !== 'equipment' && (
+                              <Badge 
+                                variant="secondary" 
+                                className="absolute -top-1 -right-1 px-1 py-0 pixel-text-sm text-[6px]"
+                              >
+                                {repairItem.source === 'inventory' ? 'I' : 'S'}
+                              </Badge>
+                            )}
+                            <div className={cn(
+                              "absolute -bottom-0.5 left-0 right-0 text-center pixel-text-sm text-[6px] font-bold",
+                              percentColor
+                            )}>
+                              {Math.round(durabilityPercent)}%
+                            </div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="pixel-text-sm text-[8px]">{itemData.name}</p>
-                          <p className="text-[7px] text-muted-foreground">
-                            Durability: {repairItem.durability?.current}/{repairItem.durability?.max}
+                          <p className={cn("text-[7px]", percentColor)}>
+                            Durability: {repairItem.durability?.current}/{repairItem.durability?.max} ({Math.round(durabilityPercent)}%)
                           </p>
                           <p className="text-[7px] text-muted-foreground">
-                            Source: {repairItem.source === 'inventory' ? 'Inventory' : 'Storage'}
+                            Source: {repairItem.source === 'inventory' ? 'Inventory' : repairItem.source === 'equipment' ? 'Equipped' : 'Storage'}
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -1233,15 +1434,15 @@ function ForgeView() {
         </Card>
       </div>
       
-      <Card className="pixel-border overflow-visible">
-        <CardHeader className="pb-2">
-          <CardTitle className="pixel-text text-sm flex items-center gap-2">
-            <FlaskConical className="w-4 h-4" />
+      <Card className="pixel-border overflow-visible bg-card/50">
+        <CardHeader className="pb-3 border-b border-border/50">
+          <CardTitle className="pixel-text text-base flex items-center gap-2">
+            <FlaskConical className="w-5 h-5 text-primary" />
             Forge Upgrades
-            <Badge variant="secondary" className="ml-2 pixel-text-sm text-[7px]">Coming Soon</Badge>
+            <Badge variant="secondary" className="ml-2 pixel-text-sm text-[8px]">Coming Soon</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <p className="font-sans text-sm text-muted-foreground">
             Future upgrades will unlock enhanced forging capabilities, including item enhancement, gem socketing, and enchantment transfers.
           </p>
