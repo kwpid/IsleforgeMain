@@ -41,6 +41,7 @@ import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
 import { getRecipeById, getCraftingCost, canCraftRecipe } from './crafting';
+import { isLimitedItem } from './items/limited';
 
 interface GameStore extends GameState {
   mainTab: MainTab;
@@ -490,6 +491,8 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const item = getItemById(itemId);
         if (!item) return false;
+        
+        if (isLimitedItem(item)) return false;
 
         const success = get().removeItemFromStorage(itemId, quantity);
         if (success) {
@@ -512,17 +515,22 @@ export const useGameStore = create<GameStore>()(
         let totalEarnings = 0;
         let totalItems = 0;
 
-        // Sell from all storage units
         const updatedUnits = state.storageSystem.units.map(unit => {
+          const remainingItems: typeof unit.items = [];
+          
           for (const invItem of unit.items) {
             const item = getItemById(invItem.itemId);
             if (item) {
-              const earnings = item.sellPrice * invItem.quantity;
-              totalEarnings += earnings;
-              totalItems += invItem.quantity;
+              if (isLimitedItem(item)) {
+                remainingItems.push(invItem);
+              } else {
+                const earnings = item.sellPrice * invItem.quantity;
+                totalEarnings += earnings;
+                totalItems += invItem.quantity;
+              }
             }
           }
-          return { ...unit, items: [] };
+          return { ...unit, items: remainingItems };
         });
 
         if (totalItems > 0) {
@@ -549,13 +557,14 @@ export const useGameStore = create<GameStore>()(
         let totalEarnings = 0;
         let totalItemsSold = 0;
         
-        // Update all storage units
         const updatedUnits = state.storageSystem.units.map(unit => {
           const newUnitItems = [...unit.items];
           
           for (const sellItem of items) {
             const item = getItemById(sellItem.itemId);
             if (!item) continue;
+            
+            if (isLimitedItem(item)) continue;
             
             const storageIndex = newUnitItems.findIndex(i => i.itemId === sellItem.itemId);
             if (storageIndex < 0) continue;
@@ -826,6 +835,8 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const item = getItemById(itemId);
         if (!item) return false;
+        
+        if (isLimitedItem(item)) return false;
 
         const success = get().removeItemFromStorageUnit(unitId, itemId, quantity);
         if (success) {
@@ -851,19 +862,24 @@ export const useGameStore = create<GameStore>()(
         const unit = state.storageSystem.units[unitIndex];
         let totalEarnings = 0;
         let totalItems = 0;
+        const remainingItems: typeof unit.items = [];
 
         for (const invItem of unit.items) {
           const item = getItemById(invItem.itemId);
           if (item) {
-            const earnings = item.sellPrice * invItem.quantity;
-            totalEarnings += earnings;
-            totalItems += invItem.quantity;
+            if (isLimitedItem(item)) {
+              remainingItems.push(invItem);
+            } else {
+              const earnings = item.sellPrice * invItem.quantity;
+              totalEarnings += earnings;
+              totalItems += invItem.quantity;
+            }
           }
         }
 
         if (totalItems > 0) {
           const newUnits = [...state.storageSystem.units];
-          newUnits[unitIndex] = { ...unit, items: [] };
+          newUnits[unitIndex] = { ...unit, items: remainingItems };
 
           set({
             storageSystem: {
@@ -1406,6 +1422,8 @@ export const useGameStore = create<GameStore>()(
         for (const sellItem of items) {
           const item = getItemById(sellItem.itemId);
           if (!item) continue;
+          
+          if (isLimitedItem(item)) continue;
 
           const storageIndex = newStorageItems.findIndex(i => i.itemId === sellItem.itemId);
           if (storageIndex < 0) continue;

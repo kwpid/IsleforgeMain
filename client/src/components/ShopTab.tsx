@@ -716,6 +716,55 @@ function LimitedShop() {
                       <span className="pixel-text text-game-up">U${player.universalPoints}</span>
                     </div>
                   </div>
+                  
+                  <div className="border-t border-border pt-3 mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>Released:</span>
+                      </div>
+                      <span className="pixel-text-sm text-foreground">
+                        {confirmStandaloneDialog.item.releasedDate.toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        })}
+                      </span>
+                    </div>
+                    {confirmStandaloneDialog.item.offsaleDate && (
+                      <div className="flex items-center justify-between text-muted-foreground text-xs">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>Goes Offsale:</span>
+                        </div>
+                        <span className="pixel-text-sm text-orange-400">
+                          {confirmStandaloneDialog.item.offsaleDate.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-2 pixel-text-sm text-[10px]"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      notify({
+                        type: 'info',
+                        title: 'Value Chart',
+                        message: 'Value chart feature coming soon!',
+                      });
+                    }}
+                    data-testid="button-view-value-chart"
+                  >
+                    <LineChart className="w-3 h-3 mr-1" />
+                    View Value Chart
+                  </Button>
                 </div>
               )}
             </AlertDialogDescription>
