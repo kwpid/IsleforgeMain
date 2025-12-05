@@ -194,7 +194,7 @@ export function MobileStatsPanel({ className }: MobileStatsPanelProps) {
               <MiniStatCard 
                 icon="up" 
                 label="UP" 
-                value={`U$${player.universalPoints}`}
+                value={`U$${formatNumber(player.universalPoints)}`}
                 highlight="purple"
               />
             </div>

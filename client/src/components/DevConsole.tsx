@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { getItemById, ALL_ITEMS } from '@/lib/items';
+import { formatNumber } from '@/lib/gameTypes';
 import { cn } from '@/lib/utils';
 import { X, Terminal } from 'lucide-react';
 
@@ -196,7 +197,7 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         addMessage('output', `  Level: ${player.level}`);
         addMessage('output', `  XP: ${player.xp}/${player.xpToNextLevel}`);
         addMessage('output', `  Coins: ${player.coins.toLocaleString()}`);
-        addMessage('output', `  Universal Points: U$${player.universalPoints}`);
+        addMessage('output', `  Universal Points: U$${formatNumber(player.universalPoints)}`);
         addMessage('output', `  Inventory: ${inventory.items.length}/${inventory.maxSlots} slots`);
         addMessage('output', `  Storage: ${storage.items.reduce((a, i) => a + i.quantity, 0)}/${storage.capacity} items`);
         break;

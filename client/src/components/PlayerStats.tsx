@@ -51,7 +51,7 @@ export function PlayerStats() {
         <StatCard 
           icon="up" 
           label="UP" 
-          value={`U$${player.universalPoints}`}
+          value={`U$${formatNumber(player.universalPoints)}`}
           highlight="purple"
         />
       </div>
