@@ -35,6 +35,7 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
     { id: 'storage', label: 'STORAGE', icon: 'storage' },
     { id: 'crafting', label: 'CRAFTING', icon: 'iron_pickaxe' },
     { id: 'farming', label: 'FARMING', icon: 'wheat' },
+    { id: 'forge', label: 'FORGE', icon: 'anvil' },
   ];
 
   const hubSubTabs: { id: HubSubTab; label: string; icon: string; disabled?: boolean }[] = [

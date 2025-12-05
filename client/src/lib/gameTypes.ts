@@ -338,7 +338,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export type MainTab = 'island' | 'hub' | 'shop' | 'settings';
-export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming';
+export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming' | 'forge';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type ShopSubTab = 'limited' | 'daily' | 'coins';
 export type MarketplaceViewTab = 'main' | 'sell' | 'special';

@@ -204,7 +204,7 @@ export const useGameStore = create<GameStore>()(
 
       navigateSubTab: (direction) => {
         const state = get();
-        const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting', 'farming'];
+        const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting', 'farming', 'forge'];
         const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'mines', 'dungeons'];
         const shopSubTabs: ShopSubTab[] = ['limited', 'daily', 'coins'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications', 'info'];
