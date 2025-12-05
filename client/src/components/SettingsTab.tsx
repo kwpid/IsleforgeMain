@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Bell, Package, Coins, TrendingUp, AlertTriangle, Sparkles, Heart, Code, Info, ExternalLink } from 'lucide-react';
+import { BUILD_COMMIT, getShortCommit, GITHUB_OWNER, GITHUB_REPO, isDevBuild } from '@/lib/version';
 
 export function SettingsTab() {
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
@@ -422,8 +423,6 @@ function NotificationsSettings() {
   );
 }
 
-const GAME_VERSION = '1.1.0';
-
 function InfoSettings() {
   const player = useGameStore((s) => s.player);
   const playTime = useGameStore((s) => s.playTime);
@@ -451,7 +450,21 @@ function InfoSettings() {
           <div className="grid grid-cols-2 gap-4">
             <div className="pixel-border border-border bg-muted/20 p-4">
               <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Version</p>
-              <p className="pixel-text text-sm text-primary">v{GAME_VERSION}</p>
+              {isDevBuild() ? (
+                <p className="pixel-text text-sm text-muted-foreground font-mono">
+                  dev build
+                </p>
+              ) : (
+                <a 
+                  href={`https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/commit/${BUILD_COMMIT}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pixel-text text-sm text-primary hover:underline font-mono inline-flex items-center gap-1"
+                >
+                  {getShortCommit(BUILD_COMMIT)}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
             <div className="pixel-border border-border bg-muted/20 p-4">
               <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Play Time</p>

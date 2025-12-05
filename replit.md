@@ -251,6 +251,14 @@ Game state is saved to localStorage with key `isleforge-save`. Auto-saves every 
 - Prestige/rebirth system with UP
 - Marketplace search/filtering
 
+## Version System
+- **GitHub Commit-Based**: Version is tracked by git commit hash from `main` branch
+- **Repository**: kwpid/IsleforgeMain
+- **Auto-Update Detection**: App fetches latest commit from GitHub and notifies users of updates
+- **Dev Mode**: Shows "dev build" when running locally without build commit
+- **Production**: Shows 7-character commit hash with link to GitHub commit
+- **Build Injection**: `npm run build` injects current commit via `VITE_BUILD_COMMIT`
+
 ## Development Notes
 - All border-radius set to 0 for pixel aesthetic
 - Custom pixel shadows with offset instead of blur
@@ -259,3 +267,4 @@ Game state is saved to localStorage with key `isleforge-save`. Auto-saves every 
 - Instant tooltips (0ms delay) for better UX
 - Item slot sizes: compact (12x12), uniform (14x14), large (16x16)
 - Generators automatically pause when storage is full
+- Version updates auto-checked every 60 seconds in production builds
