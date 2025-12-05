@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { APP_VERSION, isVersionOutdated } from '@/lib/version';
+import { BUILD_COMMIT, getShortCommit, isCommitOutdated, fetchLatestCommit, isDevBuild } from '@/lib/version';
 import { useGameStore } from '@/lib/gameStore';
 import {
   AlertDialog,
@@ -13,29 +13,23 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Download, AlertTriangle } from 'lucide-react';
 
-interface VersionData {
-  version: string;
-  lastUpdated: string;
-}
-
 export function UpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [latestCommit, setLatestCommit] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const saveGame = useGameStore((s) => s.saveGame);
 
   useEffect(() => {
+    if (isDevBuild()) {
+      return;
+    }
+
     const checkForUpdates = async () => {
       try {
-        const response = await fetch('/version.json?t=' + Date.now(), {
-          cache: 'no-store',
-        });
-        if (response.ok) {
-          const data: VersionData = await response.json();
-          if (isVersionOutdated(APP_VERSION, data.version)) {
-            setLatestVersion(data.version);
-            setUpdateAvailable(true);
-          }
+        const latest = await fetchLatestCommit();
+        if (latest && isCommitOutdated(BUILD_COMMIT, latest.sha)) {
+          setLatestCommit(latest.sha);
+          setUpdateAvailable(true);
         }
       } catch (error) {
         console.log('Version check failed:', error);
@@ -80,12 +74,12 @@ export function UpdateChecker() {
             <div className="flex items-center justify-center gap-3 py-4">
               <div className="text-center">
                 <span className="pixel-text-sm text-muted-foreground text-[8px]">Current</span>
-                <Badge variant="outline" className="block mt-1 pixel-text-sm">v{APP_VERSION}</Badge>
+                <Badge variant="outline" className="block mt-1 pixel-text-sm font-mono">{getShortCommit(BUILD_COMMIT)}</Badge>
               </div>
               <RefreshCw className="w-5 h-5 text-muted-foreground" />
               <div className="text-center">
                 <span className="pixel-text-sm text-primary text-[8px]">Latest</span>
-                <Badge className="block mt-1 pixel-text-sm bg-primary">v{latestVersion}</Badge>
+                <Badge className="block mt-1 pixel-text-sm bg-primary font-mono">{latestCommit ? getShortCommit(latestCommit) : '...'}</Badge>
               </div>
             </div>
             
@@ -134,10 +128,10 @@ export function VersionBadge() {
   return (
     <Badge 
       variant="outline" 
-      className="pixel-text-sm text-[7px] text-muted-foreground"
+      className="pixel-text-sm text-[7px] text-muted-foreground font-mono"
       data-testid="version-badge"
     >
-      v{APP_VERSION}
+      {isDevBuild() ? 'dev' : getShortCommit(BUILD_COMMIT)}
     </Badge>
   );
 }
