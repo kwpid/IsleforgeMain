@@ -3,7 +3,9 @@ import { formatNumber, createDefaultSkillStats } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { Pickaxe, Leaf, Skull } from 'lucide-react';
+import { Pickaxe, Leaf, Skull, Sparkles, Clock } from 'lucide-react';
+import { getBoosterById } from '@/lib/items';
+import { useEffect, useState } from 'react';
 
 export function PlayerStats() {
   const player = useGameStore((s) => s.player);
@@ -12,6 +14,20 @@ export function PlayerStats() {
   const storage = useGameStore((s) => s.storage);
   const getStorageUsed = useGameStore((s) => s.getStorageUsed);
   const generators = useGameStore((s) => s.generators);
+  const getActiveBoosters = useGameStore((s) => s.getActiveBoosters);
+  const tickBoosters = useGameStore((s) => s.tickBoosters);
+  
+  const [, setTick] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tickBoosters();
+      setTick(t => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tickBoosters]);
+  
+  const activeBoosters = getActiveBoosters();
 
   const xpProgress = (player.xp / player.xpToNextLevel) * 100;
   const storageUsed = getStorageUsed();
@@ -93,6 +109,53 @@ export function PlayerStats() {
           />
         </div>
       </div>
+
+      {activeBoosters.length > 0 && (
+        <div className="border-t-2 border-sidebar-border mt-6 pt-6">
+          <h3 className="pixel-text-sm text-muted-foreground mb-4 tracking-wider flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-yellow-400" />
+            ACTIVE BOOSTERS
+          </h3>
+          <div className="space-y-3">
+            {activeBoosters.map((active) => {
+              const booster = getBoosterById(active.boosterId);
+              if (!booster) return null;
+              
+              const remainingMs = active.expiresAt - Date.now();
+              const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+              const minutes = Math.floor(remainingSeconds / 60);
+              const seconds = remainingSeconds % 60;
+              
+              return (
+                <div 
+                  key={active.boosterId}
+                  className="pixel-border border-yellow-500/50 bg-yellow-950/20 p-3 relative overflow-hidden"
+                  data-testid={`active-booster-${active.boosterId}`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/5 to-transparent animate-pulse" />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="pixel-text-sm text-yellow-300">{booster.name}</span>
+                      <span className="pixel-text text-xs text-yellow-400 flex items-center gap-1 tabular-nums">
+                        <Clock className="w-3 h-3" />
+                        {minutes}:{seconds.toString().padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {booster.effects.map((effect, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="pixel-text-sm text-green-400">+{Math.round(effect.multiplier * 100)}%</span>
+                          <span className="pixel-text-sm text-muted-foreground capitalize">{effect.stat.replace('_', ' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="border-t-2 border-sidebar-border mt-6 pt-6">
         <h3 className="pixel-text-sm text-muted-foreground mb-4 tracking-wider">

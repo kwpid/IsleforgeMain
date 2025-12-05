@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import {
   GameState,
   InventoryItem,
+  StorageItem,
   OwnedGenerator,
   MainTab,
   IslandSubTab,
@@ -36,8 +37,11 @@ import {
   STORAGE_UNIT_MAX_SLOTS,
   STORAGE_UNIT_PURCHASE_COST,
   MAX_STORAGE_UNITS,
+  ActiveBooster,
+  BoosterStatType,
+  itemHasDurability,
 } from './gameTypes';
-import { SEED_ITEMS, CROP_ITEMS } from './items';
+import { SEED_ITEMS, CROP_ITEMS, getBoosterById, isBoosterItem } from './items';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
 import { getRecipeById, getCraftingCost, canCraftRecipe, getAllStorageItems } from './crafting';
@@ -165,6 +169,11 @@ interface GameStore extends GameState {
   getBestWateringCan: () => { id: string; capacity: number; refillCost: number } | null;
   refillWateringCan: () => { success: boolean; reason?: string; capacity?: number; cost?: number };
   addLimitedPurchase: (itemId: string) => void;
+  
+  useBooster: (boosterId: string) => boolean;
+  getActiveBoosterMultiplier: (stat: BoosterStatType) => number;
+  tickBoosters: () => void;
+  getActiveBoosters: () => ActiveBooster[];
 }
 
 export const useGameStore = create<GameStore>()(
@@ -1575,10 +1584,11 @@ export const useGameStore = create<GameStore>()(
       repairItem: (itemId, source) => {
         const state = get();
         const itemData = getItemById(itemId);
-        if (!itemData?.hasDurability) return false;
+        if (!itemHasDurability(itemData)) return false;
         
         let itemToRepair: StorageItem | null = null;
         let itemIndex = -1;
+        const maxDurability = itemData!.stats!.durability!;
         
         if (source === 'inventory') {
           itemIndex = state.inventory.items.findIndex(i => 
@@ -1588,8 +1598,9 @@ export const useGameStore = create<GameStore>()(
             itemToRepair = state.inventory.items[itemIndex];
           }
         } else {
-          const allItems = getAllStorageItems(state.storage, state.storageSystem);
-          const found = allItems.find(i => 
+          const storageItems = [...state.storage.items];
+          state.storageSystem.units.forEach(unit => storageItems.push(...unit.items));
+          const found = storageItems.find(i => 
             i.itemId === itemId && i.durability && i.durability.current < i.durability.max
           );
           if (found) {
@@ -1599,7 +1610,7 @@ export const useGameStore = create<GameStore>()(
         
         if (!itemToRepair || !itemToRepair.durability) return false;
         
-        const baseCost = itemData.value || 100;
+        const baseCost = itemData!.sellPrice || 100;
         const damagePercent = 1 - (itemToRepair.durability.current / itemToRepair.durability.max);
         const repairCost = Math.ceil(baseCost * damagePercent * 0.5);
         
@@ -2012,6 +2023,133 @@ export const useGameStore = create<GameStore>()(
           set({ limitedPurchases: [...state.limitedPurchases, itemId] });
         }
       },
+      
+      useBooster: (boosterId) => {
+        const state = get();
+        const booster = getBoosterById(boosterId);
+        if (!booster) return false;
+        
+        const inventoryItem = state.inventory.items.find(i => i.itemId === boosterId);
+        const storageItem = state.storage.items.find(i => i.itemId === boosterId);
+        let foundInStorage = false;
+        let storageUnitIndex = -1;
+        let storageUnitItemIndex = -1;
+        
+        if (!inventoryItem && !storageItem) {
+          for (let i = 0; i < state.storageSystem.units.length; i++) {
+            const idx = state.storageSystem.units[i].items.findIndex(item => item.itemId === boosterId);
+            if (idx >= 0) {
+              foundInStorage = true;
+              storageUnitIndex = i;
+              storageUnitItemIndex = idx;
+              break;
+            }
+          }
+        }
+        
+        if (!inventoryItem && !storageItem && !foundInStorage) return false;
+        
+        const now = Date.now();
+        const existingBoosterIndex = state.activeBoosters.findIndex(b => b.boosterId === boosterId);
+        
+        let newActiveBoosters: ActiveBooster[];
+        
+        if (existingBoosterIndex >= 0) {
+          newActiveBoosters = [...state.activeBoosters];
+          const existing = newActiveBoosters[existingBoosterIndex];
+          const remainingSeconds = Math.max(0, (existing.expiresAt - now) / 1000);
+          newActiveBoosters[existingBoosterIndex] = {
+            ...existing,
+            expiresAt: now + (remainingSeconds + booster.duration) * 1000,
+            stackedMinutes: existing.stackedMinutes + booster.duration / 60,
+          };
+        } else {
+          newActiveBoosters = [
+            ...state.activeBoosters,
+            {
+              boosterId,
+              expiresAt: now + booster.duration * 1000,
+              stackedMinutes: booster.duration / 60,
+            },
+          ];
+        }
+        
+        if (inventoryItem) {
+          const newItems = state.inventory.items.map(i => 
+            i.itemId === boosterId ? { ...i, quantity: i.quantity - 1 } : i
+          ).filter(i => i.quantity > 0);
+          
+          set({
+            inventory: { ...state.inventory, items: newItems },
+            activeBoosters: newActiveBoosters,
+          });
+        } else if (storageItem) {
+          const newItems = state.storage.items.map(i => 
+            i.itemId === boosterId ? { ...i, quantity: i.quantity - 1 } : i
+          ).filter(i => i.quantity > 0);
+          
+          set({
+            storage: { ...state.storage, items: newItems },
+            activeBoosters: newActiveBoosters,
+          });
+        } else if (foundInStorage) {
+          const newUnits = [...state.storageSystem.units];
+          const unitItems = [...newUnits[storageUnitIndex].items];
+          const item = unitItems[storageUnitItemIndex];
+          if (item.quantity <= 1) {
+            unitItems.splice(storageUnitItemIndex, 1);
+          } else {
+            unitItems[storageUnitItemIndex] = { ...item, quantity: item.quantity - 1 };
+          }
+          newUnits[storageUnitIndex] = { ...newUnits[storageUnitIndex], items: unitItems };
+          
+          set({
+            storageSystem: { ...state.storageSystem, units: newUnits },
+            activeBoosters: newActiveBoosters,
+          });
+        }
+        
+        return true;
+      },
+      
+      getActiveBoosterMultiplier: (stat) => {
+        const state = get();
+        const now = Date.now();
+        
+        let totalMultiplier = 0;
+        
+        for (const activeBooster of state.activeBoosters) {
+          if (activeBooster.expiresAt <= now) continue;
+          
+          const booster = getBoosterById(activeBooster.boosterId);
+          if (!booster) continue;
+          
+          for (const effect of booster.effects) {
+            if (effect.stat === stat) {
+              totalMultiplier += effect.multiplier;
+            }
+          }
+        }
+        
+        return totalMultiplier;
+      },
+      
+      tickBoosters: () => {
+        const state = get();
+        const now = Date.now();
+        
+        const activeBoosters = state.activeBoosters.filter(b => b.expiresAt > now);
+        
+        if (activeBoosters.length !== state.activeBoosters.length) {
+          set({ activeBoosters });
+        }
+      },
+      
+      getActiveBoosters: () => {
+        const state = get();
+        const now = Date.now();
+        return state.activeBoosters.filter(b => b.expiresAt > now);
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -2038,6 +2176,7 @@ export const useGameStore = create<GameStore>()(
         farming: state.farming,
         limitedPurchases: state.limitedPurchases,
         storageSystem: state.storageSystem,
+        activeBoosters: state.activeBoosters,
       }),
     }
   )

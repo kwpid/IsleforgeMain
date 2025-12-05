@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, ArmorSlot } from '@/lib/gameTypes';
-import { getItemById } from '@/lib/items';
+import { getItemById, isBoosterItem } from '@/lib/items';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export function InventoryPopup() {
   const inventoryOpen = useGameStore((s) => s.inventoryOpen);

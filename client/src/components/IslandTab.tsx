@@ -5,7 +5,7 @@ import { GeneratorCard } from './GeneratorCard';
 import { StorageView } from './StorageView';
 import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe, getAllStorageItems } from '@/lib/crafting';
 import { getItemById, SEED_ITEMS } from '@/lib/items';
-import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS } from '@/lib/gameTypes';
+import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS, itemHasDurability, StorageItem } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -934,48 +934,35 @@ function ForgeView() {
   const repairableItems = useMemo(() => {
     const items: Array<{ itemId: string; source: 'inventory' | 'storage'; durability: { current: number; max: number } }> = [];
     
-    inventory.items.forEach(item => {
+    const processItem = (item: StorageItem, source: 'inventory' | 'storage') => {
       const itemData = getItemById(item.itemId);
-      if (itemData?.hasDurability && item.durability) {
-        if (item.durability.current < item.durability.max) {
-          items.push({ 
-            itemId: item.itemId, 
-            source: 'inventory',
-            durability: item.durability
-          });
-        }
-      }
-    });
-    
-    storage.items.forEach(item => {
-      const itemData = getItemById(item.itemId);
-      if (itemData?.hasDurability && item.durability) {
-        if (item.durability.current < item.durability.max) {
-          items.push({ 
-            itemId: item.itemId, 
-            source: 'storage',
-            durability: item.durability
-          });
-        }
-      }
-    });
-    
-    storageSystem.units.forEach(unit => {
-      unit.items.forEach(item => {
-        const itemData = getItemById(item.itemId);
-        if (itemData?.hasDurability && item.durability) {
+      if (itemHasDurability(itemData)) {
+        const maxDurability = itemData!.stats!.durability!;
+        if (item.durability) {
           if (item.durability.current < item.durability.max) {
             items.push({ 
               itemId: item.itemId, 
-              source: 'storage',
+              source,
               durability: item.durability
             });
           }
+        } else {
+          items.push({ 
+            itemId: item.itemId, 
+            source,
+            durability: { current: maxDurability, max: maxDurability }
+          });
         }
-      });
+      }
+    };
+    
+    inventory.items.forEach(item => processItem(item, 'inventory'));
+    storage.items.forEach(item => processItem(item, 'storage'));
+    storageSystem.units.forEach(unit => {
+      unit.items.forEach(item => processItem(item, 'storage'));
     });
     
-    return items;
+    return items.filter(item => item.durability.current < item.durability.max);
   }, [inventory, storage, storageSystem]);
   
   const selectedItemData = selectedItem ? getItemById(selectedItem.itemId) : null;
@@ -987,7 +974,7 @@ function ForgeView() {
     const itemData = getItemById(itemId);
     if (!itemData) return { coins: 0, materials: [] };
     
-    const baseCost = itemData.value || 100;
+    const baseCost = itemData.sellPrice || 100;
     const repairInfo = repairableItems.find(r => r.itemId === itemId && r.source === source);
     const damagePercent = repairInfo?.durability 
       ? 1 - (repairInfo.durability.current / repairInfo.durability.max)
