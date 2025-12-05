@@ -31,6 +31,7 @@ export function GameLayout() {
   const [devConsoleOpen, setDevConsoleOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isOpen: newsOpen, openNews, closeNews, markAllRead, hasUnread } = useNewsModal();
+  const { info } = useGameNotifications();
 
   useKeyboardShortcuts();
   
@@ -80,10 +81,13 @@ export function GameLayout() {
   useEffect(() => {
     const saveInterval = setInterval(() => {
       saveGame();
+      if (notificationSettings.enabled) {
+        info('Game Saved', 'Your progress has been saved');
+      }
     }, 60000);
 
     return () => clearInterval(saveInterval);
-  }, [saveGame]);
+  }, [saveGame, info, notificationSettings.enabled]);
 
   const gitBranch = import.meta.env.VITE_GIT_BRANCH || 'unknown';
   const isMainBranch = gitBranch === 'main' || gitBranch === 'master';
