@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Bell, Package, Coins, TrendingUp, AlertTriangle, Sparkles, Heart, Code, Info, ExternalLink } from 'lucide-react';
+import { APP_VERSION } from '@/lib/version';
 
 export function SettingsTab() {
   const settingsSubTab = useGameStore((s) => s.settingsSubTab);
@@ -422,8 +423,6 @@ function NotificationsSettings() {
   );
 }
 
-const GAME_VERSION = '1.1.0';
-
 function InfoSettings() {
   const player = useGameStore((s) => s.player);
   const playTime = useGameStore((s) => s.playTime);
@@ -451,7 +450,7 @@ function InfoSettings() {
           <div className="grid grid-cols-2 gap-4">
             <div className="pixel-border border-border bg-muted/20 p-4">
               <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Version</p>
-              <p className="pixel-text text-sm text-primary">v{GAME_VERSION}</p>
+              <p className="pixel-text text-sm text-primary">v{APP_VERSION}</p>
             </div>
             <div className="pixel-border border-border bg-muted/20 p-4">
               <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Play Time</p>

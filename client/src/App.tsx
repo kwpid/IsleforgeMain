@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GameNotifications } from "@/components/GameNotifications";
 import { ItemAcquisitionPopup } from "@/components/ItemAcquisitionPopup";
+import { UpdateChecker } from "@/components/UpdateChecker";
 import NotFound from "@/pages/not-found";
 import Game from "@/pages/Game";
 
@@ -24,6 +25,7 @@ function App() {
         <Toaster />
         <GameNotifications />
         <ItemAcquisitionPopup />
+        <UpdateChecker />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>

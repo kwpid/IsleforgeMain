@@ -1,7 +1,7 @@
 import { ItemDefinition, getRarityColor, formatNumber } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
-import { Sparkles, Wand2 } from 'lucide-react';
+import { Sparkles, Wand2, TrendingUp } from 'lucide-react';
 
 interface ItemTooltipProps {
   item: ItemDefinition;
@@ -29,6 +29,17 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
     tool: 'Tool',
     armor: 'Armor',
     potion: 'Potion',
+  };
+
+  const getLimitedValue = () => {
+    return Math.ceil(item.sellPrice / 10);
+  };
+
+  const formatUP = (value: number) => {
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toString();
   };
 
   return (
@@ -68,6 +79,19 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
         </div>
       </div>
 
+      {item.isLimited && (
+        <div className="flex items-center justify-between mb-2 p-2 bg-game-up/10 border border-game-up/30 rounded-sm">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5 text-game-up" />
+            <span className="pixel-text-sm text-[9px] text-game-up">VALUE</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <PixelIcon icon="universal_point" size="sm" />
+            <span className="pixel-text-sm text-game-up">U${formatUP(getLimitedValue())}</span>
+          </div>
+        </div>
+      )}
+
       <div className="border-t border-border pt-2 mb-2">
         <p className="text-sm text-muted-foreground leading-relaxed font-sans">
           {item.description}
@@ -100,15 +124,17 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
           </div>
         )}
 
-        <div className="flex justify-between items-center border-t border-border pt-2 mt-2">
-          <span className="text-muted-foreground font-sans">Sell Price:</span>
-          <div className="flex items-center gap-1">
-            <PixelIcon icon="coin" size="sm" />
-            <span className="pixel-text-sm text-game-coin tabular-nums">
-              {formatNumber(item.sellPrice)}
-            </span>
+        {!item.isLimited && (
+          <div className="flex justify-between items-center border-t border-border pt-2 mt-2">
+            <span className="text-muted-foreground font-sans">Sell Price:</span>
+            <div className="flex items-center gap-1">
+              <PixelIcon icon="coin" size="sm" />
+              <span className="pixel-text-sm text-game-coin tabular-nums">
+                {formatNumber(item.sellPrice)}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {isBroken && (
           <div className="border-t border-destructive/50 pt-2 mt-2">

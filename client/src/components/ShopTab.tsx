@@ -314,7 +314,7 @@ function LimitedShop() {
             data-testid="card-main-showcase"
           >
             {getPackageItems(mainShowcase).every(item => isItemPurchased(item.id)) && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-sm">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-400 flex items-center justify-center">
                     <Check className="w-10 h-10 text-green-400" />
@@ -445,9 +445,11 @@ function LimitedShop() {
                           {item.name}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="pixel-text-sm text-[7px]">
-                            {item.rarity.toUpperCase()}
-                          </Badge>
+                          {item.rarity !== 'limited' && (
+                            <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                              {item.rarity.toUpperCase()}
+                            </Badge>
+                          )}
                           <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
                             LIMITED
                           </Badge>
@@ -560,7 +562,7 @@ function LimitedShop() {
                   
                   <div 
                     className={cn(
-                      "w-14 h-14 flex items-center justify-center pixel-border rounded-sm",
+                      "w-14 h-14 flex items-center justify-center pixel-border rounded-sm relative",
                       `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
                       item.limitedEffect === 'blue_flame' && !purchased && "blue-flame-item"
                     )}
@@ -574,6 +576,11 @@ function LimitedShop() {
                         <span className="blue-ember-particle" />
                       </>
                     )}
+                    {purchased && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm">
+                        <Check className="w-6 h-6 text-green-400" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -584,9 +591,11 @@ function LimitedShop() {
                       {item.name}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="pixel-text-sm text-[7px]">
-                        {item.rarity.toUpperCase()}
-                      </Badge>
+                      {item.rarity !== 'limited' && (
+                        <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                          {item.rarity.toUpperCase()}
+                        </Badge>
+                      )}
                       <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
                         LIMITED
                       </Badge>
@@ -595,10 +604,9 @@ function LimitedShop() {
 
                   <div className="text-right">
                     {purchased ? (
-                      <Badge className="bg-green-500/20 text-green-400 pixel-text-sm text-[8px]">
-                        <Check className="w-3 h-3 mr-1" />
-                        OWNED
-                      </Badge>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <span className="pixel-text-sm text-[8px]">Owned</span>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-1">
                         <PixelIcon icon="universal_point" size="sm" />
@@ -691,9 +699,11 @@ function LimitedShop() {
                         {confirmStandaloneDialog.item.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="pixel-text-sm text-[7px]">
-                          {confirmStandaloneDialog.item.rarity.toUpperCase()}
-                        </Badge>
+                        {confirmStandaloneDialog.item.rarity !== 'limited' && (
+                          <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                            {confirmStandaloneDialog.item.rarity.toUpperCase()}
+                          </Badge>
+                        )}
                         <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
                           LIMITED
                         </Badge>
@@ -848,7 +858,20 @@ function DailyShop() {
 
     const upFeatured = shuffledPremium[0]?.item;
     const coinFeatured = shuffledPremium[1]?.item || shuffledMidTier[0]?.item;
-    const regularSelection = shuffledMidTier.slice(0, 6).map(i => i.item);
+    
+    const usedItemIds = new Set<string>();
+    if (upFeatured) usedItemIds.add(upFeatured.id);
+    if (coinFeatured) usedItemIds.add(coinFeatured.id);
+    
+    const uniqueRegularItems: ItemDefinition[] = [];
+    for (const entry of shuffledMidTier) {
+      if (!usedItemIds.has(entry.item.id)) {
+        usedItemIds.add(entry.item.id);
+        uniqueRegularItems.push(entry.item);
+        if (uniqueRegularItems.length >= 6) break;
+      }
+    }
+    const regularSelection = uniqueRegularItems;
 
     const featured: DailyItem[] = [];
     
