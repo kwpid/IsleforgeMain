@@ -70,7 +70,16 @@ function LimitedShop() {
 
   const activePackages = useMemo(() => getActivePackages(), []);
   const mainShowcase = activePackages.find(pkg => pkg.isMainShowcase);
-  const otherPackages = activePackages.filter(pkg => !pkg.isMainShowcase);
+  const otherPackages = activePackages.filter(pkg => !pkg.isMainShowcase && pkg.itemIds.length > 1);
+  const standaloneLimitedItems = useMemo(() => {
+    return activePackages
+      .filter(pkg => !pkg.isMainShowcase && pkg.itemIds.length === 1)
+      .map(pkg => {
+        const item = getLimitedItemById(pkg.itemIds[0]);
+        return item ? { item, pkg } : null;
+      })
+      .filter((entry): entry is { item: LimitedItem; pkg: LimitedPackage } => entry !== null);
+  }, [activePackages]);
 
   useEffect(() => {
     if (!mainShowcase) return;
@@ -185,6 +194,47 @@ function LimitedShop() {
   };
 
   const isItemPurchased = (itemId: string) => limitedPurchases.includes(itemId);
+
+  const [purchasingItemId, setPurchasingItemId] = useState<string | null>(null);
+
+  const handlePurchaseStandaloneItem = async (item: LimitedItem) => {
+    if (isItemPurchased(item.id)) {
+      showError('Already Owned', 'You already own this item.');
+      return;
+    }
+
+    const price = Math.ceil(item.sellPrice / 10);
+
+    if (player.universalPoints < price) {
+      showError('Not Enough UP', `You need U$${price} to purchase this item.`);
+      return;
+    }
+
+    setPurchasingItemId(item.id);
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    const success = addItemToInventory(item.id, 1);
+    if (success) {
+      addLimitedPurchase(item.id);
+      addUniversalPoints(-price);
+
+      addItems([{
+        item,
+        quantity: 1,
+        source: 'purchase' as const,
+      }]);
+
+      notify({
+        type: 'item',
+        title: 'Limited Item Acquired!',
+        message: `You purchased ${item.name}!`,
+      });
+    } else {
+      showError('Inventory Full', `Could not add ${item.name}. Make room in your inventory.`);
+    }
+
+    setPurchasingItemId(null);
+  };
 
   if (activePackages.length === 0) {
     return (
@@ -312,9 +362,114 @@ function LimitedShop() {
         </div>
       )}
 
-      {otherPackages.length > 0 && (
+      {standaloneLimitedItems.length > 0 && (
         <div className="space-y-4">
           <h3 className="pixel-text text-sm text-muted-foreground">Other Limited Items</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {standaloneLimitedItems.map(({ item, pkg }) => {
+              const itemPrice = Math.ceil(item.sellPrice / 10);
+              const purchased = isItemPurchased(item.id);
+              const isPurchasingThis = purchasingItemId === item.id;
+              
+              return (
+                <Card 
+                  key={item.id}
+                  className={cn(
+                    "pixel-border bg-card",
+                    item.limitedEffect === 'shadow_pulse' && "border-purple-500/50",
+                    item.limitedEffect === 'blue_flame' && "border-blue-500/50",
+                    purchased && "opacity-60"
+                  )}
+                  data-testid={`card-limited-item-${item.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <HoverCard openDelay={0} closeDelay={0}>
+                        <HoverCardTrigger asChild>
+                          <div 
+                            className={cn(
+                              "w-16 h-16 flex items-center justify-center pixel-border rounded-sm relative cursor-pointer",
+                              `bg-rarity-${item.rarity}/20 border-rarity-${item.rarity}`,
+                              item.limitedEffect === 'shadow_pulse' && !purchased && "shadow-pulse-item",
+                              item.limitedEffect === 'blue_flame' && !purchased && "blue-flame-item"
+                            )}
+                          >
+                            <PixelIcon icon={item.icon} size="lg" />
+                            {purchased && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm">
+                                <Check className="w-6 h-6 text-green-400" />
+                              </div>
+                            )}
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
+                          <ItemTooltip item={item} />
+                        </HoverCardContent>
+                      </HoverCard>
+
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          'pixel-text-sm truncate',
+                          purchased ? 'text-muted-foreground' : `text-rarity-${item.rarity}`
+                        )}>
+                          {item.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                            {item.rarity.toUpperCase()}
+                          </Badge>
+                          <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
+                            LIMITED
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 mt-2">
+                          <PixelIcon icon="universal_point" size="sm" />
+                          <span className="pixel-text-sm text-game-up">U${itemPrice}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      className={cn(
+                        "w-full mt-3 pixel-text-sm",
+                        purchased 
+                          ? "bg-green-500/20 text-green-400 cursor-not-allowed"
+                          : item.limitedEffect === 'shadow_pulse'
+                            ? "bg-purple-500 hover:bg-purple-600"
+                            : "bg-blue-500 hover:bg-blue-600"
+                      )}
+                      disabled={purchased || isPurchasingThis || player.universalPoints < itemPrice}
+                      onClick={() => handlePurchaseStandaloneItem(item)}
+                      data-testid={`button-purchase-${item.id}`}
+                    >
+                      {isPurchasingThis ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Purchasing...
+                        </>
+                      ) : purchased ? (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Owned
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                          Purchase
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {otherPackages.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="pixel-text text-sm text-muted-foreground">Other Packs</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {otherPackages.map((pkg) => (
               <Card 
