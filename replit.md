@@ -95,6 +95,18 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Auto-Select**: Game automatically uses your highest tier watering can
 - **Multiple Farms**: Unlock up to 4 farms to grow more crops
 
+### Forge System (Island Tab)
+- **Repair Station**: Restore durability to damaged equipment
+  - Select items from inventory or storage that need repair
+  - Visual durability bar showing current condition
+  - Repair cost based on damage level (50% of item value per damage percent)
+  - Animated forging progress with particle effects
+- **Item Display**: Grid view of all damaged items
+  - Color-coded durability bars (green/yellow/red)
+  - Source badges (I for Inventory, S for Storage)
+  - Click to select for repair
+- **Forge Upgrades**: Coming soon - item enhancement, gem socketing, enchantment transfers
+
 ### Marketplace Sell Tab (Hub Tab)
 - **Dedicated Selling**: Sell minerals, blocks, and crops in the Marketplace
 - **Tools Excluded**: Tools and enhancements cannot be sold (protected)

@@ -40,7 +40,7 @@ import {
 import { SEED_ITEMS, CROP_ITEMS } from './items';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
-import { getRecipeById, getCraftingCost, canCraftRecipe } from './crafting';
+import { getRecipeById, getCraftingCost, canCraftRecipe, getAllStorageItems } from './crafting';
 import { isLimitedItem } from './items/limited';
 
 interface GameStore extends GameState {
@@ -147,6 +147,7 @@ interface GameStore extends GameState {
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
   craftItem: (recipeId: string, quantity?: number) => boolean;
+  repairItem: (itemId: string, source: 'inventory' | 'storage') => boolean;
   
   getVendorStockPurchased: (vendorId: string, itemId: string) => number;
   purchaseVendorItem: (vendorId: string, itemId: string, quantity: number) => void;
@@ -1468,49 +1469,99 @@ export const useGameStore = create<GameStore>()(
         const recipe = getRecipeById(recipeId);
         if (!recipe) return false;
 
-        const craftCheck = canCraftRecipe(recipe, state.storage.items, state.player.coins, quantity);
+        const allItems = getAllStorageItems(state.storage, state.storageSystem);
+        const craftCheck = canCraftRecipe(recipe, allItems, state.player.coins, quantity);
         if (!craftCheck.canCraft) return false;
 
         const costPerItem = getCraftingCost(recipe);
         const totalCost = costPerItem * quantity;
-        const newStorageItems = [...state.storage.items];
+        
+        const newLegacyItems = [...state.storage.items];
+        const newUnits = state.storageSystem.units.map(unit => ({
+          ...unit,
+          items: [...unit.items],
+        }));
         
         for (const ingredient of recipe.ingredients) {
-          const totalNeeded = ingredient.quantity * quantity;
-          const idx = newStorageItems.findIndex(i => i.itemId === ingredient.itemId);
-          if (idx >= 0) {
-            if (newStorageItems[idx].quantity === totalNeeded) {
-              newStorageItems.splice(idx, 1);
-            } else {
-              newStorageItems[idx] = {
-                ...newStorageItems[idx],
-                quantity: newStorageItems[idx].quantity - totalNeeded,
-              };
+          let remaining = ingredient.quantity * quantity;
+          
+          for (let i = 0; i < newLegacyItems.length && remaining > 0; i++) {
+            if (newLegacyItems[i].itemId === ingredient.itemId) {
+              const take = Math.min(newLegacyItems[i].quantity, remaining);
+              remaining -= take;
+              if (newLegacyItems[i].quantity === take) {
+                newLegacyItems.splice(i, 1);
+                i--;
+              } else {
+                newLegacyItems[i] = {
+                  ...newLegacyItems[i],
+                  quantity: newLegacyItems[i].quantity - take,
+                };
+              }
+            }
+          }
+          
+          for (const unit of newUnits) {
+            if (remaining <= 0) break;
+            for (let i = 0; i < unit.items.length && remaining > 0; i++) {
+              if (unit.items[i].itemId === ingredient.itemId) {
+                const take = Math.min(unit.items[i].quantity, remaining);
+                remaining -= take;
+                if (unit.items[i].quantity === take) {
+                  unit.items.splice(i, 1);
+                  i--;
+                } else {
+                  unit.items[i] = {
+                    ...unit.items[i],
+                    quantity: unit.items[i].quantity - take,
+                  };
+                }
+              }
             }
           }
         }
 
         const totalResultQuantity = recipe.resultQuantity * quantity;
-        const existingIdx = newStorageItems.findIndex(i => i.itemId === recipe.resultItemId);
         const resultItem = getItemById(recipe.resultItemId);
         const maxStack = resultItem?.maxStack || 999999;
         
-        if (existingIdx >= 0) {
-          newStorageItems[existingIdx] = {
-            ...newStorageItems[existingIdx],
-            quantity: Math.min(newStorageItems[existingIdx].quantity + totalResultQuantity, maxStack),
-          };
+        const selectedUnit = newUnits.find(u => u.id === state.storageSystem.selectedUnitId) || newUnits[0];
+        if (selectedUnit) {
+          const existingIdx = selectedUnit.items.findIndex(i => i.itemId === recipe.resultItemId);
+          if (existingIdx >= 0) {
+            selectedUnit.items[existingIdx] = {
+              ...selectedUnit.items[existingIdx],
+              quantity: Math.min(selectedUnit.items[existingIdx].quantity + totalResultQuantity, maxStack),
+            };
+          } else {
+            selectedUnit.items.push({
+              itemId: recipe.resultItemId,
+              quantity: totalResultQuantity,
+            });
+          }
         } else {
-          newStorageItems.push({
-            itemId: recipe.resultItemId,
-            quantity: totalResultQuantity,
-          });
+          const existingIdx = newLegacyItems.findIndex(i => i.itemId === recipe.resultItemId);
+          if (existingIdx >= 0) {
+            newLegacyItems[existingIdx] = {
+              ...newLegacyItems[existingIdx],
+              quantity: Math.min(newLegacyItems[existingIdx].quantity + totalResultQuantity, maxStack),
+            };
+          } else {
+            newLegacyItems.push({
+              itemId: recipe.resultItemId,
+              quantity: totalResultQuantity,
+            });
+          }
         }
 
         set({
           storage: {
             ...state.storage,
-            items: newStorageItems,
+            items: newLegacyItems,
+          },
+          storageSystem: {
+            ...state.storageSystem,
+            units: newUnits,
           },
           player: {
             ...state.player,
@@ -1518,6 +1569,99 @@ export const useGameStore = create<GameStore>()(
           },
         });
 
+        return true;
+      },
+      
+      repairItem: (itemId, source) => {
+        const state = get();
+        const itemData = getItemById(itemId);
+        if (!itemData?.hasDurability) return false;
+        
+        let itemToRepair: StorageItem | null = null;
+        let itemIndex = -1;
+        
+        if (source === 'inventory') {
+          itemIndex = state.inventory.items.findIndex(i => 
+            i.itemId === itemId && i.durability && i.durability.current < i.durability.max
+          );
+          if (itemIndex >= 0) {
+            itemToRepair = state.inventory.items[itemIndex];
+          }
+        } else {
+          const allItems = getAllStorageItems(state.storage, state.storageSystem);
+          const found = allItems.find(i => 
+            i.itemId === itemId && i.durability && i.durability.current < i.durability.max
+          );
+          if (found) {
+            itemToRepair = found;
+          }
+        }
+        
+        if (!itemToRepair || !itemToRepair.durability) return false;
+        
+        const baseCost = itemData.value || 100;
+        const damagePercent = 1 - (itemToRepair.durability.current / itemToRepair.durability.max);
+        const repairCost = Math.ceil(baseCost * damagePercent * 0.5);
+        
+        if (state.player.coins < repairCost) return false;
+        
+        if (source === 'inventory') {
+          const newItems = [...state.inventory.items];
+          newItems[itemIndex] = {
+            ...newItems[itemIndex],
+            durability: {
+              current: itemToRepair.durability.max,
+              max: itemToRepair.durability.max
+            }
+          };
+          
+          set({
+            inventory: { ...state.inventory, items: newItems },
+            player: { ...state.player, coins: state.player.coins - repairCost }
+          });
+        } else {
+          let repaired = false;
+          
+          const newLegacyItems = state.storage.items.map(item => {
+            if (!repaired && item.itemId === itemId && item.durability && 
+                item.durability.current < item.durability.max) {
+              repaired = true;
+              return {
+                ...item,
+                durability: { current: item.durability.max, max: item.durability.max }
+              };
+            }
+            return item;
+          });
+          
+          if (repaired) {
+            set({
+              storage: { ...state.storage, items: newLegacyItems },
+              player: { ...state.player, coins: state.player.coins - repairCost }
+            });
+          } else {
+            const newUnits = state.storageSystem.units.map(unit => ({
+              ...unit,
+              items: unit.items.map(item => {
+                if (!repaired && item.itemId === itemId && item.durability && 
+                    item.durability.current < item.durability.max) {
+                  repaired = true;
+                  return {
+                    ...item,
+                    durability: { current: item.durability.max, max: item.durability.max }
+                  };
+                }
+                return item;
+              })
+            }));
+            
+            set({
+              storageSystem: { ...state.storageSystem, units: newUnits },
+              player: { ...state.player, coins: state.player.coins - repairCost }
+            });
+          }
+        }
+        
         return true;
       },
       
