@@ -196,8 +196,12 @@ function LimitedShop() {
   const isItemPurchased = (itemId: string) => limitedPurchases.includes(itemId);
 
   const [purchasingItemId, setPurchasingItemId] = useState<string | null>(null);
+  const [confirmStandaloneDialog, setConfirmStandaloneDialog] = useState<{ open: boolean; item: LimitedItem | null }>({
+    open: false,
+    item: null,
+  });
 
-  const handlePurchaseStandaloneItem = async (item: LimitedItem) => {
+  const handleOpenStandaloneConfirm = (item: LimitedItem) => {
     if (isItemPurchased(item.id)) {
       showError('Already Owned', 'You already own this item.');
       return;
@@ -210,7 +214,17 @@ function LimitedShop() {
       return;
     }
 
+    setConfirmStandaloneDialog({ open: true, item });
+  };
+
+  const handleConfirmStandalonePurchase = async () => {
+    const item = confirmStandaloneDialog.item;
+    if (!item) return;
+
+    const price = Math.ceil(item.sellPrice / 10);
+
     setPurchasingItemId(item.id);
+    setConfirmStandaloneDialog({ open: false, item: null });
     await new Promise(resolve => setTimeout(resolve, 600));
 
     const success = addItemToInventory(item.id, 1);
@@ -439,7 +453,7 @@ function LimitedShop() {
                             : "bg-blue-500 hover:bg-blue-600"
                       )}
                       disabled={purchased || isPurchasingThis || player.universalPoints < itemPrice}
-                      onClick={() => handlePurchaseStandaloneItem(item)}
+                      onClick={() => handleOpenStandaloneConfirm(item)}
                       data-testid={`button-purchase-${item.id}`}
                     >
                       {isPurchasingThis ? (
@@ -627,6 +641,87 @@ function LimitedShop() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmStandaloneDialog.open} onOpenChange={(open) => !open && setConfirmStandaloneDialog({ open: false, item: null })}>
+        <AlertDialogContent className="pixel-border bg-card max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="pixel-text text-sm flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              Confirm Purchase
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans text-sm">
+              {confirmStandaloneDialog.item && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 pixel-border bg-muted/30 rounded-sm">
+                    <div 
+                      className={cn(
+                        "w-14 h-14 flex items-center justify-center pixel-border rounded-sm relative",
+                        `bg-rarity-${confirmStandaloneDialog.item.rarity}/20 border-rarity-${confirmStandaloneDialog.item.rarity}`,
+                        confirmStandaloneDialog.item.limitedEffect === 'shadow_pulse' && "shadow-pulse-item",
+                        confirmStandaloneDialog.item.limitedEffect === 'blue_flame' && "blue-flame-item"
+                      )}
+                    >
+                      <PixelIcon icon={confirmStandaloneDialog.item.icon} size="md" />
+                      {confirmStandaloneDialog.item.limitedEffect === 'shadow_pulse' && (
+                        <>
+                          <span className="shadow-pulse-particle" />
+                          <span className="shadow-pulse-particle" />
+                          <span className="shadow-pulse-particle" />
+                        </>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={cn('pixel-text-sm', `text-rarity-${confirmStandaloneDialog.item.rarity}`)}>
+                        {confirmStandaloneDialog.item.name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="pixel-text-sm text-[7px]">
+                          {confirmStandaloneDialog.item.rarity.toUpperCase()}
+                        </Badge>
+                        <Badge className="limited-badge text-white pixel-text-sm text-[7px]">
+                          LIMITED
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Price:</span>
+                    <div className="flex items-center gap-1">
+                      <PixelIcon icon="universal_point" size="sm" />
+                      <span className="pixel-text text-game-up">
+                        U${Math.ceil(confirmStandaloneDialog.item.sellPrice / 10)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Your Balance:</span>
+                    <div className="flex items-center gap-1">
+                      <PixelIcon icon="universal_point" size="sm" />
+                      <span className="pixel-text text-game-up">U${player.universalPoints}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="pixel-text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmStandalonePurchase}
+              className={cn(
+                "pixel-text-sm",
+                confirmStandaloneDialog.item?.limitedEffect === 'shadow_pulse'
+                  ? "bg-purple-500 hover:bg-purple-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              )}
+              data-testid="button-confirm-standalone-purchase"
+            >
+              <ShoppingCart className="w-4 h-4 mr-1" />
+              Confirm Purchase
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
