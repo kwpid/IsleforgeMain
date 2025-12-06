@@ -346,7 +346,7 @@ function LimitedShop() {
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                        <ItemTooltip item={item} />
+                        <ItemTooltip item={item} showUseButton={false} />
                       </HoverCardContent>
                     </HoverCard>
                   ))}
@@ -433,7 +433,7 @@ function LimitedShop() {
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                          <ItemTooltip item={item} />
+                          <ItemTooltip item={item} showUseButton={false} />
                         </HoverCardContent>
                       </HoverCard>
 
@@ -1049,7 +1049,7 @@ function DailyShop() {
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                          <ItemTooltip item={item} />
+                          <ItemTooltip item={item} showUseButton={false} />
                         </HoverCardContent>
                       </HoverCard>
                       <div className="flex-1 min-w-0">
@@ -1128,7 +1128,7 @@ function DailyShop() {
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                          <ItemTooltip item={item} />
+                          <ItemTooltip item={item} showUseButton={false} />
                         </HoverCardContent>
                       </HoverCard>
                       <div className="flex-1 min-w-0">

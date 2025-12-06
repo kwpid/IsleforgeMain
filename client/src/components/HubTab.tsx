@@ -713,7 +713,7 @@ function MarketplaceView() {
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                        <ItemTooltip item={item} />
+                        <ItemTooltip item={item} showUseButton={false} />
                       </HoverCardContent>
                     </HoverCard>
                   );
@@ -868,7 +868,7 @@ function MarketplaceView() {
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                        <ItemTooltip item={item} />
+                        <ItemTooltip item={item} showUseButton={false} />
                       </HoverCardContent>
                     </HoverCard>
                   );
