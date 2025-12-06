@@ -52,6 +52,58 @@ export interface InventoryItem {
   quantity: number;
 }
 
+export interface ItemDurability {
+  current: number;
+  max: number;
+}
+
+export interface StorageItem extends InventoryItem {
+  durability?: ItemDurability;
+}
+
+export function itemHasDurability(itemDef: ItemDefinition | undefined): boolean {
+  if (!itemDef) return false;
+  return !!(itemDef.stats?.durability);
+}
+
+export type BoosterStatType = 
+  | 'mining_speed'
+  | 'mining_xp'
+  | 'mining_luck'
+  | 'farming_speed'
+  | 'farming_xp'
+  | 'crop_speed_all'
+  | 'crop_speed_carrot'
+  | 'crop_speed_potato'
+  | 'sale_profit'
+  | 'farm_sale_profit'
+  | 'potato_sale_profit';
+
+export interface BoosterEffect {
+  stat: BoosterStatType;
+  multiplier: number;
+}
+
+export interface BoosterDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  rarity: Rarity;
+  sellPrice: number;
+  duration: number;
+  effects: BoosterEffect[];
+  isEnchanted: true;
+  specialDescription?: string;
+}
+
+export interface ActiveBooster {
+  boosterId: string;
+  expiresAt: number;
+  stackedMinutes: number;
+  stackCount: number;
+}
+
 export interface GeneratorTier {
   tier: number;
   romanNumeral: string;
@@ -108,7 +160,7 @@ export interface StorageUnit {
   id: string;
   name: string;
   maxSlots: number;
-  items: InventoryItem[];
+  items: StorageItem[];
 }
 
 export interface PlayerStorageSystem {
@@ -119,7 +171,7 @@ export interface PlayerStorageSystem {
 export interface PlayerStorage {
   capacity: number;
   upgradeLevel: number;
-  items: InventoryItem[];
+  items: StorageItem[];
 }
 
 export const STORAGE_UNIT_MAX_SLOTS = 128;
@@ -136,7 +188,7 @@ export interface PlayerEquipment {
 }
 
 export interface PlayerInventory {
-  items: InventoryItem[];
+  items: StorageItem[];
   maxSlots: number;
 }
 
@@ -148,6 +200,8 @@ export interface VendorItem {
   priceMultiplier: number;
   isRotating?: boolean;
   unlimitedStock?: boolean;
+  isBooster?: boolean;
+  isSpecialItem?: boolean;
 }
 
 export interface Vendor {
@@ -159,6 +213,7 @@ export interface Vendor {
   priceModifier: number;
   items: VendorItem[];
   isTravelling?: boolean;
+  isSpecialBoosterVendor?: boolean;
 }
 
 export interface BlueprintRequirement {
@@ -310,6 +365,7 @@ export interface GameState {
   vendorStockPurchases: VendorStockPurchases;
   vendorStockSeed: number;
   farming: FarmingState;
+  activeBoosters: ActiveBooster[];
 }
 
 export function createDefaultStorageSystem(): PlayerStorageSystem {
@@ -338,7 +394,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export type MainTab = 'island' | 'hub' | 'shop' | 'settings';
-export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming';
+export type IslandSubTab = 'generators' | 'storage' | 'crafting' | 'farming' | 'forge';
 export type HubSubTab = 'marketplace' | 'blueprints' | 'bank' | 'mines' | 'dungeons';
 export type ShopSubTab = 'limited' | 'daily' | 'coins';
 export type MarketplaceViewTab = 'main' | 'sell' | 'special';
@@ -602,5 +658,6 @@ export function createDefaultGameState(): GameState {
     vendorStockPurchases: {},
     vendorStockSeed: Math.floor(Date.now() / (1000 * 60 * 60 * 24)),
     farming: createDefaultFarmingState(),
+    activeBoosters: [],
   };
 }

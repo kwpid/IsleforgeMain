@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import {
   GameState,
   InventoryItem,
+  StorageItem,
   OwnedGenerator,
   MainTab,
   IslandSubTab,
@@ -36,11 +37,14 @@ import {
   STORAGE_UNIT_MAX_SLOTS,
   STORAGE_UNIT_PURCHASE_COST,
   MAX_STORAGE_UNITS,
+  ActiveBooster,
+  BoosterStatType,
+  itemHasDurability,
 } from './gameTypes';
-import { SEED_ITEMS, CROP_ITEMS } from './items';
+import { SEED_ITEMS, CROP_ITEMS, getBoosterById, isBoosterItem } from './items';
 import { getItemById } from './items';
 import { getGeneratorById, getGeneratorOutput, getGeneratorInterval, getNextTierCost } from './generators';
-import { getRecipeById, getCraftingCost, canCraftRecipe } from './crafting';
+import { getRecipeById, getCraftingCost, canCraftRecipe, getAllStorageItems } from './crafting';
 import { isLimitedItem } from './items/limited';
 
 interface GameStore extends GameState {
@@ -147,6 +151,7 @@ interface GameStore extends GameState {
   
   sellSelectedItems: (items: { itemId: string; quantity: number }[]) => number;
   craftItem: (recipeId: string, quantity?: number) => boolean;
+  repairItem: (itemId: string, source: 'inventory' | 'storage' | 'equipment', materials?: { itemId: string; quantity: number }[]) => boolean;
   
   getVendorStockPurchased: (vendorId: string, itemId: string) => number;
   purchaseVendorItem: (vendorId: string, itemId: string, quantity: number) => void;
@@ -164,6 +169,11 @@ interface GameStore extends GameState {
   getBestWateringCan: () => { id: string; capacity: number; refillCost: number } | null;
   refillWateringCan: () => { success: boolean; reason?: string; capacity?: number; cost?: number };
   addLimitedPurchase: (itemId: string) => void;
+  
+  useBooster: (boosterId: string) => boolean;
+  getActiveBoosterMultiplier: (stat: BoosterStatType) => number;
+  tickBoosters: () => void;
+  getActiveBoosters: () => ActiveBooster[];
 }
 
 export const useGameStore = create<GameStore>()(
@@ -204,7 +214,7 @@ export const useGameStore = create<GameStore>()(
 
       navigateSubTab: (direction) => {
         const state = get();
-        const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting'];
+        const islandSubTabs: IslandSubTab[] = ['generators', 'storage', 'crafting', 'farming', 'forge'];
         const hubSubTabs: HubSubTab[] = ['marketplace', 'blueprints', 'bank', 'mines', 'dungeons'];
         const shopSubTabs: ShopSubTab[] = ['limited', 'daily', 'coins'];
         const settingsSubTabs: SettingsSubTab[] = ['general', 'audio', 'controls', 'notifications', 'info'];
@@ -1265,9 +1275,18 @@ export const useGameStore = create<GameStore>()(
           get().addItemToInventory(currentEquippedId, 1);
         }
 
-        const newDurability = (slot === 'mainHand' || slot === 'offHand') && item.stats?.durability
-          ? item.stats.durability
-          : null;
+        // Use durability from inventory item if it exists, otherwise use max durability from item definition
+        let newDurability: number | null = null;
+        if ((slot === 'mainHand' || slot === 'offHand') && item.stats?.durability) {
+          const storageItem = inventoryItem as StorageItem;
+          if (storageItem.durability) {
+            // Use the saved durability from inventory
+            newDurability = storageItem.durability.current;
+          } else {
+            // No saved durability, use max from item definition
+            newDurability = item.stats.durability;
+          }
+        }
 
         set((state) => ({
           equipment: {
@@ -1287,9 +1306,60 @@ export const useGameStore = create<GameStore>()(
         const currentEquippedId = state.equipment[slot];
         if (!currentEquippedId) return false;
 
-        // Try to add to inventory
-        const success = get().addItemToInventory(currentEquippedId, 1);
-        if (!success) return false; // Inventory full
+        const item = getItemById(currentEquippedId);
+        if (!item) return false;
+
+        // Get current durability from equipment (only for mainHand/offHand)
+        const currentDurability = (slot === 'mainHand' || slot === 'offHand') 
+          ? state.equipmentDurability[slot]
+          : null;
+        const maxDurability = (slot === 'mainHand' || slot === 'offHand') && item.stats?.durability 
+          ? item.stats.durability 
+          : null;
+
+        // Try to add to inventory with durability preserved
+        const existingItem = state.inventory.items.find(i => i.itemId === currentEquippedId);
+        
+        if (existingItem) {
+          // If item exists, we need to preserve durability if it's a durability item
+          const newItems = state.inventory.items.map(invItem => {
+            if (invItem.itemId === currentEquippedId) {
+              // If item has durability and we have current durability info, preserve it
+              if (maxDurability !== null && currentDurability !== null && itemHasDurability(item)) {
+                return {
+                  ...invItem,
+                  quantity: invItem.quantity + 1,
+                  durability: {
+                    current: currentDurability,
+                    max: maxDurability
+                  }
+                } as StorageItem;
+              }
+              return { ...invItem, quantity: invItem.quantity + 1 };
+            }
+            return invItem;
+          });
+          set({ inventory: { ...state.inventory, items: newItems } });
+        } else {
+          if (state.inventory.items.length >= state.inventory.maxSlots) {
+            return false; // Inventory full
+          }
+          // Create new inventory item with durability if applicable
+          const newItem: StorageItem = maxDurability !== null && currentDurability !== null && itemHasDurability(item)
+            ? {
+                itemId: currentEquippedId,
+                quantity: 1,
+                durability: {
+                  current: currentDurability,
+                  max: maxDurability
+                }
+              }
+            : {
+                itemId: currentEquippedId,
+                quantity: 1
+              };
+          set({ inventory: { ...state.inventory, items: [...state.inventory.items, newItem] } });
+        }
 
         set((state) => ({
           equipment: {
@@ -1468,49 +1538,99 @@ export const useGameStore = create<GameStore>()(
         const recipe = getRecipeById(recipeId);
         if (!recipe) return false;
 
-        const craftCheck = canCraftRecipe(recipe, state.storage.items, state.player.coins, quantity);
+        const allItems = getAllStorageItems(state.storage, state.storageSystem);
+        const craftCheck = canCraftRecipe(recipe, allItems, state.player.coins, quantity);
         if (!craftCheck.canCraft) return false;
 
         const costPerItem = getCraftingCost(recipe);
         const totalCost = costPerItem * quantity;
-        const newStorageItems = [...state.storage.items];
+        
+        const newLegacyItems = [...state.storage.items];
+        const newUnits = state.storageSystem.units.map(unit => ({
+          ...unit,
+          items: [...unit.items],
+        }));
         
         for (const ingredient of recipe.ingredients) {
-          const totalNeeded = ingredient.quantity * quantity;
-          const idx = newStorageItems.findIndex(i => i.itemId === ingredient.itemId);
-          if (idx >= 0) {
-            if (newStorageItems[idx].quantity === totalNeeded) {
-              newStorageItems.splice(idx, 1);
-            } else {
-              newStorageItems[idx] = {
-                ...newStorageItems[idx],
-                quantity: newStorageItems[idx].quantity - totalNeeded,
-              };
+          let remaining = ingredient.quantity * quantity;
+          
+          for (let i = 0; i < newLegacyItems.length && remaining > 0; i++) {
+            if (newLegacyItems[i].itemId === ingredient.itemId) {
+              const take = Math.min(newLegacyItems[i].quantity, remaining);
+              remaining -= take;
+              if (newLegacyItems[i].quantity === take) {
+                newLegacyItems.splice(i, 1);
+                i--;
+              } else {
+                newLegacyItems[i] = {
+                  ...newLegacyItems[i],
+                  quantity: newLegacyItems[i].quantity - take,
+                };
+              }
+            }
+          }
+          
+          for (const unit of newUnits) {
+            if (remaining <= 0) break;
+            for (let i = 0; i < unit.items.length && remaining > 0; i++) {
+              if (unit.items[i].itemId === ingredient.itemId) {
+                const take = Math.min(unit.items[i].quantity, remaining);
+                remaining -= take;
+                if (unit.items[i].quantity === take) {
+                  unit.items.splice(i, 1);
+                  i--;
+                } else {
+                  unit.items[i] = {
+                    ...unit.items[i],
+                    quantity: unit.items[i].quantity - take,
+                  };
+                }
+              }
             }
           }
         }
 
         const totalResultQuantity = recipe.resultQuantity * quantity;
-        const existingIdx = newStorageItems.findIndex(i => i.itemId === recipe.resultItemId);
         const resultItem = getItemById(recipe.resultItemId);
         const maxStack = resultItem?.maxStack || 999999;
         
-        if (existingIdx >= 0) {
-          newStorageItems[existingIdx] = {
-            ...newStorageItems[existingIdx],
-            quantity: Math.min(newStorageItems[existingIdx].quantity + totalResultQuantity, maxStack),
-          };
+        const selectedUnit = newUnits.find(u => u.id === state.storageSystem.selectedUnitId) || newUnits[0];
+        if (selectedUnit) {
+          const existingIdx = selectedUnit.items.findIndex(i => i.itemId === recipe.resultItemId);
+          if (existingIdx >= 0) {
+            selectedUnit.items[existingIdx] = {
+              ...selectedUnit.items[existingIdx],
+              quantity: Math.min(selectedUnit.items[existingIdx].quantity + totalResultQuantity, maxStack),
+            };
+          } else {
+            selectedUnit.items.push({
+              itemId: recipe.resultItemId,
+              quantity: totalResultQuantity,
+            });
+          }
         } else {
-          newStorageItems.push({
-            itemId: recipe.resultItemId,
-            quantity: totalResultQuantity,
-          });
+          const existingIdx = newLegacyItems.findIndex(i => i.itemId === recipe.resultItemId);
+          if (existingIdx >= 0) {
+            newLegacyItems[existingIdx] = {
+              ...newLegacyItems[existingIdx],
+              quantity: Math.min(newLegacyItems[existingIdx].quantity + totalResultQuantity, maxStack),
+            };
+          } else {
+            newLegacyItems.push({
+              itemId: recipe.resultItemId,
+              quantity: totalResultQuantity,
+            });
+          }
         }
 
         set({
           storage: {
             ...state.storage,
-            items: newStorageItems,
+            items: newLegacyItems,
+          },
+          storageSystem: {
+            ...state.storageSystem,
+            units: newUnits,
           },
           player: {
             ...state.player,
@@ -1518,6 +1638,144 @@ export const useGameStore = create<GameStore>()(
           },
         });
 
+        return true;
+      },
+      
+      repairItem: (itemId, source, materials = []) => {
+        const state = get();
+        const itemData = getItemById(itemId);
+        if (!itemHasDurability(itemData)) return false;
+        
+        let itemToRepair: StorageItem | null = null;
+        let itemIndex = -1;
+        let repairSlot: 'mainHand' | 'offHand' | null = null;
+        const maxDurability = itemData!.stats!.durability!;
+        
+        if (source === 'equipment') {
+          // Check if item is equipped
+          if (state.equipment.mainHand === itemId) {
+            repairSlot = 'mainHand';
+            const currentDurability = state.equipmentDurability.mainHand;
+            if (currentDurability !== null && currentDurability < maxDurability) {
+              itemToRepair = {
+                itemId,
+                quantity: 1,
+                durability: { current: currentDurability, max: maxDurability }
+              };
+            }
+          } else if (state.equipment.offHand === itemId) {
+            repairSlot = 'offHand';
+            const currentDurability = state.equipmentDurability.offHand;
+            if (currentDurability !== null && currentDurability < maxDurability) {
+              itemToRepair = {
+                itemId,
+                quantity: 1,
+                durability: { current: currentDurability, max: maxDurability }
+              };
+            }
+          }
+        } else if (source === 'inventory') {
+          itemIndex = state.inventory.items.findIndex(i => 
+            i.itemId === itemId && i.durability && i.durability.current < i.durability.max
+          );
+          if (itemIndex >= 0) {
+            itemToRepair = state.inventory.items[itemIndex];
+          }
+        } else {
+          const storageItems = [...state.storage.items];
+          state.storageSystem.units.forEach(unit => storageItems.push(...unit.items));
+          const found = storageItems.find(i => 
+            i.itemId === itemId && i.durability && i.durability.current < i.durability.max
+          );
+          if (found) {
+            itemToRepair = found;
+          }
+        }
+        
+        if (!itemToRepair || !itemToRepair.durability) return false;
+        
+        const baseCost = itemData!.sellPrice || 100;
+        const damagePercent = 1 - (itemToRepair.durability.current / itemToRepair.durability.max);
+        const repairCost = Math.ceil(baseCost * damagePercent * 0.3);
+        
+        if (state.player.coins < repairCost) return false;
+        
+        // Check and consume materials
+        for (const mat of materials) {
+          const allStorageItems = getAllStorageItems(state.storage, state.storageSystem);
+          const available = allStorageItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+          if (available < mat.quantity) return false;
+          
+          // Remove material from storage/inventory
+          get().removeItemFromStorage(mat.itemId, mat.quantity);
+        }
+        
+        if (source === 'equipment' && repairSlot) {
+          // Repair equipped item
+          set({
+            equipmentDurability: {
+              ...state.equipmentDurability,
+              [repairSlot]: maxDurability
+            },
+            player: { ...state.player, coins: state.player.coins - repairCost }
+          });
+        } else if (source === 'inventory') {
+          const newItems = [...state.inventory.items];
+          newItems[itemIndex] = {
+            ...newItems[itemIndex],
+            durability: {
+              current: itemToRepair.durability.max,
+              max: itemToRepair.durability.max
+            }
+          };
+          
+          set({
+            inventory: { ...state.inventory, items: newItems },
+            player: { ...state.player, coins: state.player.coins - repairCost }
+          });
+        } else {
+          let repaired = false;
+          
+          const newLegacyItems = state.storage.items.map(item => {
+            if (!repaired && item.itemId === itemId && item.durability && 
+                item.durability.current < item.durability.max) {
+              repaired = true;
+              return {
+                ...item,
+                durability: { current: item.durability.max, max: item.durability.max }
+              };
+            }
+            return item;
+          });
+          
+          if (repaired) {
+            set({
+              storage: { ...state.storage, items: newLegacyItems },
+              player: { ...state.player, coins: state.player.coins - repairCost }
+            });
+          } else {
+            const newUnits = state.storageSystem.units.map(unit => ({
+              ...unit,
+              items: unit.items.map(item => {
+                if (!repaired && item.itemId === itemId && item.durability && 
+                    item.durability.current < item.durability.max) {
+                  repaired = true;
+                  return {
+                    ...item,
+                    durability: { current: item.durability.max, max: item.durability.max }
+                  };
+                }
+                return item;
+              })
+            }));
+            
+            set({
+              storageSystem: { ...state.storageSystem, units: newUnits },
+              player: { ...state.player, coins: state.player.coins - repairCost }
+            });
+          }
+        }
+        
         return true;
       },
       
@@ -1868,6 +2126,135 @@ export const useGameStore = create<GameStore>()(
           set({ limitedPurchases: [...state.limitedPurchases, itemId] });
         }
       },
+      
+      useBooster: (boosterId) => {
+        const state = get();
+        const booster = getBoosterById(boosterId);
+        if (!booster) return false;
+        
+        const inventoryItem = state.inventory.items.find(i => i.itemId === boosterId);
+        const storageItem = state.storage.items.find(i => i.itemId === boosterId);
+        let foundInStorage = false;
+        let storageUnitIndex = -1;
+        let storageUnitItemIndex = -1;
+        
+        if (!inventoryItem && !storageItem) {
+          for (let i = 0; i < state.storageSystem.units.length; i++) {
+            const idx = state.storageSystem.units[i].items.findIndex(item => item.itemId === boosterId);
+            if (idx >= 0) {
+              foundInStorage = true;
+              storageUnitIndex = i;
+              storageUnitItemIndex = idx;
+              break;
+            }
+          }
+        }
+        
+        if (!inventoryItem && !storageItem && !foundInStorage) return false;
+        
+        const now = Date.now();
+        const existingBoosterIndex = state.activeBoosters.findIndex(b => b.boosterId === boosterId);
+        
+        let newActiveBoosters: ActiveBooster[];
+        
+        if (existingBoosterIndex >= 0) {
+          newActiveBoosters = [...state.activeBoosters];
+          const existing = newActiveBoosters[existingBoosterIndex];
+          const remainingSeconds = Math.max(0, (existing.expiresAt - now) / 1000);
+          newActiveBoosters[existingBoosterIndex] = {
+            ...existing,
+            expiresAt: now + (remainingSeconds + booster.duration) * 1000,
+            stackedMinutes: existing.stackedMinutes + booster.duration / 60,
+            stackCount: existing.stackCount + 1,
+          };
+        } else {
+          newActiveBoosters = [
+            ...state.activeBoosters,
+            {
+              boosterId,
+              expiresAt: now + booster.duration * 1000,
+              stackedMinutes: booster.duration / 60,
+              stackCount: 1,
+            },
+          ];
+        }
+        
+        if (inventoryItem) {
+          const newItems = state.inventory.items.map(i => 
+            i.itemId === boosterId ? { ...i, quantity: i.quantity - 1 } : i
+          ).filter(i => i.quantity > 0);
+          
+          set({
+            inventory: { ...state.inventory, items: newItems },
+            activeBoosters: newActiveBoosters,
+          });
+        } else if (storageItem) {
+          const newItems = state.storage.items.map(i => 
+            i.itemId === boosterId ? { ...i, quantity: i.quantity - 1 } : i
+          ).filter(i => i.quantity > 0);
+          
+          set({
+            storage: { ...state.storage, items: newItems },
+            activeBoosters: newActiveBoosters,
+          });
+        } else if (foundInStorage) {
+          const newUnits = [...state.storageSystem.units];
+          const unitItems = [...newUnits[storageUnitIndex].items];
+          const item = unitItems[storageUnitItemIndex];
+          if (item.quantity <= 1) {
+            unitItems.splice(storageUnitItemIndex, 1);
+          } else {
+            unitItems[storageUnitItemIndex] = { ...item, quantity: item.quantity - 1 };
+          }
+          newUnits[storageUnitIndex] = { ...newUnits[storageUnitIndex], items: unitItems };
+          
+          set({
+            storageSystem: { ...state.storageSystem, units: newUnits },
+            activeBoosters: newActiveBoosters,
+          });
+        }
+        
+        return true;
+      },
+      
+      getActiveBoosterMultiplier: (stat) => {
+        const state = get();
+        const now = Date.now();
+        
+        let totalMultiplier = 0;
+        
+        for (const activeBooster of state.activeBoosters) {
+          if (activeBooster.expiresAt <= now) continue;
+          
+          const booster = getBoosterById(activeBooster.boosterId);
+          if (!booster) continue;
+          
+          for (const effect of booster.effects) {
+            if (effect.stat === stat) {
+              totalMultiplier += effect.multiplier;
+            }
+          }
+        }
+        
+        return totalMultiplier;
+      },
+      
+      tickBoosters: () => {
+        const state = get();
+        const now = Date.now();
+        
+        const activeBoosters = state.activeBoosters.filter(b => b.expiresAt > now);
+        
+        if (activeBoosters.length !== state.activeBoosters.length) {
+          set({ activeBoosters });
+        }
+      },
+      
+      getActiveBoosters: () => {
+        const state = get();
+        const now = Date.now();
+        return state.activeBoosters.filter(b => b.expiresAt > now);
+      },
     }),
     {
       name: 'isleforge-storage',
@@ -1893,6 +2280,8 @@ export const useGameStore = create<GameStore>()(
         vendorStockSeed: state.vendorStockSeed,
         farming: state.farming,
         limitedPurchases: state.limitedPurchases,
+        storageSystem: state.storageSystem,
+        activeBoosters: state.activeBoosters,
       }),
     }
   )

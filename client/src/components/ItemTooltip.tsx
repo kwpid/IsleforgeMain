@@ -1,16 +1,50 @@
+import React from 'react';
 import { ItemDefinition, getRarityColor, formatNumber } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { cn } from '@/lib/utils';
-import { Sparkles, Wand2, TrendingUp } from 'lucide-react';
+import { Sparkles, Wand2, TrendingUp, Zap } from 'lucide-react';
+import { getBoosterById, getBoosterDisplayStats, formatBoosterDuration, isBoosterItem } from '@/lib/items';
+import { useGameStore } from '@/lib/gameStore';
+import { useGameNotifications } from '@/hooks/useGameNotifications';
+import { Button } from '@/components/ui/button';
 
 interface ItemTooltipProps {
   item: ItemDefinition;
   quantity?: number;
   className?: string;
   isBroken?: boolean;
+  onUseBooster?: () => void;
+  showUseButton?: boolean;
 }
 
-export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltipProps) {
+export function ItemTooltip({ item, quantity, className, isBroken, onUseBooster, showUseButton = true }: ItemTooltipProps) {
+  const booster = isBoosterItem(item.id) ? getBoosterById(item.id) : null;
+  const useBooster = useGameStore((s) => s.useBooster);
+  const { success, warning } = useGameNotifications();
+  const [isUsing, setIsUsing] = React.useState(false);
+  const useClickedRef = React.useRef(false);
+  
+  const handleUseBooster = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!booster || isUsing || useClickedRef.current) return;
+    
+    useClickedRef.current = true;
+    setIsUsing(true);
+    
+    const used = useBooster(item.id);
+    if (used) {
+      success('Booster Activated!', `${booster.name} is now active for ${formatBoosterDuration(booster.duration)}`);
+      onUseBooster?.();
+    } else {
+      warning('Cannot Use', 'Unable to activate booster');
+    }
+    
+    setTimeout(() => {
+      setIsUsing(false);
+      useClickedRef.current = false;
+    }, 1000);
+  }, [booster, isUsing, useBooster, item.id, success, warning, onUseBooster]);
   const rarityLabels: Record<string, string> = {
     common: 'COMMON',
     uncommon: 'UNCOMMON',
@@ -45,7 +79,8 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
   return (
     <div 
       className={cn(
-        'pixel-border border-border bg-popover p-3 min-w-48 max-w-64 z-50',
+        'pixel-border border-border bg-popover p-3 min-w-48 z-50',
+        booster ? 'max-w-80' : 'max-w-64',
         item.isEnchanted && 'enchanted-item',
         className
       )}
@@ -104,7 +139,27 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
           <span className="pixel-text-sm">{typeLabels[item.type]}</span>
         </div>
 
-        {item.stats && Object.entries(item.stats).length > 0 && (
+        {booster && (
+          <div className="border-t border-border pt-2 mt-2 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground font-sans text-xs">Duration:</span>
+              <span className="pixel-text-sm text-primary">{formatBoosterDuration(booster.duration)}</span>
+            </div>
+            <div>
+              <p className="text-muted-foreground font-sans text-xs mb-1.5">Effects:</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                {getBoosterDisplayStats(booster).map((stat, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />
+                    <span className="pixel-text-sm text-[9px] text-primary leading-tight">{stat}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!booster && item.stats && Object.entries(item.stats).length > 0 && (
           <div className="border-t border-border pt-2 mt-2 space-y-1">
             {Object.entries(item.stats).map(([stat, value]) => (
               <div key={stat} className="flex justify-between items-center">
@@ -141,6 +196,20 @@ export function ItemTooltip({ item, quantity, className, isBroken }: ItemTooltip
             <div className="pixel-border border-destructive/50 bg-destructive/10 p-2 text-center">
               <span className="pixel-text-sm text-[9px] text-destructive">BROKEN - Needs Repair</span>
             </div>
+          </div>
+        )}
+
+        {booster && showUseButton && (
+          <div className="border-t border-yellow-500/50 pt-2 mt-2">
+            <Button
+              onClick={handleUseBooster}
+              disabled={isUsing}
+              className="w-full pixel-text-sm bg-yellow-500 hover:bg-yellow-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              size="sm"
+            >
+              <Zap className="w-4 h-4 mr-1" />
+              {isUsing ? 'USING...' : 'USE'}
+            </Button>
           </div>
         )}
       </div>

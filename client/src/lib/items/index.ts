@@ -9,6 +9,22 @@ import { POTION_ITEMS } from './potions';
 import { SPECIAL_ITEMS } from './special';
 import { SEED_ITEMS, CROP_ITEMS } from './seeds';
 import { LIMITED_ITEMS } from './limited';
+import { BOOSTER_ITEMS, getBoosterById, isBoosterItem, getBoosterDisplayStats, formatBoosterDuration } from './boosters';
+
+// Convert boosters to ItemDefinition format so they can be added to inventory
+const BOOSTER_ITEMS_AS_ITEMS: ItemDefinition[] = BOOSTER_ITEMS.map(booster => ({
+  id: booster.id,
+  name: booster.name,
+  description: booster.description,
+  type: 'food' as const, // Boosters are consumable items
+  rarity: booster.rarity,
+  sellPrice: booster.sellPrice,
+  stackable: true,
+  maxStack: 64,
+  icon: booster.icon,
+  isEnchanted: booster.isEnchanted,
+  isSpecial: true,
+}));
 
 export const ALL_ITEMS: ItemDefinition[] = [
   ...BLOCK_ITEMS,
@@ -22,6 +38,7 @@ export const ALL_ITEMS: ItemDefinition[] = [
   ...SEED_ITEMS,
   ...CROP_ITEMS,
   ...LIMITED_ITEMS,
+  ...BOOSTER_ITEMS_AS_ITEMS,
 ];
 
 export const ITEMS_BY_ID: Record<string, ItemDefinition> = ALL_ITEMS.reduce(
@@ -52,4 +69,4 @@ export function getEnchantedItems(): ItemDefinition[] {
   return ALL_ITEMS.filter(item => item.isEnchanted);
 }
 
-export { BLOCK_ITEMS, MINERAL_ITEMS, MATERIAL_ITEMS, FOOD_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, SPECIAL_ITEMS, SEED_ITEMS, CROP_ITEMS, LIMITED_ITEMS };
+export { BLOCK_ITEMS, MINERAL_ITEMS, MATERIAL_ITEMS, FOOD_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, SPECIAL_ITEMS, SEED_ITEMS, CROP_ITEMS, LIMITED_ITEMS, BOOSTER_ITEMS, getBoosterById, isBoosterItem, getBoosterDisplayStats, formatBoosterDuration };

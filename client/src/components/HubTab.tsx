@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ScrollIndicatorTabs } from './NewsModal';
 import { useGameStore } from '@/lib/gameStore';
 import { formatNumber, Vendor, VendorItem, Blueprint, BlueprintRequirement, getPickaxeTier, getPickaxeSpeedMultiplier, PICKAXE_TIERS, GameItem } from '@/lib/gameTypes';
-import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS } from '@/lib/items';
+import { getItemById, getItemsByType, getSpecialItems, BLOCK_ITEMS, TOOL_ITEMS, ARMOR_ITEMS, POTION_ITEMS, FOOD_ITEMS, MATERIAL_ITEMS, SPECIAL_ITEMS, MINERAL_ITEMS, SEED_ITEMS, BOOSTER_ITEMS } from '@/lib/items';
 import { GENERATORS } from '@/lib/generators';
 import { MINEABLE_BLOCKS, selectRandomBlock, getBreakTime, canReceiveItem } from '@/lib/mining';
 import { PixelIcon } from './PixelIcon';
@@ -240,6 +240,21 @@ const DEFAULT_VENDORS: Vendor[] = [
       { itemId: 'golden_apple', stock: 2, priceMultiplier: 5.0, isRotating: true },
     ],
   },
+  {
+    id: 'enchanter',
+    name: 'Enchanter Elara',
+    description: 'Sells magical booster items with temporary power-ups',
+    type: 'potions',
+    icon: 'vendor_potions',
+    priceModifier: 1.0,
+    isSpecialBoosterVendor: true,
+    items: BOOSTER_ITEMS.map(booster => ({
+      itemId: booster.id,
+      stock: 5,
+      priceMultiplier: 3.0,
+      isBooster: true,
+    })),
+  },
 ];
 
 const TRAVELLING_VENDOR_NAMES = [
@@ -275,8 +290,8 @@ function getTimeUntilNextRotation(): string {
 function generateTravellingVendors(seed: number): Vendor[] {
   const vendorCount = 4 + (seed % 4);
   const vendors: Vendor[] = [];
-  const types: Array<'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare'> = 
-    ['tools', 'armor', 'food', 'blocks', 'materials', 'potions', 'rare'];
+  const types: Array<'tools' | 'armor' | 'food' | 'blocks' | 'materials' | 'potions' | 'rare' | 'boosters'> = 
+    ['tools', 'armor', 'food', 'blocks', 'materials', 'potions', 'rare', 'boosters'];
   
   for (let i = 0; i < vendorCount; i++) {
     const vendorIndex = (seed + i * 7) % TRAVELLING_VENDOR_NAMES.length;
@@ -285,23 +300,38 @@ function generateTravellingVendors(seed: number): Vendor[] {
     const type = types[typeIndex];
     const priceModifier = 0.7 + ((seed + i) % 4) * 0.1;
     
-    const itemType = type === 'rare' ? 'mineral' : 
-                     type === 'blocks' ? 'block' : 
-                     type === 'materials' ? 'material' : 
-                     type === 'tools' ? 'tool' :
-                     type === 'potions' ? 'potion' : type;
-    const typeItems = getItemsByType(itemType as 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion');
-    const itemCount = 2 + (seed + i) % 4;
     const items: VendorItem[] = [];
     
-    for (let j = 0; j < Math.min(itemCount, typeItems.length); j++) {
-      const itemIndex = (seed + i + j * 5) % typeItems.length;
-      const item = typeItems[itemIndex];
-      items.push({
-        itemId: item.id,
-        stock: 1 + (seed + j) % 10,
-        priceMultiplier: 1.2 + ((seed + j) % 8) * 0.15,
-      });
+    if (type === 'boosters') {
+      const boosterCount = 1 + (seed + i) % BOOSTER_ITEMS.length;
+      for (let j = 0; j < Math.min(boosterCount, BOOSTER_ITEMS.length); j++) {
+        const boosterIndex = (seed + i + j * 2) % BOOSTER_ITEMS.length;
+        const booster = BOOSTER_ITEMS[boosterIndex];
+        items.push({
+          itemId: booster.id,
+          stock: 1 + (seed + j) % 3,
+          priceMultiplier: 2.5 + ((seed + j) % 4) * 0.25,
+          isBooster: true,
+        });
+      }
+    } else {
+      const itemType = type === 'rare' ? 'mineral' : 
+                       type === 'blocks' ? 'block' : 
+                       type === 'materials' ? 'material' : 
+                       type === 'tools' ? 'tool' :
+                       type === 'potions' ? 'potion' : type;
+      const typeItems = getItemsByType(itemType as 'block' | 'mineral' | 'material' | 'food' | 'tool' | 'armor' | 'potion');
+      const itemCount = 2 + (seed + i) % 4;
+      
+      for (let j = 0; j < Math.min(itemCount, typeItems.length); j++) {
+        const itemIndex = (seed + i + j * 5) % typeItems.length;
+        const item = typeItems[itemIndex];
+        items.push({
+          itemId: item.id,
+          stock: 1 + (seed + j) % 10,
+          priceMultiplier: 1.2 + ((seed + j) % 8) * 0.15,
+        });
+      }
     }
     
     const specialItems = SPECIAL_ITEMS;
@@ -321,8 +351,8 @@ function generateTravellingVendors(seed: number): Vendor[] {
       id: `travelling_${i}`,
       name: vendorInfo.name,
       description: vendorInfo.description,
-      type,
-      icon: `vendor_${type}`,
+      type: type === 'boosters' ? 'potions' : type,
+      icon: type === 'boosters' ? 'vendor_potions' : `vendor_${type}`,
       priceModifier,
       items,
       isTravelling: true,
@@ -683,7 +713,7 @@ function MarketplaceView() {
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                        <ItemTooltip item={item} />
+                        <ItemTooltip item={item} showUseButton={false} />
                       </HoverCardContent>
                     </HoverCard>
                   );
@@ -838,7 +868,7 @@ function MarketplaceView() {
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="top" className="p-0 border-0 bg-transparent w-auto">
-                        <ItemTooltip item={item} />
+                        <ItemTooltip item={item} showUseButton={false} />
                       </HoverCardContent>
                     </HoverCard>
                   );

@@ -1,5 +1,5 @@
 import { getItemById, ALL_ITEMS } from './items';
-import { CraftingIngredient, ItemRecipe } from './gameTypes';
+import { CraftingIngredient, ItemRecipe, StorageUnit, PlayerStorageSystem, PlayerStorage } from './gameTypes';
 
 export interface CraftingRecipe {
   id: string;
@@ -87,6 +87,25 @@ export function getCraftingCost(recipe: CraftingRecipe): number {
   return Math.floor(resultItem.sellPrice * recipe.resultQuantity * 0.5);
 }
 
+export function getAllStorageItems(
+  legacyStorage: PlayerStorage,
+  storageSystem: PlayerStorageSystem
+): { itemId: string; quantity: number }[] {
+  const itemMap = new Map<string, number>();
+  
+  for (const item of legacyStorage.items) {
+    itemMap.set(item.itemId, (itemMap.get(item.itemId) || 0) + item.quantity);
+  }
+  
+  for (const unit of storageSystem.units) {
+    for (const item of unit.items) {
+      itemMap.set(item.itemId, (itemMap.get(item.itemId) || 0) + item.quantity);
+    }
+  }
+  
+  return Array.from(itemMap.entries()).map(([itemId, quantity]) => ({ itemId, quantity }));
+}
+
 export function canCraftRecipe(
   recipe: CraftingRecipe,
   storageItems: { itemId: string; quantity: number }[],
@@ -97,7 +116,7 @@ export function canCraftRecipe(
   const totalCost = costPerItem * quantity;
   const missingIngredients: { itemId: string; have: number; need: number }[] = [];
   
-  let maxCraftable = Math.floor(coins / costPerItem);
+  let maxCraftable = costPerItem > 0 ? Math.floor(coins / costPerItem) : 999999;
   
   for (const ingredient of recipe.ingredients) {
     const storageItem = storageItems.find(i => i.itemId === ingredient.itemId);

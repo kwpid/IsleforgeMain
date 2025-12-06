@@ -3,9 +3,9 @@ import { useGameStore } from '@/lib/gameStore';
 import { GENERATORS } from '@/lib/generators';
 import { GeneratorCard } from './GeneratorCard';
 import { StorageView } from './StorageView';
-import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe } from '@/lib/crafting';
+import { CRAFTING_RECIPES, CraftingRecipe, getCraftingCost, canCraftRecipe, getAllStorageItems } from '@/lib/crafting';
 import { getItemById, SEED_ITEMS } from '@/lib/items';
-import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS } from '@/lib/gameTypes';
+import { formatNumber, FARM_TIER_UPGRADES, FARM_UNLOCK_COSTS, WATERING_CAN_TIERS, itemHasDurability, StorageItem, ItemDefinition } from '@/lib/gameTypes';
 import { PixelIcon } from './PixelIcon';
 import { ItemTooltip } from './ItemTooltip';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function IslandTab() {
       {islandSubTab === 'storage' && <div key="storage" className="animate-subtab-content"><StorageView /></div>}
       {islandSubTab === 'crafting' && <div key="crafting" className="animate-subtab-content"><CraftingView /></div>}
       {islandSubTab === 'farming' && <div key="farming" className="animate-subtab-content"><FarmingView /></div>}
+      {islandSubTab === 'forge' && <div key="forge" className="animate-subtab-content"><ForgeView /></div>}
     </div>
   );
 }
@@ -116,8 +117,11 @@ function CraftingView() {
   const [craftQuantities, setCraftQuantities] = useState<Record<string, number>>({});
   
   const storage = useGameStore((s) => s.storage);
+  const storageSystem = useGameStore((s) => s.storageSystem);
   const coins = useGameStore((s) => s.player.coins);
   const craftItem = useGameStore((s) => s.craftItem);
+  
+  const allStorageItems = useMemo(() => getAllStorageItems(storage, storageSystem), [storage, storageSystem]);
   
   const { success, warning } = useGameNotifications();
   
@@ -146,7 +150,7 @@ function CraftingView() {
   }, [selectedCategory, searchQuery]);
 
   const handleCraft = (recipe: CraftingRecipe, quantity: number = 1) => {
-    const craftCheck = canCraftRecipe(recipe, storage.items, coins, quantity);
+    const craftCheck = canCraftRecipe(recipe, allStorageItems, coins, quantity);
     
     if (!craftCheck.canCraft) {
       if (craftCheck.missingIngredients.length > 0) {
@@ -170,7 +174,7 @@ function CraftingView() {
   };
   
   const handleCraftMax = (recipe: CraftingRecipe) => {
-    const craftCheck = canCraftRecipe(recipe, storage.items, coins, 1);
+    const craftCheck = canCraftRecipe(recipe, allStorageItems, coins, 1);
     if (craftCheck.maxCraftable > 0) {
       handleCraft(recipe, craftCheck.maxCraftable);
     } else {
@@ -227,7 +231,7 @@ function CraftingView() {
           if (!resultItem) return null;
           
           const craftQty = getCraftQuantity(recipe.id);
-          const craftCheck = canCraftRecipe(recipe, storage.items, coins, craftQty);
+          const craftCheck = canCraftRecipe(recipe, allStorageItems, coins, craftQty);
           const costPerItem = getCraftingCost(recipe);
           const totalCost = costPerItem * craftQty;
           
@@ -283,7 +287,7 @@ function CraftingView() {
                     <div className="flex flex-wrap gap-1">
                       {recipe.ingredients.map((ing) => {
                         const ingItem = getItemById(ing.itemId);
-                        const storageItem = storage.items.find(i => i.itemId === ing.itemId);
+                        const storageItem = allStorageItems.find(i => i.itemId === ing.itemId);
                         const have = storageItem?.quantity || 0;
                         const need = ing.quantity * craftQty;
                         const hasEnough = have >= need;
@@ -910,6 +914,540 @@ function FarmingView() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ForgeView() {
+  const [selectedItem, setSelectedItem] = useState<{ itemId: string; source: 'inventory' | 'storage' | 'equipment' } | null>(null);
+  const [isForging, setIsForging] = useState(false);
+  const [forgeProgress, setForgeProgress] = useState(0);
+  const [draggedRepairItem, setDraggedRepairItem] = useState<{ itemId: string; source: 'inventory' | 'storage' | 'equipment' } | null>(null);
+  const [isDragOverForge, setIsDragOverForge] = useState(false);
+  
+  const inventory = useGameStore((s) => s.inventory);
+  const storage = useGameStore((s) => s.storage);
+  const storageSystem = useGameStore((s) => s.storageSystem);
+  const coins = useGameStore((s) => s.player.coins);
+  const repairItem = useGameStore((s) => s.repairItem);
+  
+  const { success, warning } = useGameNotifications();
+  
+  const equipment = useGameStore((s) => s.equipment);
+  const equipmentDurability = useGameStore((s) => s.equipmentDurability);
+  
+  const repairableItems = useMemo(() => {
+    const items: Array<{ itemId: string; source: 'inventory' | 'storage' | 'equipment'; durability: { current: number; max: number } }> = [];
+    
+    const processItem = (item: StorageItem, source: 'inventory' | 'storage') => {
+      const itemData = getItemById(item.itemId);
+      if (itemHasDurability(itemData)) {
+        const maxDurability = itemData!.stats!.durability!;
+        if (item.durability) {
+          if (item.durability.current < item.durability.max) {
+            items.push({ 
+              itemId: item.itemId, 
+              source,
+              durability: item.durability
+            });
+          }
+        } else {
+          // Item without durability tracking - assume full if not tracked
+          // Only add if it's been used (has durability property but is full)
+        }
+      }
+    };
+    
+    // Check equipped items
+    (['mainHand', 'offHand'] as const).forEach(slot => {
+      const equippedId = equipment[slot];
+      if (equippedId) {
+        const itemData = getItemById(equippedId);
+        if (itemHasDurability(itemData)) {
+          const maxDurability = itemData!.stats!.durability!;
+          const currentDurability = equipmentDurability[slot];
+          if (currentDurability !== null && currentDurability < maxDurability) {
+            items.push({
+              itemId: equippedId,
+              source: 'equipment',
+              durability: {
+                current: currentDurability,
+                max: maxDurability
+              }
+            });
+          }
+        }
+      }
+    });
+    
+    inventory.items.forEach(item => processItem(item, 'inventory'));
+    storage.items.forEach(item => processItem(item, 'storage'));
+    storageSystem.units.forEach(unit => {
+      unit.items.forEach(item => processItem(item, 'storage'));
+    });
+    
+    return items.filter(item => item.durability.current < item.durability.max);
+  }, [inventory, storage, storageSystem, equipment, equipmentDurability]);
+  
+  const selectedItemData = selectedItem ? getItemById(selectedItem.itemId) : null;
+  const selectedRepairInfo = selectedItem 
+    ? repairableItems.find(r => r.itemId === selectedItem.itemId && r.source === selectedItem.source)
+    : null;
+  
+  const getRepairMaterials = (itemData: ItemDefinition): { itemId: string; baseQuantity: number }[] => {
+    const materials: { itemId: string; baseQuantity: number }[] = [];
+    
+    // Determine materials based on item type and name
+    if (itemData.type === 'tool' || itemData.type === 'armor') {
+      const itemId = itemData.id.toLowerCase();
+      const itemName = itemData.name.toLowerCase();
+      
+      // Wooden items
+      if (itemId.includes('wooden') || itemId.includes('leather')) {
+        materials.push({ itemId: 'oak_planks', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Stone items
+      else if (itemId.includes('stone')) {
+        materials.push({ itemId: 'cobblestone', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Iron items
+      else if (itemId.includes('iron')) {
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Gold items
+      else if (itemId.includes('gold')) {
+        materials.push({ itemId: 'gold_ingot', baseQuantity: 2 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Diamond items
+      else if (itemId.includes('diamond')) {
+        materials.push({ itemId: 'diamond', baseQuantity: 1 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Netherite items
+      else if (itemId.includes('netherite')) {
+        materials.push({ itemId: 'netherite_ingot', baseQuantity: 1 });
+        if (itemData.type === 'tool') {
+          materials.push({ itemId: 'stick', baseQuantity: 1 });
+        }
+      }
+      // Special/Limited items - use diamond as base
+      else if (itemData.isSpecial || itemData.isLimited) {
+        materials.push({ itemId: 'diamond', baseQuantity: 2 });
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 3 });
+      }
+      // Default fallback
+      else {
+        materials.push({ itemId: 'iron_ingot', baseQuantity: 2 });
+      }
+    }
+    
+    return materials;
+  };
+  
+  const getRepairCost = (itemId: string, source: 'inventory' | 'storage' | 'equipment') => {
+    const itemData = getItemById(itemId);
+    if (!itemData) return { coins: 0, materials: [] };
+    
+    const baseCost = itemData.sellPrice || 100;
+    const repairInfo = repairableItems.find(r => r.itemId === itemId && r.source === source);
+    const damagePercent = repairInfo?.durability 
+      ? 1 - (repairInfo.durability.current / repairInfo.durability.max)
+      : 0;
+    
+    // Calculate material requirements based on damage
+    const baseMaterials = getRepairMaterials(itemData);
+    const materials = baseMaterials.map(mat => ({
+      itemId: mat.itemId,
+      quantity: Math.max(1, Math.ceil(mat.baseQuantity * (1 + damagePercent * 2))) // More damage = more materials needed
+    }));
+    
+    return {
+      coins: Math.ceil(baseCost * damagePercent * 0.3), // Reduced coin cost since materials are required
+      materials
+    };
+  };
+  
+  const handleRepair = async () => {
+    if (!selectedItem) {
+      warning('No Item Selected', 'Select an item to repair');
+      return;
+    }
+    
+    const repairCost = getRepairCost(selectedItem.itemId, selectedItem.source);
+    if (coins < repairCost.coins) {
+      warning('Not Enough Coins', `You need ${formatNumber(repairCost.coins)} coins`);
+      return;
+    }
+    
+    // Check if player has required materials
+    const allItems = getAllStorageItems(storage, storageSystem);
+    const missingMaterials: string[] = [];
+    
+    for (const mat of repairCost.materials) {
+      const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+      if (available < mat.quantity) {
+        const matItem = getItemById(mat.itemId);
+        missingMaterials.push(`${matItem?.name || mat.itemId} (need ${mat.quantity}, have ${available})`);
+      }
+    }
+    
+    if (missingMaterials.length > 0) {
+      warning('Missing Materials', `You need: ${missingMaterials.join(', ')}`);
+      return;
+    }
+    
+    setIsForging(true);
+    setForgeProgress(0);
+    
+    const duration = 2000;
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setForgeProgress(progress * 100);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        const repaired = repairItem(selectedItem.itemId, selectedItem.source, repairCost.materials);
+        setIsForging(false);
+        setForgeProgress(0);
+        if (repaired) {
+          success('Item Repaired!', `${selectedItemData?.name} has been fully repaired`);
+        } else {
+          warning('Repair Failed', 'Something went wrong during repair');
+        }
+        setSelectedItem(null);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="mb-4">
+        <h2 className="pixel-text text-xl text-foreground mb-1 flex items-center gap-2">
+          <Hammer className="w-6 h-6 text-primary" />
+          The Forge
+        </h2>
+        <p className="font-sans text-muted-foreground text-sm">
+          Repair damaged equipment and restore durability to worn tools and weapons.
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="pixel-border overflow-visible bg-card/50">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="pixel-text text-base flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Repair Station
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4">
+            <div className="flex flex-col items-center justify-center">
+              <div 
+                className={cn(
+                  "relative w-24 h-24 pixel-border bg-muted/30 flex items-center justify-center overflow-hidden",
+                  isForging && "animate-pulse",
+                  selectedItem && "border-primary/50",
+                  isDragOverForge && "border-primary bg-primary/10"
+                )}
+                data-testid="forge-slot"
+                onDragOver={(e) => {
+                  if (draggedRepairItem) {
+                    e.preventDefault();
+                    setIsDragOverForge(true);
+                  }
+                }}
+                onDragLeave={() => setIsDragOverForge(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOverForge(false);
+                  if (draggedRepairItem && !isForging) {
+                    setSelectedItem(draggedRepairItem);
+                    setDraggedRepairItem(null);
+                  }
+                }}
+              >
+                {selectedItem && selectedItemData ? (
+                  <div className={cn(
+                    "pixel-border p-2 bg-card",
+                    `rarity-${selectedItemData.rarity}`,
+                    selectedItemData.isEnchanted && "enchanted-item"
+                  )}>
+                    <PixelIcon icon={selectedItemData.icon} size="lg" />
+                  </div>
+                ) : (
+                  <div className="text-center p-2 w-full h-full flex flex-col items-center justify-center">
+                    <Hammer className="w-6 h-6 mb-1 text-muted-foreground opacity-50 flex-shrink-0" />
+                    <span className="pixel-text-sm text-[8px] text-muted-foreground leading-tight text-center px-1">
+                      Drop item here
+                    </span>
+                  </div>
+                )}
+                
+                {isForging && (
+                  <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                    <div className="absolute w-full h-full">
+                      <div 
+                        className="h-1 bg-orange-500 absolute bottom-0 left-0"
+                        style={{ width: `${forgeProgress}%` }}
+                      />
+                    </div>
+                    <Sparkles className="w-6 h-6 text-orange-400 animate-bounce" />
+                  </div>
+                )}
+              </div>
+              
+              {selectedItem && selectedRepairInfo?.durability && (
+                <div className="mt-4 w-full max-w-xs space-y-2">
+                  <div className="flex items-center justify-between text-[8px] pixel-text-sm">
+                    <span>Current Durability:</span>
+                    <span className={cn(
+                      (selectedRepairInfo.durability.current / selectedRepairInfo.durability.max) < 0.3 
+                        ? "text-destructive" 
+                        : "text-foreground"
+                    )}>
+                      {selectedRepairInfo.durability.current}/{selectedRepairInfo.durability.max}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={(selectedRepairInfo.durability.current / selectedRepairInfo.durability.max) * 100}
+                    className="h-2"
+                  />
+                  
+                  <div className="pt-2 border-t border-border mt-2 space-y-2">
+                    <p className="pixel-text-sm text-[8px] text-muted-foreground mb-1">Repair Cost:</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <PixelIcon icon="coin" size="sm" />
+                      <span className={cn(
+                        "pixel-text-sm text-[8px]",
+                        coins >= getRepairCost(selectedItem.itemId, selectedItem.source).coins 
+                          ? "text-game-coin" 
+                          : "text-destructive"
+                      )}>
+                        {formatNumber(getRepairCost(selectedItem.itemId, selectedItem.source).coins)}
+                      </span>
+                    </div>
+                    {getRepairCost(selectedItem.itemId, selectedItem.source).materials.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="pixel-text-sm text-[8px] text-muted-foreground">Materials:</p>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {getRepairCost(selectedItem.itemId, selectedItem.source).materials.map((mat) => {
+                            const matItem = getItemById(mat.itemId);
+                            const allItems = getAllStorageItems(storage, storageSystem);
+                            const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+                            const hasEnough = available >= mat.quantity;
+                            
+                            return (
+                              <Tooltip key={mat.itemId} delayDuration={0}>
+                                <TooltipTrigger asChild>
+                                  <div 
+                                    className={cn(
+                                      "item-slot-compact pixel-border relative flex flex-col items-center justify-center",
+                                      hasEnough ? "item-slot-filled border-border" : "border-destructive/50 bg-destructive/10"
+                                    )}
+                                  >
+                                    <PixelIcon icon={matItem?.icon || ''} size="sm" />
+                                    <span className={cn(
+                                      "absolute bottom-0.5 left-0 right-0 text-center pixel-text-sm text-[7px] font-bold tabular-nums",
+                                      hasEnough ? "text-foreground" : "text-destructive"
+                                    )}>
+                                      {available}/{mat.quantity}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="pixel-text-sm text-[8px]">{matItem?.name || mat.itemId}</p>
+                                  <p className={cn(
+                                    "text-[7px]",
+                                    hasEnough ? "text-muted-foreground" : "text-destructive"
+                                  )}>
+                                    {hasEnough ? 'Sufficient materials' : `Need ${mat.quantity - available} more`}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {selectedItem && (
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={handleRepair}
+                    disabled={(() => {
+                      if (isForging) return true;
+                      const cost = getRepairCost(selectedItem.itemId, selectedItem.source);
+                      if (coins < cost.coins) return true;
+                      const allItems = getAllStorageItems(storage, storageSystem);
+                      return cost.materials.some(mat => {
+                        const available = allItems.find(i => i.itemId === mat.itemId)?.quantity || 0;
+                        return available < mat.quantity;
+                      });
+                    })()}
+                    className="pixel-text-sm"
+                    data-testid="button-repair"
+                  >
+                    {isForging ? (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                        Repairing...
+                      </>
+                    ) : (
+                      <>
+                        <Hammer className="w-4 h-4 mr-2" />
+                        Repair
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedItem(null)}
+                    disabled={isForging}
+                    className="pixel-text-sm"
+                    data-testid="button-cancel-repair"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="pixel-border overflow-visible bg-card/50">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="pixel-text text-base flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Items Needing Repair
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {repairableItems.length === 0 ? (
+              <div className="text-center py-8">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="pixel-text text-foreground mb-2">No Damaged Items</p>
+                <p className="font-sans text-sm text-muted-foreground">
+                  All your equipment is in perfect condition!
+                </p>
+              </div>
+            ) : (
+              <ScrollArea className="h-64">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                  {repairableItems.map((repairItem, idx) => {
+                    const itemData = getItemById(repairItem.itemId);
+                    if (!itemData) return null;
+                    
+                    const durabilityPercent = repairItem.durability
+                      ? (repairItem.durability.current / repairItem.durability.max) * 100
+                      : 100;
+                    
+                    const percentColor = durabilityPercent < 30 
+                      ? "text-destructive" 
+                      : durabilityPercent < 60 
+                        ? "text-yellow-500" 
+                        : "text-green-500";
+                    
+                    return (
+                      <Tooltip key={`${repairItem.itemId}-${repairItem.source}-${idx}`} delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <div
+                            onClick={() => !isForging && setSelectedItem({ itemId: repairItem.itemId, source: repairItem.source })}
+                            draggable
+                            onDragStart={() => {
+                              setDraggedRepairItem({ itemId: repairItem.itemId, source: repairItem.source });
+                            }}
+                            onDragEnd={() => {
+                              setDraggedRepairItem(null);
+                            }}
+                            className={cn(
+                              "relative pixel-border p-1.5 bg-muted/30 hover-elevate active-elevate-2 cursor-grab active:cursor-grabbing flex items-center justify-center aspect-square",
+                              `rarity-${itemData.rarity}`,
+                              itemData.isEnchanted && "enchanted-item",
+                              selectedItem?.itemId === repairItem.itemId && selectedItem?.source === repairItem.source && "border-primary"
+                            )}
+                            data-testid={`repair-item-${repairItem.itemId}-${repairItem.source}`}
+                          >
+                            <PixelIcon icon={itemData.icon} size="md" />
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
+                              <div 
+                                className={cn(
+                                  "h-full",
+                                  durabilityPercent < 30 ? "bg-destructive" : durabilityPercent < 60 ? "bg-yellow-500" : "bg-green-500"
+                                )}
+                                style={{ width: `${durabilityPercent}%` }}
+                              />
+                            </div>
+                            {repairItem.source !== 'equipment' && (
+                              <Badge 
+                                variant="secondary" 
+                                className="absolute -top-1 -right-1 px-1 py-0 pixel-text-sm text-[6px]"
+                              >
+                                {repairItem.source === 'inventory' ? 'I' : 'S'}
+                              </Badge>
+                            )}
+                            <div className={cn(
+                              "absolute -bottom-0.5 left-0 right-0 text-center pixel-text-sm text-[6px] font-bold",
+                              percentColor
+                            )}>
+                              {Math.round(durabilityPercent)}%
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="pixel-text-sm text-[8px]">{itemData.name}</p>
+                          <p className={cn("text-[7px]", percentColor)}>
+                            Durability: {repairItem.durability?.current}/{repairItem.durability?.max} ({Math.round(durabilityPercent)}%)
+                          </p>
+                          <p className="text-[7px] text-muted-foreground">
+                            Source: {repairItem.source === 'inventory' ? 'Inventory' : repairItem.source === 'equipment' ? 'Equipped' : 'Storage'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card className="pixel-border overflow-visible bg-card/50">
+        <CardHeader className="pb-3 border-b border-border/50">
+          <CardTitle className="pixel-text text-base flex items-center gap-2">
+            <FlaskConical className="w-5 h-5 text-primary" />
+            Forge Upgrades
+            <Badge variant="secondary" className="ml-2 pixel-text-sm text-[8px]">Coming Soon</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <p className="font-sans text-sm text-muted-foreground">
+            Future upgrades will unlock enhanced forging capabilities, including item enhancement, gem socketing, and enchantment transfers.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

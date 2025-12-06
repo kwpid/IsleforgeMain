@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameStore } from '@/lib/gameStore';
-import { getItemById, ALL_ITEMS } from '@/lib/items';
+import { getItemById, ALL_ITEMS, getBoosterById, BOOSTER_ITEMS } from '@/lib/items';
+import { formatNumber } from '@/lib/gameTypes';
 import { cn } from '@/lib/utils';
 import { X, Terminal } from 'lucide-react';
 
@@ -86,12 +87,21 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         
         const itemId = args[0];
         const amount = parseInt(args[1]) || 1;
-        const item = getItemById(itemId);
+        let item = getItemById(itemId);
+        let itemName = '';
         
+        // Check for boosters if item not found
         if (!item) {
-          addMessage('error', `Item not found: ${itemId}`);
-          addMessage('output', 'Use "items" to see available item IDs');
-          break;
+          const booster = getBoosterById(itemId);
+          if (booster) {
+            itemName = booster.name;
+          } else {
+            addMessage('error', `Item not found: ${itemId}`);
+            addMessage('output', 'Use "items" to see available item IDs');
+            break;
+          }
+        } else {
+          itemName = item.name;
         }
         
         if (amount <= 0 || amount > 9999) {
@@ -99,17 +109,13 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
           break;
         }
         
-        let success: boolean;
-        if (command === 'spawn') {
-          success = addItemToInventory(itemId, amount);
-        } else {
-          success = addItemToStorage(itemId, amount);
-        }
+        // Both spawn and give commands add items to inventory
+        const success = addItemToInventory(itemId, amount);
         
         if (success) {
-          addMessage('success', `Added ${amount}x ${item.name} to ${command === 'spawn' ? 'inventory' : 'storage'}`);
+          addMessage('success', `Added ${amount}x ${itemName} to inventory`);
         } else {
-          addMessage('error', `Failed to add items. ${command === 'spawn' ? 'Inventory' : 'Storage'} may be full.`);
+          addMessage('error', `Failed to add items. Inventory may be full.`);
         }
         break;
       }
@@ -173,7 +179,7 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
       
       case 'items':
       case 'list': {
-        addMessage('output', `Available items (${ALL_ITEMS.length} total):`);
+        addMessage('output', `Available items (${ALL_ITEMS.length} regular + ${BOOSTER_ITEMS.length} boosters):`);
         const groupedItems: Record<string, string[]> = {};
         
         ALL_ITEMS.forEach(item => {
@@ -187,6 +193,11 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         Object.entries(groupedItems).forEach(([type, ids]) => {
           addMessage('output', `  [${type}]: ${ids.join(', ')}`);
         });
+        
+        if (BOOSTER_ITEMS.length > 0) {
+          const boosterIds = BOOSTER_ITEMS.map(b => b.id).join(', ');
+          addMessage('output', `  [booster]: ${boosterIds}`);
+        }
         break;
       }
       
@@ -196,7 +207,7 @@ export function DevConsole({ isOpen, onClose }: DevConsoleProps) {
         addMessage('output', `  Level: ${player.level}`);
         addMessage('output', `  XP: ${player.xp}/${player.xpToNextLevel}`);
         addMessage('output', `  Coins: ${player.coins.toLocaleString()}`);
-        addMessage('output', `  Universal Points: U$${player.universalPoints}`);
+        addMessage('output', `  Universal Points: U$${formatNumber(player.universalPoints)}`);
         addMessage('output', `  Inventory: ${inventory.items.length}/${inventory.maxSlots} slots`);
         addMessage('output', `  Storage: ${storage.items.reduce((a, i) => a + i.quantity, 0)}/${storage.capacity} items`);
         break;

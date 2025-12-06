@@ -95,6 +95,18 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Auto-Select**: Game automatically uses your highest tier watering can
 - **Multiple Farms**: Unlock up to 4 farms to grow more crops
 
+### Forge System (Island Tab)
+- **Repair Station**: Restore durability to damaged equipment
+  - Select items from inventory or storage that need repair
+  - Visual durability bar showing current condition
+  - Repair cost based on damage level (50% of item value per damage percent)
+  - Animated forging progress with particle effects
+- **Item Display**: Grid view of all damaged items
+  - Color-coded durability bars (green/yellow/red)
+  - Source badges (I for Inventory, S for Storage)
+  - Click to select for repair
+- **Forge Upgrades**: Coming soon - item enhancement, gem socketing, enchantment transfers
+
 ### Marketplace Sell Tab (Hub Tab)
 - **Dedicated Selling**: Sell minerals, blocks, and crops in the Marketplace
 - **Tools Excluded**: Tools and enhancements cannot be sold (protected)
@@ -110,6 +122,22 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - **Main XP Bonus**: Leveling any skill grants 25 Main XP to player level
 - Skills always visible on right sidebar with level and XP progress
 - XP curve: Level 1 requires 50 XP, scales with formula floor(50 * 1.5^(level-1))
+
+### Booster System
+- **Booster Items**: Consumable items that provide temporary stat multipliers
+  - Booster Cookie: +25% mining power, +10% XP gain (5 minutes)
+  - Booster Carrot: +20% farming speed, +15% profit (5 minutes)
+  - Booster Potato: +15% mining, +10% farming, +5% XP (7 minutes)
+- **Stacking Mechanics**:
+  - Same booster type: Extends duration (minutes stack)
+  - Different booster types: Stats stack additively
+- **Activation**: Double-click or right-click → "Use Booster" in inventory
+- **Display**: Active boosters shown in PlayerStats sidebar with:
+  - Combined stat multipliers
+  - Remaining time countdown
+  - Enchanted visual styling
+- **Acquisition**: Purchase from Mystic Merchant (special vendor) in Marketplace
+- **Extensibility**: Add new boosters in `client/src/lib/items/boosters.ts`
 
 ### Shop System (Shop Tab)
 - **Limited Shop**: Exclusive limited-time items and packages
@@ -179,6 +207,13 @@ Each generator has 5 tiers (I-V) with exponential upgrade costs.
 - Items with `isSpecial: true` show a star sparkle effect
 - Items with `isEnchanted: true` have an enchantment glow animation
 - Special items available in Special Vendors or via dev console
+
+### Game Icon
+- **Location**: `client/public/favicon.png`
+- **To Change**: Simply replace `client/public/favicon.png` with your own PNG image
+- **Recommended Size**: 128x128 or 256x256 pixels (square)
+- **Format**: PNG (supports transparency)
+- The icon is used for browser tab favicon and PWA icon
 
 ### Custom Item Images
 - Custom images folder: `client/public/item_images/`
