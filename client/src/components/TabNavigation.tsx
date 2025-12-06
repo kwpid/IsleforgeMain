@@ -33,8 +33,8 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
   const islandSubTabs: { id: IslandSubTab; label: string; icon: string }[] = [
     { id: 'generators', label: 'GENERATORS', icon: 'cobblestone' },
     { id: 'storage', label: 'STORAGE', icon: 'storage' },
-    { id: 'crafting', label: 'CRAFTING', icon: 'iron_pickaxe' },
-    { id: 'farming', label: 'FARMING', icon: 'wheat' },
+    { id: 'crafting', label: 'CRAFTING', icon: 'iron_pick.png' },
+    { id: 'farming', label: 'FARMING', icon: 'wheat.png' },
     { id: 'forge', label: 'FORGE', icon: 'anvil' },
   ];
 
@@ -42,7 +42,7 @@ export function TabNavigation({ onOpenNews, hasUnreadNews, isMobile }: TabNaviga
     { id: 'marketplace', label: 'MARKETPLACE', icon: 'market' },
     { id: 'blueprints', label: 'BLUEPRINTS', icon: 'blueprint' },
     { id: 'bank', label: 'BANK', icon: 'coin' },
-    { id: 'mines', label: 'MINES', icon: 'iron_pickaxe' },
+    { id: 'mines', label: 'MINES', icon: 'diamond_pick.png' },
     { id: 'dungeons', label: 'DUNGEONS', icon: 'dungeon', disabled: true },
   ];
 

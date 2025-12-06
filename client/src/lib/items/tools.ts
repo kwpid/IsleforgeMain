@@ -208,7 +208,7 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     sellPrice: 28,
     stackable: false,
     maxStack: 1,
-    icon: "iron_axe",
+    icon: "iron_axe.png",
     toolType: "axe",
     stats: { chopping_speed: 6, attack_damage: 9, durability: 250 },
     recipe: {
@@ -224,7 +224,8 @@ export const TOOL_ITEMS: ItemDefinition[] = [
   {
     id: "watering_can",
     name: "Watering Can",
-    description: "Basic watering can. Holds 10 uses of water. Essential farming tool.",
+    description:
+      "Basic watering can. Holds 10 uses of water. Essential farming tool.",
     type: "tool",
     rarity: "common",
     sellPrice: 25,
@@ -235,9 +236,7 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     stats: { water_capacity: 10, refill_cost: 50, durability: 500 },
     recipe: {
       resultQuantity: 1,
-      ingredients: [
-        { itemId: "iron_ingot", quantity: 3 },
-      ],
+      ingredients: [{ itemId: "iron_ingot", quantity: 3 }],
       craftTime: 4000,
       category: "tools",
     },
@@ -256,9 +255,7 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     stats: { water_capacity: 25, refill_cost: 100, durability: 1000 },
     recipe: {
       resultQuantity: 1,
-      ingredients: [
-        { itemId: "iron_ingot", quantity: 6 },
-      ],
+      ingredients: [{ itemId: "iron_ingot", quantity: 6 }],
       craftTime: 6000,
       category: "tools",
     },
@@ -277,9 +274,7 @@ export const TOOL_ITEMS: ItemDefinition[] = [
     stats: { water_capacity: 50, refill_cost: 200, durability: 2000 },
     recipe: {
       resultQuantity: 1,
-      ingredients: [
-        { itemId: "iron_ingot", quantity: 10 },
-      ],
+      ingredients: [{ itemId: "iron_ingot", quantity: 10 }],
       craftTime: 8000,
       category: "tools",
     },
