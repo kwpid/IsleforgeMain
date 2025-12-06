@@ -336,11 +336,6 @@ export function InventoryPopup() {
                       <ItemTooltip 
                         item={item} 
                         quantity={inv.quantity}
-                        onUseBooster={() => {
-                          if (isBooster) {
-                            handleUseBooster(inv.itemId);
-                          }
-                        }}
                       />
                     </TooltipContent>
                   </Tooltip>

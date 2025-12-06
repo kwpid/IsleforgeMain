@@ -89,10 +89,10 @@ app.use((req, res, next) => {
   httpServer.listen(
     {
       port,
-      host: "localhost", // Windows-safe
+      host: "0.0.0.0",
     },
     () => {
-      log(`serving on http://localhost:${port}`);
+      log(`serving on port ${port}`);
     }
   );
 })();
